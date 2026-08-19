@@ -1,0 +1,27 @@
+{
+	"folders": [
+		{
+			"name": ".mrs",
+			"path": "."
+		},
+		{
+			"name": "CH591R-TUTORIAL",
+			"path": "../../../CH591R-TUTORIAL"
+		}
+	],
+	"settings": {
+		"mrs.workspace.type": "project",
+		"files.associations": {
+			"*.c": "c",
+			"*.h": "cpp",
+			"*.hxx": "cpp",
+			"*.hpp": "cpp",
+			"*.c++": "cpp",
+			"*.cpp": "cpp",
+			"*.cxx": "cpp",
+			"*.cc": "cpp",
+			"*.hh": "cpp",
+			"*.h++": "cpp"
+		}
+	}
+}
