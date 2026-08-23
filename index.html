@@ -38,8 +38,6 @@
     min-height:100vh;
   }
   ::selection{background:var(--copper); color:#171717;}
-
-  /* ---------- top bar ---------- */
   header.top{
     border-bottom:1px solid var(--line);
     background:rgba(17,21,26,0.9);
@@ -61,7 +59,6 @@
     font-family:var(--disp); font-size:18px; font-weight:700; margin:0; letter-spacing:0.2px;
   }
   .brand .sub{font-family:var(--mono); font-size:11px; color:var(--text-faint); letter-spacing:0.06em; margin-top:1px;}
-
   .family-select{display:flex; gap:6px; flex-wrap:wrap;}
   .fam-btn{
     font-family:var(--mono); font-size:12px; letter-spacing:0.03em;
@@ -73,7 +70,6 @@
     background:linear-gradient(180deg, #2a2118, #1d1712);
     border-color:var(--copper); color:var(--copper); box-shadow:0 0 0 1px rgba(224,164,88,0.15) inset;
   }
-
   .variant-row{display:flex; align-items:center; gap:10px;}
   select, input[type=number], input[type=text]{
     font-family:var(--mono); font-size:12.5px; color:var(--text);
@@ -81,8 +77,6 @@
     padding:8px 10px; outline:none;
   }
   select:focus, input:focus{border-color:var(--teal-dim);}
-
-  /* ---------- layout ---------- */
   .shell{max-width:1400px; margin:0 auto; padding:26px 28px 60px;}
   .hero{margin-bottom:22px;}
   .hero h2{font-family:var(--disp); font-size:26px; margin:0 0 6px; font-weight:700;}
@@ -94,10 +88,8 @@
     padding:6px 12px; border-radius:20px;
   }
   .dot{width:6px; height:6px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal);}
-
   .grid{display:grid; grid-template-columns:400px 1fr; gap:22px; align-items:start;}
   @media (max-width:980px){.grid{grid-template-columns:1fr;}}
-
   .panel{
     background:var(--panel); border:1px solid var(--line); border-radius:12px;
     overflow:hidden;
@@ -108,8 +100,6 @@
     font-family:var(--disp); font-weight:600; font-size:14px;
   }
   .panel-head .tag{font-family:var(--mono); font-size:10.5px; color:var(--text-faint); font-weight:400;}
-
-  /* peripheral tabs */
   .tabs{display:flex; border-bottom:1px solid var(--line); background:var(--panel-2);}
   .tab{
     flex:1; padding:11px 6px; text-align:center; font-family:var(--mono); font-size:11.5px;
@@ -119,7 +109,6 @@
   .tab:last-child{border-right:none;}
   .tab:hover{color:var(--text);}
   .tab.active{color:var(--copper); background:var(--panel); box-shadow:inset 0 -2px 0 var(--copper);}
-
   .form{padding:18px;}
   .field{margin-bottom:14px;}
   .field label{
@@ -130,7 +119,6 @@
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .row3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
   .hint{font-size:11px; color:var(--text-faint); margin-top:5px; line-height:1.4;}
-
   .btn{
     font-family:var(--mono); font-size:12.5px; font-weight:500; letter-spacing:0.02em;
     border:none; border-radius:7px; padding:11px 16px; cursor:pointer; transition:transform .1s ease, opacity .15s;
@@ -141,8 +129,6 @@
   .btn-primary:hover{opacity:0.92;}
   .btn-ghost{background:transparent; border:1px solid var(--line); color:var(--text-dim);}
   .btn-ghost:hover{border-color:var(--teal-dim); color:var(--teal);}
-
-  /* config list */
   .cfg-list{padding:6px 12px 16px;}
   .cfg-item{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -158,8 +144,6 @@
   }
   .cfg-item button:hover{color:var(--red);}
   .empty-state{color:var(--text-faint); font-size:12px; text-align:center; padding:22px 10px; font-family:var(--mono);}
-
-  /* pin map */
   .pinmap{padding:16px 18px; border-bottom:1px solid var(--line);}
   .pinmap-title{font-family:var(--mono); font-size:10.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;}
   .ports{display:flex; gap:14px; flex-wrap:wrap;}
@@ -174,8 +158,6 @@
   .legend{display:flex; gap:12px; flex-wrap:wrap; margin-top:12px; font-family:var(--mono); font-size:10px; color:var(--text-faint);}
   .legend span{display:inline-flex; align-items:center; gap:5px;}
   .legend i{width:8px; height:8px; border-radius:2px; display:inline-block;}
-
-  /* code panel */
   .code-toolbar{
     display:flex; align-items:center; justify-content:space-between; padding:12px 18px;
     border-bottom:1px solid var(--line); background:var(--panel-2);
@@ -193,7 +175,6 @@
     white-space:pre;
   }
   .cm{color:#6b7b8a;} .kw{color:#e0a458;} .fn{color:#5fd0b0;} .str{color:#d98c6b;} .num{color:#9fc4e8;}
-
   footer{
     text-align:center; padding:30px 20px 10px; color:var(--text-faint); font-family:var(--mono); font-size:11px;
   }
@@ -201,7 +182,6 @@
 </style>
 </head>
 <body>
-
 <header class="top">
   <div class="top-inner">
     <div class="brand">
@@ -225,16 +205,13 @@
     </div>
   </div>
 </header>
-
 <div class="shell">
   <div class="hero">
     <h2>Pick a chip. Configure peripherals. Get real init code.</h2>
     <p>Code is generated from each family's actual peripheral library conventions — StdPeriph-style for CH32V, the CH5xx_common.h BLE SDK style for CH57x/58x/59x — not a generic template. Verify pin availability against your exact package before flashing.</p>
     <div class="chip-note"><span class="dot"></span><span id="chipNote">CH32V307 — StdPeriph library (ch32v30x_gpio/spi/i2c/tim/exti)</span></div>
   </div>
-
   <div class="grid">
-    <!-- LEFT: config panel -->
     <div class="panel">
       <div class="tabs" id="tabs">
         <div class="tab active" data-tab="gpio">GPIO</div>
@@ -249,7 +226,6 @@
       <div style="padding:0 18px 18px;">
         <button class="btn btn-primary" id="addBtn">+ Add to configuration</button>
       </div>
-
       <div class="panel-head" style="border-top:1px solid var(--line);">
         Active configuration <span class="tag" id="cfgCount">0 items</span>
       </div>
@@ -259,8 +235,6 @@
         <button class="btn btn-ghost" id="exampleBtn">Load example</button>
       </div>
     </div>
-
-    <!-- RIGHT: pin map + code -->
     <div class="panel">
       <div class="pinmap">
         <div class="pinmap-title">Logical pin map — generic, verify against your package</div>
@@ -277,13 +251,9 @@
       <pre id="codeOut"></pre>
     </div>
   </div>
-
   <footer>generated locally in your browser · no data leaves this page · always cross-check against the WCH datasheet / EVT examples for your exact part</footer>
 </div>
-
 <script>
-/* ============================= DATA MODEL ============================= */
-
 const FAMILIES = {
   ch32v: {
     label: 'CH32V',
@@ -351,8 +321,10 @@ const FAMILIES = {
     label: 'CH57x',
     style: 'wchble',
     variants: [
-      {id:'CH571', ports:['A','B'], spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH57x_common.h', hasI2Chw:false, note:'CH571 — BLE SDK library (CH57x_common.h)'},
-      {id:'CH573', ports:['A','B'], spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH57x_common.h', hasI2Chw:false, note:'CH573 — BLE SDK library (CH57x_common.h)'},
+      {id:'CH571', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH57x_common.h', hasI2Chw:false, note:'CH571 — BLE SDK library (CH57x_common.h)'},
+      {id:'CH573', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH57x_common.h', hasI2Chw:false, note:'CH573 — BLE SDK library (CH57x_common.h)'},
+      {id:'CH570', ports:['A'], pins:12, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH57x_common.h', hasI2Chw:true, note:'CH570 — 2.4GHz-only (no BLE), single 12-pin GPIO port A (PA0-PA11), BLE SDK library (CH57x_common.h). Fixed pins per datasheet: SCK0=PA5, MOSI0=PA7, MISO0=PA6, SCS0=PA4, SCL=PA8, SDA=PA9.'},
+      {id:'CH572', ports:['A'], pins:12, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH57x_common.h', hasI2Chw:true, note:'CH572 — adds BLE 5.0 over CH570 (broadcaster/peripheral roles only), same single 12-pin GPIO port A (PA0-PA11), BLE SDK library (CH57x_common.h). Fixed pins per datasheet: SCK0=PA5, MOSI0=PA7, MISO0=PA6, SCS0=PA4, SCL=PA8, SDA=PA9.'},
     ],
     gpioModes: [
       {v:'IN_Floating', l:'Input floating'}, {v:'IN_PU', l:'Input pull-up'}, {v:'IN_PD', l:'Input pull-down'},
@@ -363,10 +335,10 @@ const FAMILIES = {
     label: 'CH58x',
     style: 'wchble',
     variants: [
-      {id:'CH581', ports:['A','B'], spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH581 — BLE SDK library (CH58x_common.h)'},
-      {id:'CH582', ports:['A','B'], spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH582 — BLE SDK library (CH58x_common.h)'},
-      {id:'CH583', ports:['A','B'], spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH583 — BLE SDK library (CH58x_common.h), dual SPI'},
-      {id:'CH585', ports:['A','B'], spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH585 — BLE SDK library (CH58x_common.h), dual SPI · needs MRS toolchain (mcpy instruction)'},
+      {id:'CH581', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH581 — BLE SDK library (CH58x_common.h)'},
+      {id:'CH582', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH582 — BLE SDK library (CH58x_common.h)'},
+      {id:'CH583', ports:['A','B'], pins:16, spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH583 — BLE SDK library (CH58x_common.h), dual SPI'},
+      {id:'CH585', ports:['A','B'], pins:16, spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH585 — BLE SDK library (CH58x_common.h), dual SPI · needs MRS toolchain (mcpy instruction)'},
     ],
     gpioModes: [
       {v:'IN_Floating', l:'Input floating'}, {v:'IN_PU', l:'Input pull-up'}, {v:'IN_PD', l:'Input pull-down'},
@@ -377,8 +349,8 @@ const FAMILIES = {
     label: 'CH59x',
     style: 'wchble',
     variants: [
-      {id:'CH591', ports:['A','B'], spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH59x_common.h', hasI2Chw:false, note:'CH591 — BLE SDK library (CH59x_common.h) — no hardware I²C on this part'},
-      {id:'CH592', ports:['A','B'], spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH59x_common.h', hasI2Chw:true, note:'CH592 — BLE SDK library (CH59x_common.h) — hardware I²C shares pins with SWD debug'},
+      {id:'CH591', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH59x_common.h', hasI2Chw:false, note:'CH591 — BLE SDK library (CH59x_common.h) — no hardware I²C on this part'},
+      {id:'CH592', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH59x_common.h', hasI2Chw:true, note:'CH592 — BLE SDK library (CH59x_common.h) — hardware I²C shares pins with SWD debug'},
     ],
     gpioModes: [
       {v:'IN_Floating', l:'Input floating'}, {v:'IN_PU', l:'Input pull-up'}, {v:'IN_PD', l:'Input pull-down'},
@@ -399,8 +371,6 @@ let state = {
   seq: 1,
 };
 
-/* ============================= UI: family/variant ============================= */
-
 const famSelect = document.getElementById('famSelect');
 const variantSelect = document.getElementById('variantSelect');
 const chipNote = document.getElementById('chipNote');
@@ -412,7 +382,7 @@ famSelect.addEventListener('click', (e) => {
   btn.classList.add('active');
   state.family = btn.dataset.fam;
   state.variant = FAMILIES[state.family].variants[0].id;
-  state.configs = []; // avoid stale cross-family configs
+  state.configs = [];
   populateVariants();
   renderForm();
   renderAll();
@@ -434,7 +404,7 @@ function currentVariant(){
   return FAMILIES[state.family].variants.find(v => v.id === state.variant);
 }
 
-/* ============================= UI: tabs ============================= */
+function pinCount(v){ return v.pins || 16; }
 
 const tabsEl = document.getElementById('tabs');
 tabsEl.addEventListener('click', (e) => {
@@ -446,8 +416,6 @@ tabsEl.addEventListener('click', (e) => {
   renderForm();
 });
 
-/* ============================= FORM RENDERING ============================= */
-
 const formArea = document.getElementById('formArea');
 
 function opts(arr, mapFn){ return arr.map(mapFn).join(''); }
@@ -456,7 +424,7 @@ function renderForm(){
   const fam = FAMILIES[state.family];
   const v = currentVariant();
   const ports = v.ports;
-  const pins = Array.from({length:16}, (_,i)=>i);
+  const pins = Array.from({length:pinCount(v)}, (_,i)=>i);
 
   let html = '';
   if(state.tab === 'gpio'){
@@ -567,7 +535,7 @@ function renderForm(){
         </div>
       </div>
       <div class="row2">
-        <div class="field"><label>TX pin</label><select id="f_tx">${opts(pins,p=>`<option ${p==(fam.style==='stdperiph'?9:9)?'selected':''} value="${p}">${p}</option>`)}</select></div>
+        <div class="field"><label>TX pin</label><select id="f_tx">${opts(pins,p=>`<option ${p==9?'selected':''} value="${p}">${p}</option>`)}</select></div>
         <div class="field"><label>RX pin</label><select id="f_rx">${opts(pins,p=>`<option ${p==(fam.style==='stdperiph'?10:8)?'selected':''} value="${p}">${p}</option>`)}</select></div>
       </div>
       ${fam.style==='wchble' ? `<div class="hint">UART0 debug pins are fixed by the SDK (used for flashing/log by default on some boards) — double-check before repurposing them.</div>` : ``}
@@ -579,26 +547,83 @@ function renderForm(){
         <select id="f_inst">${opts(v.tim, t=>`<option value="${t}">${t}</option>`)}</select>
       </div>
       ${fam.style==='stdperiph' ? `
-      <div class="row2">
-        <div class="field"><label>Prescaler (PSC)</label><input type="number" id="f_psc" value="7199"></div>
-        <div class="field"><label>Auto-reload (ARR / Period)</label><input type="number" id="f_arr" value="9999"></div>
-      </div>
-      <div class="hint">With a 72 MHz timer clock, PSC=7199 → 10 kHz tick; ARR=9999 → 1 Hz update. Adjust for your SystemCoreClock.</div>
       <div class="field"><label>Mode</label>
-        <select id="f_mode"><option value="update_it">Time base + update interrupt</option><option value="pwm">PWM output</option></select>
+        <select id="f_mode">
+          <option value="update_it">Time base + update interrupt</option>
+          <option value="pwm">PWM output</option>
+          <option value="encoder">Quadrature encoder (TIM_EncoderInterfaceConfig)</option>
+        </select>
       </div>
-      <div class="row2">
-        <div class="field"><label>PWM channel (used only if Mode = PWM)</label>
-          <select id="f_ch"><option value="1">Channel 1</option><option value="2">Channel 2</option><option value="3">Channel 3</option><option value="4">Channel 4</option></select>
+      <div id="tb_group">
+        <div class="row2">
+          <div class="field"><label>Prescaler (PSC)</label><input type="number" id="f_psc" value="7199"></div>
+          <div class="field"><label>Auto-reload (ARR / Period)</label><input type="number" id="f_arr" value="9999"></div>
         </div>
-        <div class="field"><label>Duty cycle %</label><input type="number" id="f_duty" value="50" min="0" max="100"></div>
+        <div class="hint">With a 72 MHz timer clock, PSC=7199 → 10 kHz tick; ARR=9999 → 1 Hz update. Adjust for your SystemCoreClock.</div>
+        <div class="row2">
+          <div class="field"><label>PWM channel (used only if Mode = PWM)</label>
+            <select id="f_ch"><option value="1">Channel 1</option><option value="2">Channel 2</option><option value="3">Channel 3</option><option value="4">Channel 4</option></select>
+          </div>
+          <div class="field"><label>Duty cycle % (PWM only)</label><input type="number" id="f_duty" value="50" min="0" max="100"></div>
+        </div>
+        <div class="hint">PWM needs its channel pin set to GPIO_Mode_AF_PP separately — the exact pin depends on your timer/remap table, so wire it up alongside a GPIO config above.</div>
       </div>
-      <div class="hint">PWM needs its channel pin set to GPIO_Mode_AF_PP separately — the exact pin depends on your timer/remap table, so wire it up alongside a GPIO config above.</div>
+      <div id="enc_group" style="display:none;">
+        <div class="row2">
+          <div class="field"><label>Port (CH1/CH2 pins)</label>
+            <select id="f_encport">${opts(ports, p=>`<option value="${p}">P${p}</option>`)}</select>
+          </div>
+          <div class="field"><label>Auto-reload (wraps position at this count)</label><input type="number" id="f_encarr" value="65535"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>CH1 pin (encoder A)</label><select id="f_ch1pin">${opts(pins,p=>`<option ${p==6?'selected':''} value="${p}">${p}</option>`)}</select></div>
+          <div class="field"><label>CH2 pin (encoder B)</label><select id="f_ch2pin">${opts(pins,p=>`<option ${p==7?'selected':''} value="${p}">${p}</option>`)}</select></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Count edges on</label>
+            <select id="f_encmode">
+              <option value="TI12" selected>Both channels (×4)</option>
+              <option value="TI1">Channel 1 only (×2)</option>
+              <option value="TI2">Channel 2 only (×2)</option>
+            </select>
+          </div>
+          <div class="field"><label>Input polarity</label>
+            <select id="f_encpol">
+              <option value="Rising_Rising" selected>Both rising</option>
+              <option value="Falling_Falling">Both falling</option>
+              <option value="Rising_Falling">CH1 rising / CH2 falling</option>
+              <option value="Falling_Rising">CH1 falling / CH2 rising</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint">CH1/CH2 are fixed to specific pins per timer/remap — cross-check your timer's channel table before flashing. TIM_GetCounter() returns a free-running 16-bit position that wraps at the auto-reload value; for multi-turn range beyond one wrap, hook the update interrupt (TIM_IT_Update) and read the DIR bit in TIMx-&gt;CTLR1 (WCH's renamed CR1) to know which way it wrapped.</div>
+      </div>
       ` : `
-      <div class="field"><label>Period (µs)</label><input type="number" id="f_period" value="1000"></div>
-      <div class="hint">TMR0_TimerInit() counts in system-clock ticks (FREQ_SYS). The generator converts µs → ticks for you.</div>
-      <div class="field"><label>Enable cycle-end interrupt</label>
-        <select id="f_it"><option value="1">Yes</option><option value="0">No</option></select>
+      <div class="field"><label>Mode</label>
+        <select id="f_wmode">
+          <option value="periodic" selected>Periodic timer</option>
+          <option value="encoder">Quadrature encoder (software decode)</option>
+        </select>
+      </div>
+      <div id="wtb_group">
+        <div class="field"><label>Period (µs)</label><input type="number" id="f_period" value="1000"></div>
+        <div class="hint">TMR0_TimerInit() counts in system-clock ticks (FREQ_SYS). The generator converts µs → ticks for you.</div>
+        <div class="field"><label>Enable cycle-end interrupt</label>
+          <select id="f_it"><option value="1">Yes</option><option value="0">No</option></select>
+        </div>
+      </div>
+      <div id="wenc_group" style="display:none;">
+        <div class="row2">
+          <div class="field"><label>Port</label><select id="f_wencport">${opts(ports, p=>`<option value="${p}">P${p}</option>`)}</select></div>
+          <div class="field"><label>Trigger edge on channel A</label>
+            <select id="f_wencedge"><option value="RiseEdge" selected>Rising</option><option value="FallEdge">Falling</option></select>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Channel A pin</label><select id="f_wencA">${opts(pins,p=>`<option ${p==0?'selected':''} value="${p}">${p}</option>`)}</select></div>
+          <div class="field"><label>Channel B pin</label><select id="f_wencB">${opts(pins,p=>`<option ${p==1?'selected':''} value="${p}">${p}</option>`)}</select></div>
+        </div>
+        <div class="hint">This SDK's TMR peripheral has no hardware quadrature-decoder mode (it's a plain capture/PWM timer) — so this generates a software ×2 decode: channel A is wired as a GPIO edge interrupt, and channel B's level is sampled inside that ISR to get direction. This SDK's GPIO interrupt is edge-OR-level per pin, so true hardware ×4 decode isn't available here — if you need it, use a CH32V-family part instead (TIM_EncoderInterfaceConfig).</div>
       </div>
       `}
     `;
@@ -625,7 +650,7 @@ function renderForm(){
           </select>
         </div>
       </div>
-      <div class="hint">ADC_Channel_x doesn't map 1:1 onto the P${'{port}'}{pin} you picked above — cross-check the channel-to-pin table in your variant's datasheet/GPIO alt-function table and set the pin to GPIO_Mode_AIN (handled for you below).</div>
+      <div class="hint">ADC_Channel_x doesn't map 1:1 onto the P{port}{pin} you picked above — cross-check the channel-to-pin table in your variant's datasheet/GPIO alt-function table and set the pin to GPIO_Mode_AIN (handled for you below).</div>
       ` : `
       <div class="row2">
         <div class="field"><label>Sampling mode</label>
@@ -690,9 +715,33 @@ function renderForm(){
     modeSel.addEventListener('change', syncNeg);
     syncNeg();
   }
-}
 
-/* ============================= ADD CONFIG ============================= */
+  if(state.tab === 'timer' && fam.style === 'stdperiph'){
+    const modeSel = document.getElementById('f_mode');
+    const tbGroup = document.getElementById('tb_group');
+    const encGroup = document.getElementById('enc_group');
+    const sync = () => {
+      const isEnc = modeSel.value === 'encoder';
+      tbGroup.style.display = isEnc ? 'none' : '';
+      encGroup.style.display = isEnc ? '' : 'none';
+    };
+    modeSel.addEventListener('change', sync);
+    sync();
+  }
+
+  if(state.tab === 'timer' && fam.style === 'wchble'){
+    const modeSel = document.getElementById('f_wmode');
+    const tbGroup = document.getElementById('wtb_group');
+    const encGroup = document.getElementById('wenc_group');
+    const sync = () => {
+      const isEnc = modeSel.value === 'encoder';
+      tbGroup.style.display = isEnc ? 'none' : '';
+      encGroup.style.display = isEnc ? '' : 'none';
+    };
+    modeSel.addEventListener('change', sync);
+    sync();
+  }
+}
 
 document.getElementById('addBtn').addEventListener('click', () => {
   const fam = FAMILIES[state.family];
@@ -715,9 +764,27 @@ document.getElementById('addBtn').addEventListener('click', () => {
     cfg.inst=g('f_inst'); cfg.baud=g('f_baud'); cfg.port=g('f_port'); cfg.tx=g('f_tx'); cfg.rx=g('f_rx');
     cfg.label = `${cfg.inst} · ${cfg.baud} baud on P${cfg.port}`;
   } else if(tab==='timer'){
-    cfg.inst=g('f_inst'); cfg.psc=g('f_psc'); cfg.arr=g('f_arr'); cfg.mode=g('f_mode'); cfg.period=g('f_period'); cfg.it=g('f_it');
-    cfg.ch=g('f_ch'); cfg.duty=g('f_duty');
-    cfg.label = `${cfg.inst} · ${cfg.mode==='pwm' ? 'PWM ch'+cfg.ch : 'timer'}`;
+    cfg.inst=g('f_inst');
+    if(fam.style==='stdperiph'){
+      cfg.mode=g('f_mode');
+      if(cfg.mode==='encoder'){
+        cfg.encport=g('f_encport'); cfg.encarr=g('f_encarr'); cfg.ch1pin=g('f_ch1pin'); cfg.ch2pin=g('f_ch2pin');
+        cfg.encmode=g('f_encmode'); cfg.encpol=g('f_encpol');
+        cfg.label = `${cfg.inst} · Encoder (${cfg.encmode}) on P${cfg.encport}${cfg.ch1pin}/P${cfg.encport}${cfg.ch2pin}`;
+      } else {
+        cfg.psc=g('f_psc'); cfg.arr=g('f_arr'); cfg.ch=g('f_ch'); cfg.duty=g('f_duty');
+        cfg.label = `${cfg.inst} · ${cfg.mode==='pwm' ? 'PWM ch'+cfg.ch : 'timer'}`;
+      }
+    } else {
+      cfg.wmode=g('f_wmode');
+      if(cfg.wmode==='encoder'){
+        cfg.wencport=g('f_wencport'); cfg.wencedge=g('f_wencedge'); cfg.wencA=g('f_wencA'); cfg.wencB=g('f_wencB');
+        cfg.label = `${cfg.inst} · software quadrature decode on P${cfg.wencport}${cfg.wencA}/P${cfg.wencport}${cfg.wencB}`;
+      } else {
+        cfg.period=g('f_period'); cfg.it=g('f_it');
+        cfg.label = `${cfg.inst} · timer`;
+      }
+    }
   } else if(tab==='exti'){
     cfg.port=g('f_port'); cfg.pin=g('f_pin'); cfg.trig=g('f_trig'); cfg.pp=g('f_pp'); cfg.sp=g('f_sp'); cfg.pull=g('f_pull');
     cfg.label = `P${cfg.port}${cfg.pin} · IRQ (${cfg.trig})`;
@@ -742,18 +809,16 @@ document.getElementById('exampleBtn').addEventListener('click', () => {
   if(FAMILIES[state.family].style === 'stdperiph'){
     state.configs.push({id:state.seq++, type:'gpio', family:state.family, port:'A', pin:'5', mode:'Out_PP', speed:'50MHz', label:'PA5 · GPIO Output push-pull'});
     state.configs.push({id:state.seq++, type:'spi', family:state.family, inst:currentVariant().spi[0], role:'master', port:'A', cpol:'0_1E', sck:'5', mosi:'7', miso:'6', cs:'4', baud:'8', label:`${currentVariant().spi[0]} · master on PA`});
-    state.configs.push({id:state.seq++, type:'timer', family:state.family, inst:currentVariant().tim[1]||currentVariant().tim[0], psc:'7199', arr:'9999', mode:'update_it', label:'Timer · 1Hz update IRQ'});
+    state.configs.push({id:state.seq++, type:'timer', family:state.family, inst:currentVariant().tim[1]||currentVariant().tim[0], mode:'update_it', psc:'7199', arr:'9999', label:'Timer · 1Hz update IRQ'});
     state.configs.push({id:state.seq++, type:'adc', family:state.family, port:'A', pin:'1', inst:'ADC1', ch:'1', stime:'41_5', label:'ADC_Channel_1 · PA1'});
   } else {
     state.configs.push({id:state.seq++, type:'gpio', family:state.family, port:'A', pin:'9', mode:'Out_PP_5mA', label:'PA9 · GPIO output 5mA'});
     state.configs.push({id:state.seq++, type:'spi', family:state.family, inst:'SPI0', role:'master', port:'A', cpol:'0_1E', sck:'13', mosi:'14', miso:'15', cs:'12', div:'21', label:'SPI0 · master on PA'});
-    state.configs.push({id:state.seq++, type:'timer', family:state.family, inst:'TMR0', period:'1000', it:'1', label:'TMR0 · 1ms cycle IRQ'});
+    state.configs.push({id:state.seq++, type:'timer', family:state.family, inst:'TMR0', wmode:'periodic', period:'1000', it:'1', label:'TMR0 · 1ms cycle IRQ'});
     state.configs.push({id:state.seq++, type:'adc', family:state.family, port:'A', pin:'4', inst:'ADC1', ch:'0', admode:'single', pga:'ADC_PGA_0', admode2:'poll', label:'ADC ch0 · PA4'});
   }
   renderAll();
 });
-
-/* ============================= CONFIG LIST + PIN MAP ============================= */
 
 const cfgListEl = document.getElementById('cfgList');
 const cfgCountEl = document.getElementById('cfgCount');
@@ -763,7 +828,7 @@ const legendEl = document.getElementById('legend');
 function renderConfigList(){
   cfgCountEl.textContent = state.configs.length + ' item' + (state.configs.length===1?'':'s');
   if(state.configs.length===0){
-    cfgListEl.innerHTML = `<div class="empty-state">No peripherals configured yet.<br>Fill the form above and click “Add to configuration”.</div>`;
+    cfgListEl.innerHTML = `<div class="empty-state">No peripherals configured yet.<br>Fill the form above and click "Add to configuration".</div>`;
     return;
   }
   cfgListEl.innerHTML = state.configs.map(c => `
@@ -785,18 +850,20 @@ function renderConfigList(){
 function usedPinsByPort(){
   const map = {};
   state.configs.forEach(c => {
-    const port = c.port;
-    if(!port) return;
-    const add = (pin) => {
-      if(pin===undefined || pin==='') return;
+    const add = (port, pin) => {
+      if(!port || pin===undefined || pin==='') return;
       map[port] = map[port] || {};
       map[port][pin] = PERIPH_COLOR[c.type];
     };
-    if(c.type==='gpio' || c.type==='exti') add(c.pin);
-    if(c.type==='spi'){ add(c.sck); add(c.mosi); add(c.miso); add(c.cs); }
-    if(c.type==='i2c'){ add(c.scl); add(c.sda); }
-    if(c.type==='uart'){ add(c.tx); add(c.rx); }
-    if(c.type==='adc'){ add(c.pin); if(c.admode==='diff') add(c.negpin); }
+    if(c.type==='gpio' || c.type==='exti') add(c.port, c.pin);
+    if(c.type==='spi'){ add(c.port, c.sck); add(c.port, c.mosi); add(c.port, c.miso); add(c.port, c.cs); }
+    if(c.type==='i2c'){ add(c.port, c.scl); add(c.port, c.sda); }
+    if(c.type==='uart'){ add(c.port, c.tx); add(c.port, c.rx); }
+    if(c.type==='adc'){ add(c.port, c.pin); if(c.admode==='diff') add(c.port, c.negpin); }
+    if(c.type==='timer'){
+      if(c.mode==='encoder'){ add(c.encport, c.ch1pin); add(c.encport, c.ch2pin); }
+      if(c.wmode==='encoder'){ add(c.wencport, c.wencA); add(c.wencport, c.wencB); }
+    }
   });
   return map;
 }
@@ -804,8 +871,9 @@ function usedPinsByPort(){
 function renderPinMap(){
   const v = currentVariant();
   const used = usedPinsByPort();
+  const n = pinCount(v);
   portsMapEl.innerHTML = v.ports.map(p => {
-    const cells = Array.from({length:16}, (_,i) => {
+    const cells = Array.from({length:n}, (_,i) => {
       const color = used[p] && used[p][String(i)];
       const style = color ? `background:${color}; border-color:${color};` : '';
       return `<div class="pin-cell ${color?'used':''}" style="${style}">${i}</div>`;
@@ -814,10 +882,6 @@ function renderPinMap(){
   }).join('');
   legendEl.innerHTML = Object.entries(PERIPH_COLOR).map(([k,c]) => `<span><i style="background:${c}"></i>${k.toUpperCase()}</span>`).join('');
 }
-
-/* ============================= CODE GENERATION ============================= */
-
-function esc(s){return s;}
 
 function genStdperiphGPIO(c){
   const speedLine = /Out_PP|Out_OD|AF_PP|AF_OD/.test(c.mode) ? `    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_${c.speed};\n` : '';
@@ -961,6 +1025,7 @@ function genWchbleUART(c){
 }
 
 function genStdperiphTimer(c){
+  if(c.mode==='encoder') return genStdperiphEncoder(c);
   const bus = (c.inst==='TIM1' || c.inst==='TIM8') ? 'APB2' : 'APB1';
   const it = c.mode==='update_it';
   const pwm = c.mode==='pwm';
@@ -1006,11 +1071,62 @@ ${c.inst==='TIM1'||c.inst==='TIM8' ? '    TIM_CtrlPWMOutputs(' + c.inst + ', ENA
   return body;
 }
 
+/* Hardware quadrature encoder via TIM_EncoderInterfaceConfig — real StdPeriph API,
+ * present on both general-purpose and advanced-control CH32 timers. */
+function genStdperiphEncoder(c){
+  const bus = (c.inst==='TIM1' || c.inst==='TIM8') ? 'APB2' : 'APB1';
+  const [pol1, pol2] = c.encpol.split('_');
+  return `    RCC_${bus}PeriphClockCmd(RCC_${bus}Periph_${c.inst}, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIO${c.encport}, ENABLE);
+
+    /* CH1/CH2 as floating inputs. These are fixed to specific pins per timer
+       (and remap setting) — cross-check ${c.inst}'s channel/remap table for the
+       exact P${c.encport}{pin}; remap with GPIO_PinRemapConfig() if needed. */
+    GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_${c.ch1pin} | GPIO_Pin_${c.ch2pin};
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init(GPIO${c.encport}, &GPIO_InitStructure);
+
+    TIM_TimeBaseInitStructure.TIM_Period        = ${c.encarr};
+    TIM_TimeBaseInitStructure.TIM_Prescaler     = 0;              /* full resolution; the encoder mode divides by 2 or 4 internally */
+    TIM_TimeBaseInitStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+    TIM_TimeBaseInitStructure.TIM_CounterMode   = TIM_CounterMode_Up;
+    TIM_TimeBaseInit(${c.inst}, &TIM_TimeBaseInitStructure);
+
+    TIM_EncoderInterfaceConfig(${c.inst}, TIM_EncoderMode_${c.encmode},
+                                TIM_ICPolarity_${pol1}, TIM_ICPolarity_${pol2});
+    TIM_SetCounter(${c.inst}, 0);
+    TIM_Cmd(${c.inst}, ENABLE);`;
+}
+
+function genStdperiphEncoderReadHelper(c){
+  return `/* Position wraps at ${c.encarr} (the ARR you set); TIM_GetCounter() is only
+ * ever 0..ARR, so for a range wider than one revolution/wrap, track wraps
+ * yourself: enable the update interrupt (TIM_ITConfig(${c.inst}, TIM_IT_Update, ENABLE))
+ * and in the ISR check the DIR bit in ${c.inst}->CTLR1 (bit 4; WCH's renamed CR1) to
+ * know whether it wrapped forward or backward, then adjust a turns counter. */
+int32_t ${c.inst}_GetPosition(void)
+{
+    return (int32_t)TIM_GetCounter(${c.inst});
+}`;
+}
+
 function genWchbleTimer(c){
+  if(c.wmode==='encoder') return genWchbleEncoder(c);
   const n = c.inst.replace('TMR','');
   return `    TMR${n}_TimerInit((uint32_t)((uint64_t)FREQ_SYS * ${c.period} / 1000000));   /* ${c.period} us @ FREQ_SYS Hz; 64-bit intermediate avoids truncation when FREQ_SYS isn't an exact multiple of 1e6 */
 ${c.it==='1' ? `    TMR${n}_ITCfg(ENABLE, TMR${n}_3_IT_CYC_END);
     PFIC_EnableIRQ(${c.inst}_IRQn);` : ''}`;
+}
+
+/* This SDK's TMR peripheral is a plain capture/PWM timer with no hardware
+ * quadrature decoder, so this wires up a software x2 decode instead of
+ * inventing a fake TMR_Encoder*() API that doesn't exist in the SDK. */
+function genWchbleEncoder(c){
+  return `    GPIO${c.wencport}_ModeCfg(GPIO_Pin_${c.wencA} | GPIO_Pin_${c.wencB}, GPIO_ModeIN_PU);
+    GPIO${c.wencport}_ITModeCfg(GPIO_Pin_${c.wencA}, GPIO_ITMode_${c.wencedge});
+    PFIC_EnableIRQ(GPIO_${c.wencport}_IRQn);
+    /* See the encoderPosition variable and GPIO${c.wencport}_IRQHandler() generated
+       above main() — that's where the actual x2 quadrature decode happens. */`;
 }
 
 function genStdperiphADC(c){
@@ -1134,6 +1250,14 @@ function firstI2CConfig(){
   return state.configs.find(c => c.type==='i2c');
 }
 
+function needsWchbleEncoderHelpers(){
+  return state.configs.some(c => c.type==='timer' && c.wmode==='encoder') && FAMILIES[state.family].style==='wchble';
+}
+
+function firstWchbleEncoderConfig(){
+  return state.configs.find(c => c.type==='timer' && c.wmode==='encoder');
+}
+
 function generateCode(){
   const fam = FAMILIES[state.family];
   const v = currentVariant();
@@ -1143,7 +1267,8 @@ function generateCode(){
   let includes, structDecls;
   if(style==='stdperiph'){
     includes = `#include "debug.h"\n#include "${header}"`;
-    const needsGPIO = state.configs.some(c=>['gpio','spi','i2c','uart','exti','adc'].includes(c.type));
+    const needsGPIO = state.configs.some(c=>['gpio','spi','i2c','uart','exti','adc'].includes(c.type)) ||
+                       state.configs.some(c=>c.type==='timer' && c.mode==='encoder');
     const needsSPI  = state.configs.some(c=>c.type==='spi');
     const needsI2C  = state.configs.some(c=>c.type==='i2c');
     const needsUART = state.configs.some(c=>c.type==='uart');
@@ -1176,7 +1301,7 @@ function generateCode(){
     const ic = firstI2CConfig();
     const extraBuses = state.configs.filter(c=>c.type==='i2c').length > 1
       ? `\n * NOTE: multiple I2C entries are configured, but these shared helpers only\n * drive the bus on P${ic.port}${ic.scl}/P${ic.port}${ic.sda} (the first one). Duplicate this\n * block with new macro/function names if you need a second bit-banged bus.` : '';
-    bitbangBlock = `
+    bitbangBlock += `
 /* ---------------------------------------------------------------------
  * Open-drain-emulated bit-bang I2C on P${ic.port}${ic.scl}(SCL)/P${ic.port}${ic.sda}(SDA)
  * (portable across CH57x/58x/59x — GPIOModeTypeDef has no hardware open-drain
@@ -1261,11 +1386,48 @@ static uint8_t I2C_ReadByte(uint8_t ack)
 `;
   }
 
+  if(needsWchbleEncoderHelpers()){
+    const ec = firstWchbleEncoderConfig();
+    const extraEnc = state.configs.filter(c=>c.type==='timer' && c.wmode==='encoder').length > 1
+      ? `\n * NOTE: multiple software-encoder entries are configured, but this shared ISR only\n * decodes P${ec.wencport}${ec.wencA}/P${ec.wencport}${ec.wencB} (the first one). Duplicate the variable\n * and IRQ handler body with new names for a second encoder.` : '';
+    bitbangBlock += `
+/* ---------------------------------------------------------------------
+ * Software x2 quadrature decode for the encoder on P${ec.wencport}${ec.wencA}(A)/P${ec.wencport}${ec.wencB}(B).
+ * This SDK's TMR peripheral has no hardware quadrature-decoder mode, so channel A
+ * is wired as a GPIO edge interrupt and channel B's level is sampled inside the
+ * ISR to get direction. This SDK's GPIO interrupt is edge-OR-level per pin (not a
+ * combined rising+falling trigger), so this is a x2 decode, not x4 — genuine x4
+ * needs a timer with a real encoder-interface mode (e.g. CH32V's TIM peripheral).${extraEnc}
+ * ------------------------------------------------------------------- */
+volatile int32_t encoderPosition = 0;
+
+__INTERRUPT
+__HIGH_CODE
+void GPIO${ec.wencport}_IRQHandler(void)
+{
+    if(GPIO${ec.wencport}_ReadITFlagBit(GPIO_Pin_${ec.wencA})){
+        if(GPIO${ec.wencport}_ReadPortPin(GPIO_Pin_${ec.wencB}))
+            encoderPosition++;
+        else
+            encoderPosition--;
+        GPIO${ec.wencport}_ClearITFlagBit(GPIO_Pin_${ec.wencA});
+    }
+}
+`;
+  }
+
   let adcHelpersBlock = '';
   if(style==='stdperiph' && state.configs.some(c=>c.type==='adc')){
     const helpers = state.configs.filter(c=>c.type==='adc').map(genStdperiphADCReadHelper).join('\n\n');
-    adcHelpersBlock = `
+    adcHelpersBlock += `
 /* Blocking single-shot readers for the ADC channel(s) configured above. */
+${helpers}
+`;
+  }
+  if(style==='stdperiph' && state.configs.some(c=>c.type==='timer' && c.mode==='encoder')){
+    const helpers = state.configs.filter(c=>c.type==='timer' && c.mode==='encoder').map(genStdperiphEncoderReadHelper).join('\n\n');
+    adcHelpersBlock += `
+/* Position readers for the encoder(s) configured above. */
 ${helpers}
 `;
   }
@@ -1308,7 +1470,7 @@ function highlight(code){
   return code
     .replace(/\/\*[\s\S]*?\*\//g, m => `<span class="cm">${m}</span>`)
     .replace(/^(#include.*)$/gm, m => `<span class="kw">${m}</span>`)
-    .replace(/\b(void|int|uint8_t|uint16_t|uint32_t|static|return|while|if|else|for)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(void|int|uint8_t|uint16_t|uint32_t|int32_t|static|volatile|return|while|if|else|for)\b/g, '<span class="kw">$1</span>')
     .replace(/\b([A-Za-z_][A-Za-z0-9_]*)\s*(?=\()/g, '<span class="fn">$1</span>')
     .replace(/\b(0x[0-9A-Fa-f]+|\d+)\b/g, '<span class="num">$1</span>');
 }
@@ -1337,8 +1499,6 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
   a.download = fileNameEl.textContent;
   a.click();
 });
-
-/* ============================= INIT ============================= */
 
 function renderAll(){
   const v = currentVariant();
