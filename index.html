@@ -259,12 +259,12 @@ const FAMILIES = {
     label: 'CH32V',
     style: 'stdperiph',
     variants: [
-      {id:'CH32V003', ports:['A','C','D'], spi:['SPI1'], tim:['TIM1','TIM2'], header:'ch32v00x.h', note:'CH32V003 — StdPeriph library (ch32v00x_gpio/spi/i2c/tim/exti)'},
-      {id:'CH32V006', ports:['A','B','C','D'], spi:['SPI1'], tim:['TIM1','TIM2'], header:'ch32v00x.h', note:'CH32V006 — StdPeriph library (ch32v00x_gpio/spi/i2c/tim/exti)'},
-      {id:'CH32V103', ports:['A','B','C','D'], spi:['SPI1','SPI2'], tim:['TIM1','TIM2','TIM3'], header:'ch32v10x.h', note:'CH32V103 — StdPeriph library (ch32v10x_gpio/spi/i2c/tim/exti)'},
-      {id:'CH32V203', ports:['A','B','C','D'], spi:['SPI1','SPI2'], tim:['TIM1','TIM2','TIM3'], header:'ch32v20x.h', note:'CH32V203 — StdPeriph library (ch32v20x_gpio/spi/i2c/tim/exti)'},
-      {id:'CH32V303', ports:['A','B','C','D','E'], spi:['SPI1','SPI2','SPI3'], tim:['TIM1','TIM2','TIM3','TIM4'], header:'ch32v30x.h', note:'CH32V303 — StdPeriph library (ch32v30x_gpio/spi/i2c/tim/exti)'},
-      {id:'CH32V307', ports:['A','B','C','D','E'], spi:['SPI1','SPI2','SPI3'], tim:['TIM1','TIM2','TIM3','TIM4','TIM8'], header:'ch32v30x.h', note:'CH32V307 — StdPeriph library (ch32v30x_gpio/spi/i2c/tim/exti)'},
+      {id:'CH32V003', ports:['A','C','D'], spi:['SPI1'], i2c:['I2C1'], tim:['TIM1','TIM2'], header:'ch32v00x.h', note:'CH32V003 — StdPeriph library (ch32v00x_gpio/spi/i2c/tim/exti) — single I2C1 (RCC_APB1PCENR has no I2C2 enable bit on this chip)'},
+      {id:'CH32V006', ports:['A','B','C','D'], spi:['SPI1'], i2c:['I2C1'], tim:['TIM1','TIM2'], header:'ch32v00x.h', note:'CH32V006 — StdPeriph library (ch32v00x_gpio/spi/i2c/tim/exti) — treated as single I2C1 (same peripheral class/reference manual as CH32V003; verify against your exact datasheet)'},
+      {id:'CH32V103', ports:['A','B','C','D'], spi:['SPI1','SPI2'], i2c:['I2C1','I2C2'], tim:['TIM1','TIM2','TIM3'], header:'ch32v10x.h', note:'CH32V103 — StdPeriph library (ch32v10x_gpio/spi/i2c/tim/exti)'},
+      {id:'CH32V203', ports:['A','B','C','D'], spi:['SPI1','SPI2'], i2c:['I2C1','I2C2'], tim:['TIM1','TIM2','TIM3'], header:'ch32v20x.h', note:'CH32V203 — StdPeriph library (ch32v20x_gpio/spi/i2c/tim/exti)'},
+      {id:'CH32V303', ports:['A','B','C','D','E'], spi:['SPI1','SPI2','SPI3'], i2c:['I2C1','I2C2'], tim:['TIM1','TIM2','TIM3','TIM4'], header:'ch32v30x.h', note:'CH32V303 — StdPeriph library (ch32v30x_gpio/spi/i2c/tim/exti)'},
+      {id:'CH32V307', ports:['A','B','C','D','E'], spi:['SPI1','SPI2','SPI3'], i2c:['I2C1','I2C2'], tim:['TIM1','TIM2','TIM3','TIM4','TIM8'], header:'ch32v30x.h', note:'CH32V307 — StdPeriph library (ch32v30x_gpio/spi/i2c/tim/exti)'},
     ],
     gpioModes: [
       {v:'AIN', l:'Analog input'}, {v:'IN_FLOATING', l:'Input floating'},
@@ -278,8 +278,8 @@ const FAMILIES = {
     label: 'CH32F',
     style: 'stdperiph',
     variants: [
-      {id:'CH32F103', ports:['A','B','C','D'], spi:['SPI1','SPI2'], tim:['TIM1','TIM2','TIM3','TIM4'], header:'ch32f10x.h', note:'CH32F103 — Cortex-M3, StdPeriph library (ch32f10x_gpio/spi/i2c/tim/exti) — pin-for-pin/API clone of STM32F103'},
-      {id:'CH32F203', ports:['A','B','C','D'], spi:['SPI1','SPI2'], tim:['TIM1','TIM2','TIM3','TIM4'], header:'ch32f20x.h', note:'CH32F203 — Cortex-M3, StdPeriph library (ch32f20x_gpio/spi/i2c/tim/exti)'},
+      {id:'CH32F103', ports:['A','B','C','D'], spi:['SPI1','SPI2'], i2c:['I2C1','I2C2'], tim:['TIM1','TIM2','TIM3','TIM4'], header:'ch32f10x.h', note:'CH32F103 — Cortex-M3, StdPeriph library (ch32f10x_gpio/spi/i2c/tim/exti) — pin-for-pin/API clone of STM32F103'},
+      {id:'CH32F203', ports:['A','B','C','D'], spi:['SPI1','SPI2'], i2c:['I2C1','I2C2'], tim:['TIM1','TIM2','TIM3','TIM4'], header:'ch32f20x.h', note:'CH32F203 — Cortex-M3, StdPeriph library (ch32f20x_gpio/spi/i2c/tim/exti)'},
     ],
     gpioModes: [
       {v:'AIN', l:'Analog input'}, {v:'IN_FLOATING', l:'Input floating'},
@@ -293,7 +293,7 @@ const FAMILIES = {
     label: 'CH32X',
     style: 'stdperiph',
     variants: [
-      {id:'CH32X035', ports:['A','B','C'], spi:['SPI1'], tim:['TIM1','TIM2','TIM3'], header:'ch32x035.h', note:'CH32X035 — RISC-V USB-PD MCU, StdPeriph library (ch32x035_gpio/spi/i2c/tim/exti)'},
+      {id:'CH32X035', ports:['A','B','C'], spi:['SPI1'], i2c:['I2C1'], tim:['TIM1','TIM2','TIM3'], header:'ch32x035.h', note:'CH32X035 — RISC-V USB-PD MCU, StdPeriph library (ch32x035_gpio/spi/i2c/tim/exti) — single I2C1 (datasheet: "the chip provides one I2C bus interface")'},
     ],
     gpioModes: [
       {v:'AIN', l:'Analog input'}, {v:'IN_FLOATING', l:'Input floating'},
@@ -307,7 +307,7 @@ const FAMILIES = {
     label: 'CH32L',
     style: 'stdperiph',
     variants: [
-      {id:'CH32L103', ports:['A','B','C'], spi:['SPI1','SPI2'], tim:['TIM1','TIM2'], header:'ch32l10x.h', note:'CH32L103 — RISC-V low-power MCU, StdPeriph library (ch32l10x_gpio/spi/i2c/tim/exti) — double-check header name against your EVT package, low-power parts occasionally rename it'},
+      {id:'CH32L103', ports:['A','B','C'], spi:['SPI1','SPI2'], i2c:['I2C1','I2C2'], tim:['TIM1','TIM2'], header:'ch32l10x.h', note:'CH32L103 — RISC-V low-power MCU, StdPeriph library (ch32l10x_gpio/spi/i2c/tim/exti) — double-check header name against your EVT package, low-power parts occasionally rename it'},
     ],
     gpioModes: [
       {v:'AIN', l:'Analog input'}, {v:'IN_FLOATING', l:'Input floating'},
@@ -511,7 +511,7 @@ function renderForm(){
         <div class="field"><label>SDA pin</label><select id="f_sda">${opts(pins,p=>`<option ${p==(fam.style==='stdperiph'?7:12)?'selected':''} value="${p}">${p}</option>`)}</select></div>
       </div>
       ${fam.style==='stdperiph' ? `
-      <div class="field"><label>Instance</label><select id="f_inst"><option>I2C1</option><option>I2C2</option></select></div>
+      <div class="field"><label>Instance</label><select id="f_inst">${opts(v.i2c||['I2C1'], i=>`<option value="${i}">${i}</option>`)}</select></div>
       <div class="hint">Hardware I²C peripheral, AF open-drain pins, StdPeriph I2C_InitTypeDef.</div>
       ` : `
       <div class="hint">${v.hasI2Chw ? 'This part has a hardware I²C module, but it shares pins with SWD debug and its driver varies by SDK build. A portable open-drain bit-bang driver is generated instead — swap in the hardware peripheral later if you need the extra throughput.' : 'This part has no hardware I²C peripheral. A standard open-drain GPIO bit-bang driver is generated (external pull-ups required on SCL/SDA, as with any I²C bus).'}</div>
@@ -813,7 +813,7 @@ document.getElementById('exampleBtn').addEventListener('click', () => {
     state.configs.push({id:state.seq++, type:'adc', family:state.family, port:'A', pin:'1', inst:'ADC1', ch:'1', stime:'41_5', label:'ADC_Channel_1 · PA1'});
   } else {
     state.configs.push({id:state.seq++, type:'gpio', family:state.family, port:'A', pin:'9', mode:'Out_PP_5mA', label:'PA9 · GPIO output 5mA'});
-    state.configs.push({id:state.seq++, type:'spi', family:state.family, inst:'SPI0', role:'master', port:'A', cpol:'0_1E', sck:'13', mosi:'14', miso:'15', cs:'12', div:'21', label:'SPI0 · master on PA'});
+    state.configs.push({id:state.seq++, type:'spi', family:state.family, inst:'SPI0', role:'master', port:'A', cpol:'0_1E', sck:'5', mosi:'7', miso:'6', cs:'4', div:'21', label:'SPI0 · master on PA'});
     state.configs.push({id:state.seq++, type:'timer', family:state.family, inst:'TMR0', wmode:'periodic', period:'1000', it:'1', label:'TMR0 · 1ms cycle IRQ'});
     state.configs.push({id:state.seq++, type:'adc', family:state.family, port:'A', pin:'4', inst:'ADC1', ch:'0', admode:'single', pga:'ADC_PGA_0', admode2:'poll', label:'ADC ch0 · PA4'});
   }
@@ -947,7 +947,7 @@ function genWchbleSPI(c){
   return `    /* SCK + MOSI + CS as push-pull outputs; MISO as pull-up input (master).
        CS is set high BEFORE its mode switches to output, so it never glitches low
        for the instant between ModeCfg() and SetBits() (matches WCH's own examples,
-       e.g. GPIOA_SetBits(GPIO_Pin_12) called before GPIOA_ModeCfg(...) in the SPI0 demo). */
+       this is the same ordering WCH's own SPI0 demo uses for its CS pin). */
     GPIO${c.port}_SetBits(GPIO_Pin_${c.cs});                 /* CS idle high */
     GPIO${c.port}_ModeCfg(GPIO_Pin_${c.sck} | GPIO_Pin_${c.mosi} | GPIO_Pin_${c.cs}, GPIO_ModeOut_PP_5mA);
     GPIO${c.port}_ModeCfg(GPIO_Pin_${c.miso}, GPIO_ModeIN_PU);
@@ -1273,6 +1273,7 @@ function generateCode(){
     const needsI2C  = state.configs.some(c=>c.type==='i2c');
     const needsUART = state.configs.some(c=>c.type==='uart');
     const needsTIM  = state.configs.some(c=>c.type==='timer');
+    const needsTimerIT = state.configs.some(c=>c.type==='timer' && c.mode==='update_it');
     const needsPWM  = state.configs.some(c=>c.type==='timer' && c.mode==='pwm');
     const needsEXTI = state.configs.some(c=>c.type==='exti');
     const needsADC  = state.configs.some(c=>c.type==='adc');
@@ -1284,7 +1285,7 @@ function generateCode(){
       needsTIM  ? 'TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStructure = {0};' : null,
       needsPWM  ? 'TIM_OCInitTypeDef TIM_OCInitStructure = {0};' : null,
       needsADC  ? 'ADC_InitTypeDef  ADC_InitStructure  = {0};' : null,
-      (needsEXTI||needsTIM) ? 'NVIC_InitTypeDef NVIC_InitStructure = {0};' : null,
+      (needsEXTI||needsTimerIT) ? 'NVIC_InitTypeDef NVIC_InitStructure = {0};' : null,
       needsEXTI ? 'EXTI_InitTypeDef EXTI_InitStructure = {0};' : null,
     ].filter(Boolean).join('\n    ');
   } else {
