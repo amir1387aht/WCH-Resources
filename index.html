@@ -335,10 +335,10 @@ const FAMILIES = {
     label: 'CH58x',
     style: 'wchble',
     variants: [
-      {id:'CH581', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH581 — BLE SDK library (CH58x_common.h)'},
-      {id:'CH582', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH582 — BLE SDK library (CH58x_common.h)'},
-      {id:'CH583', ports:['A','B'], pins:16, spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH583 — BLE SDK library (CH58x_common.h), dual SPI'},
-      {id:'CH585', ports:['A','B'], pins:16, spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:false, note:'CH585 — BLE SDK library (CH58x_common.h), dual SPI · needs MRS toolchain (mcpy instruction)'},
+      {id:'CH581', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:true, note:"CH581 — BLE SDK library (CH58x_common.h) — has a 1-channel hardware I²C peripheral per WCH's CH583/CH582/CH581 datasheet; verify pin routing/SWD overlap against your exact package before relying on it"},
+      {id:'CH582', ports:['A','B'], pins:16, spi:['SPI0'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:true, note:"CH582 — BLE SDK library (CH58x_common.h) — has a 1-channel hardware I²C peripheral per WCH's CH583/CH582/CH581 datasheet; verify pin routing/SWD overlap against your exact package before relying on it"},
+      {id:'CH583', ports:['A','B'], pins:16, spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:true, note:"CH583 — BLE SDK library (CH58x_common.h), dual SPI — has a 1-channel hardware I²C peripheral per WCH's CH583/CH582/CH581 datasheet; verify pin routing/SWD overlap against your exact package before relying on it"},
+      {id:'CH585', ports:['A','B'], pins:16, spi:['SPI0','SPI1'], tim:['TMR0','TMR1','TMR2','TMR3'], header:'CH58x_common.h', hasI2Chw:true, note:"CH585 — BLE SDK library (CH58x_common.h), dual SPI · needs MRS toolchain (mcpy instruction) — same CH58x peripheral set as CH581/582/583, so likely has hardware I²C too, but this specific part number wasn't directly confirmed against a WCH datasheet here — verify before relying on it"},
     ],
     gpioModes: [
       {v:'IN_Floating', l:'Input floating'}, {v:'IN_PU', l:'Input pull-up'}, {v:'IN_PD', l:'Input pull-down'},
@@ -514,7 +514,7 @@ function renderForm(){
       <div class="field"><label>Instance</label><select id="f_inst">${opts(v.i2c||['I2C1'], i=>`<option value="${i}">${i}</option>`)}</select></div>
       <div class="hint">Hardware I²C peripheral, AF open-drain pins, StdPeriph I2C_InitTypeDef.</div>
       ` : `
-      <div class="hint">${v.hasI2Chw ? 'This part has a hardware I²C module, but it shares pins with SWD debug and its driver varies by SDK build. A portable open-drain bit-bang driver is generated instead — swap in the hardware peripheral later if you need the extra throughput.' : 'This part has no hardware I²C peripheral. A standard open-drain GPIO bit-bang driver is generated (external pull-ups required on SCL/SDA, as with any I²C bus).'}</div>
+      <div class="hint">${v.hasI2Chw ? "This part has a hardware I²C module, but this generator only emits the portable bit-bang driver below — the exact CH5xx SDK hardware-I2C register/API calls have not been verified for this family here, so we default to the option that is guaranteed correct. If you want the hardware peripheral (better throughput, less CPU time), check your SDK's I2C example project and confirm the pins don't collide with anything else you're using (on CH592 the hardware I²C shares pins with SWD debug)." : "This part has no hardware I²C peripheral. A standard open-drain GPIO bit-bang driver is generated (external pull-ups required on SCL/SDA, as with any I²C bus)."}</div>
       `}
     `;
   }
@@ -905,10 +905,19 @@ function cpolPhaStd(v){
   return map[v];
 }
 
+/* SPI1 is on APB2 in every WCH StdPeriph part this tool targets; SPI2/SPI3 are on APB1.
+ * (Same bus split as their STM32 StdPeriph counterparts — mixing this up produces a
+ * RCC_APB2Periph_SPI2/SPI3 reference that doesn't exist and won't compile.) */
+function spiBus(inst){
+  return inst === 'SPI1' ? 'APB2' : 'APB1';
+}
+
 function genStdperiphSPI(c){
   const [cpol, cpha] = cpolPhaStd(c.cpol);
   const master = c.role==='master';
-  return `    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIO${c.port} | RCC_APB2Periph_${c.inst}, ENABLE);
+  const bus = spiBus(c.inst);
+  return `    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIO${c.port}, ENABLE);
+    RCC_${bus}PeriphClockCmd(RCC_${bus}Periph_${c.inst}, ENABLE);
 
     /* SCK + MOSI: alternate-function push-pull */
     GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_${c.sck} | GPIO_Pin_${c.mosi};
@@ -980,8 +989,16 @@ function genStdperiphI2C(c){
 }
 
 function genWchbleI2C(c){
+  const v = currentVariant();
+  const hwNote = v.hasI2Chw
+    ? ` * This part DOES have a hardware I2C peripheral (see the I²C tab hint), but the
+ * exact CH5xx SDK hardware-I2C register/API calls are not verified in this tool,
+ * so the portable bit-bang driver below is generated instead. Swap in the hardware
+ * peripheral yourself from your SDK's I2C example if you need the throughput.`
+    : ` * This part has no hardware I2C peripheral, so bit-bang is the only option.`;
   return `    /* Bit-bang I2C on P${c.port}${c.scl}(SCL)/P${c.port}${c.sda}(SDA) — see I2C_SCL_x/I2C_SDA_x
        macros and I2C_Start/Stop/WriteByte/ReadByte generated above main().
+${hwNote}
        NOTE: this SDK's GPIOModeTypeDef has no true open-drain output, so open-drain
        is emulated: drive push-pull LOW to assert 0, switch to floating/pull-up INPUT
        to release the line HIGH. External pull-ups on SCL/SDA are still required. */
