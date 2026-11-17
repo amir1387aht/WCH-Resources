@@ -56,7 +56,11 @@ if ($Python -match 'python(w)?\.exe$' -and (Test-Path $Python)) {
   $py = "$venv\Scripts\python.exe"
 }
 # packaging 25+ fails on some Python builds while building sdists; pin it for this venv
-$env:PIP_CONSTRAINT = Join-Path $here 'constraints.txt'
+# (pip splits PIP_CONSTRAINT on spaces, so a repo path like "C:\my projects\..." breaks it: use a copy in TEMP)
+$cons = Join-Path ([IO.Path]::GetTempPath()) 'wch-configurator-constraints.txt'
+Copy-Item (Join-Path $here 'constraints.txt') $cons -Force
+if ($cons -match '\s') { $cons = (New-Object -ComObject Scripting.FileSystemObject).GetFile($cons).ShortPath }
+$env:PIP_CONSTRAINT = $cons
 & $py -m pip install --disable-pip-version-check -q -r (Join-Path $here 'requirements.txt') $Tool
 if ($LASTEXITCODE) { throw 'pip install failed' }
 
