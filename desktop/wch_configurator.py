@@ -31,12 +31,36 @@ import threading
 import webview
 
 APP_NAME = "WCH Configurator"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 AUTHOR = "Amir1387aht (Another)"
 AUTHOR_EMAIL = "amir1387aht@gmail.com"
 REPO_URL = "https://github.com/amir1387aht/WCH-Resources"
 AUTHOR_URL = "https://github.com/amir1387aht"
 PROJECT_TYPES = ("WCH Configurator project (*.wchproj)", "All files (*.*)")
+
+
+def logo_data_uri(root):
+    """App icon (64 px PNG taken from icon.ico) as a data: URI for the page header, or "" if missing."""
+    import base64, struct
+    for folder in (root, os.path.dirname(os.path.abspath(__file__))):
+        path = os.path.join(folder, "icon.ico")
+        if not os.path.isfile(path):
+            continue
+        try:
+            data = open(path, "rb").read()
+            count = struct.unpack("<HHH", data[:6])[2]
+            best = None
+            for i in range(count):
+                w, _h, _c, _r, _p, _b, size, off = struct.unpack("<BBBBHHII", data[6 + 16 * i:22 + 16 * i])
+                w = w or 256
+                png = data[off:off + size]
+                if png[:4] == b"\x89PNG" and (best is None or abs(w - 64) < abs(best[0] - 64)):
+                    best = (w, png)
+            if best:
+                return "data:image/png;base64," + base64.b64encode(best[1]).decode("ascii")
+        except (OSError, struct.error):
+            pass
+    return ""
 
 
 def resource_dir():
@@ -177,6 +201,21 @@ class Api:
 INJECT_JS = r"""
 (function(){
   if (window.__wchDesktop) return; window.__wchDesktop = true;
+
+  // 0) app logo in the page header instead of the generic mark
+  const LOGO = '__LOGO__';
+  if (LOGO.indexOf('data:image/') === 0) {
+    const mk = document.querySelector('.brand .mark');
+    if (mk) {
+      mk.textContent = '';
+      mk.style.background = 'none';
+      mk.style.boxShadow = 'none';
+      const img = document.createElement('img');
+      img.src = LOGO; img.alt = 'WCH Configurator';
+      img.style.cssText = 'width:100%;height:100%;display:block;object-fit:contain';
+      mk.appendChild(img);
+    }
+  }
   const api = () => window.pywebview && window.pywebview.api;
 
   function toast(msg, bad){
@@ -452,10 +491,11 @@ def main():
         text_select=True,
     )
     api._window = window
+    inject_js = INJECT_JS.replace("__LOGO__", logo_data_uri(root))
 
     def on_loaded():
         # run off the GUI thread; evaluate_js blocks until the page answers
-        threading.Thread(target=lambda: window.evaluate_js(INJECT_JS), daemon=True).start()
+        threading.Thread(target=lambda: window.evaluate_js(inject_js), daemon=True).start()
         if os.environ.get("WCH_SELFTEST_DIR"):
             threading.Thread(target=_selftest, args=(window,), daemon=True).start()
 

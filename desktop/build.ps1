@@ -67,6 +67,7 @@ New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item (Join-Path $here 'wch_configurator.py') $stage
 Copy-Item $IndexHtml (Join-Path $stage 'index.html')
 $icon = Join-Path $here 'icon.ico'
+if (Test-Path $icon) { Copy-Item $icon (Join-Path $stage 'icon.ico') }   # also shown as the header logo
 $out = Join-Path $dist 'WCH-Configurator.exe'
 Remove-Item -Force $out -ErrorAction SilentlyContinue
 
@@ -78,6 +79,7 @@ try {
       '--onefile', '--assume-yes-for-downloads',
       '--windows-console-mode=disable',
       '--include-data-files=index.html=index.html',
+      '--include-data-files=icon.ico=icon.ico',
       '--python-flag=no_docstrings', '--python-flag=no_asserts', '--python-flag=no_site',
       '--lto=yes',
       '--company-name=Amir1387aht (Another)',
@@ -95,7 +97,7 @@ try {
   } else {
     $a = @(
       '-m', 'PyInstaller', 'wch_configurator.py', '--onefile', '--noconsole', '--noconfirm',
-      '--name', 'WCH-Configurator', '--add-data', 'index.html;.',
+      '--name', 'WCH-Configurator', '--add-data', 'index.html;.', '--add-data', 'icon.ico;.',
       '--distpath', $dist, '--workpath', "$build\pyi", '--specpath', "$build\pyi"
     )
     if (Test-Path $icon) { $a += @('--icon', $icon) }
