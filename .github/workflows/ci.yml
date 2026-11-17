@@ -78,7 +78,7 @@ jobs:
 
       - name: Fetch toolchain
         id: tc
-        run: bash .github/ci/fetch_toolchain.sh "$TC_ROOT" fetch
+        run: CI_TRACE=1 bash .github/ci/fetch_toolchain.sh "$TC_ROOT" fetch
 
       # 4. build every exported project; src/ must compile without warnings
       - name: Build projects

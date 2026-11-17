@@ -20,6 +20,7 @@
 # The workflow caches the unpacked toolchain by file name, so the download happens
 # only when MounRiver publishes a new version.
 set -euo pipefail
+[ -n "${RUNNER_DEBUG:-}${CI_TRACE:-}" ] && set -x
 DEST="$1"; MODE="${2:-fetch}"
 API="https://api.mounriver.com/mountriver/api/version"
 UA="Mozilla/5.0 (X11; Linux x86_64) wch-configurator-ci"
