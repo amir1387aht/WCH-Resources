@@ -1,0 +1,101 @@
+name: CI
+
+# Exports the VS Code projects listed in .github/ci/test-matrix.json from index.html
+# (headless Chrome), fetches the official WCH EVTs, and builds every project with
+# the MounRiver GCC12 RISC-V toolchain. Fails on any build error and on any
+# compiler warning in the generated sources (src/).
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      OUT: ${{ github.workspace }}/ci-out
+      OUT_HW: ${{ github.workspace }}/ci-out-hwtest
+      EVT_ROOT: ${{ github.workspace }}/.ci-cache/evt
+      TC_ROOT: ${{ github.workspace }}/.ci-cache/toolchain
+      # optional mirror of the toolchain tarball (repository variables), see .github/ci/fetch_toolchain.sh
+      MRS_TOOLCHAIN_URL: ${{ vars.MRS_TOOLCHAIN_URL }}
+      MRS_TOOLCHAIN_NAME: ${{ vars.MRS_TOOLCHAIN_NAME }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ninja-build cmake
+          cmake --version | head -1; ninja --version
+
+      # 1. export the test projects from the page itself
+      - name: Export test projects (headless Chrome)
+        run: |
+          CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          echo "browser: $CHROME_PATH ($("$CHROME_PATH" --version))"
+          CHROME_PATH="$CHROME_PATH" node .github/ci/export_projects.mjs \
+            --matrix .github/ci/test-matrix.json --html index.html --out "$OUT"
+
+      - name: Export hardware test projects (hwtest/boards.json)
+        run: |
+          export CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium)"
+          node hwtest/make_hwtest.mjs --html index.html --out "$OUT_HW" --mode both
+
+      # 2. official EVT packages (sparse clones of github.com/openwch/<repo>)
+      - name: Cache EVTs
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/evt
+          key: evt-${{ hashFiles('.github/ci/test-matrix.json') }}-${{ github.run_id }}
+          restore-keys: evt-${{ hashFiles('.github/ci/test-matrix.json') }}-
+
+      - name: Fetch EVTs
+        run: bash .github/ci/fetch_evt.sh .github/ci/test-matrix.json "$EVT_ROOT"
+
+      # 3. MounRiver Linux toolchain (RISC-V Embedded GCC12), cached by tarball name
+      - name: Toolchain version
+        id: tcinfo
+        run: bash .github/ci/fetch_toolchain.sh "$TC_ROOT" info
+
+      - name: Cache toolchain
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/toolchain
+          key: mrs-${{ steps.tcinfo.outputs.name }}
+
+      - name: Fetch toolchain
+        id: tc
+        run: bash .github/ci/fetch_toolchain.sh "$TC_ROOT" fetch
+
+      # 4. build every exported project; src/ must compile without warnings
+      - name: Build projects
+        run: bash .github/ci/build_all.sh "$OUT" "$EVT_ROOT" "${{ steps.tc.outputs.bin }}"
+
+      - name: Build hardware test projects
+        if: success() || failure()
+        run: bash .github/ci/build_all.sh "$OUT_HW" "$EVT_ROOT" "${{ steps.tc.outputs.bin }}"
+
+      - name: Upload projects and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-projects
+          path: |
+            ci-out/**
+            !ci-out/**/build/**
+            ci-out-hwtest/**
+            !ci-out-hwtest/**/build/**
+          retention-days: 14

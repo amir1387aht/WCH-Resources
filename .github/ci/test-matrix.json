@@ -1,0 +1,27 @@
+{
+  "comment": "Projects exported from index.html and built by .github/workflows/ci.yml. example: load the page's example (GPIO LED + button, SPI, UART, ADC, timer on real pins). modules: 'all' = every other peripheral tab the chip shows, added with the default form values, or a list of tabs. pins: {\"PA8\": \"GPIO_Output\"} assigns pins like the pinout view. fields: {tab: {field: value}} overrides form values. Each project is exported in every mode of 'modes'.",
+  "modes": ["split", "single"],
+  "evt": {
+    "ch32v003": ["EVT/EXAM/SRC"],
+    "ch32v20x": ["EVT/EXAM/SRC"],
+    "ch32v307": ["EVT/EXAM/SRC"],
+    "ch32x035": ["EVT/EXAM/SRC"],
+    "ch32l103": ["EVT/EXAM/SRC"],
+    "ch32v103": ["EVT/EXAM/SRC"],
+    "ch592": ["EVT/EXAM/SRC", "EVT/EXAM/BLE/HAL", "EVT/EXAM/BLE/LIB"],
+    "ch585": ["EVT/EXAM/SRC", "EVT/EXAM/BLE/HAL", "EVT/EXAM/BLE/LIB"],
+    "ch582": ["EVT/EXAM/SRC"],
+    "ch570": ["EVT/EXAM/SRC", "EVT/EXAM/BLE/HAL", "EVT/EXAM/BLE/LIB"]
+  },
+  "projects": [
+    {"name": "v003-all",  "family": "ch32v", "variant": "CH32V003", "example": true, "modules": "all"},
+    {"name": "v203-all",  "family": "ch32v", "variant": "CH32V203", "example": true, "modules": "all"},
+    {"name": "v307-all",  "family": "ch32v", "variant": "CH32V307", "example": true, "modules": "all"},
+    {"name": "x035-all",  "family": "ch32x", "variant": "CH32X035", "example": true, "modules": "all"},
+    {"name": "l103-all",  "family": "ch32l", "variant": "CH32L103", "example": true, "modules": "all"},
+    {"name": "v103-all",  "family": "ch32v", "variant": "CH32V103", "example": true, "modules": "all"},
+    {"name": "ch592-all", "family": "ch59x", "variant": "CH592", "example": true, "modules": "all"},
+    {"name": "ch585-ble-usb", "family": "ch58x", "variant": "CH585", "example": true, "modules": [], "ble": true, "usb": true},
+    {"name": "ch572-ble", "family": "ch57x", "variant": "CH572", "example": true, "modules": [], "ble": true}
+  ]
+}

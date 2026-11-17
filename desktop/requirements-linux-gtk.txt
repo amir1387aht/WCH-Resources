@@ -1,0 +1,6 @@
+# pywebview without platform wheels: the GTK backend uses the system PyGObject (python3-gi)
+# and WebKitGTK. Installed with --no-deps, so its pure-Python dependencies are listed here.
+pywebview>=5.3
+bottle
+proxy_tools
+typing_extensions
