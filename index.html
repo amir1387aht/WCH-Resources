@@ -5151,6 +5151,1188 @@ PERIPH_MODULES.push({
     return out;
   },
 });
+/* ---------- shared helpers for the peripheral modules below (all names prefixed mod_) ---------- */
+/* chips whose StdPeriph EVT headers were checked for these modules */
+const MOD_STD_CHIPS = ['CH32V003', 'CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32X035', 'CH32L103', 'CH32F203'];
+/* CH5xx parts whose SDK headers were checked (CH571/CH573 SDK is not public, so they are left out) */
+const MOD_BLE_CHIPS = ['CH570', 'CH572', 'CH581', 'CH582', 'CH583', 'CH585', 'CH591', 'CH592'];
+/* EVT default clocks (system_*.c SYSCLK_FREQ_* + RCC_PPRE1) used when the Clock view keeps the EVT default.
+ * LSI: V003 128 kHz (EVT IWDG: /128 x 4000 = 4 s), X035 HSI/1024 = 46.875 kHz (EVT AWU/IWDG comments), others 40 kHz. */
+const MOD_EVT_CLK = {
+  CH32V003:{sys:48e6, pclk1:48e6, pclk2:48e6, lsi:128000},
+  CH32V103:{sys:72e6, pclk1:36e6, pclk2:72e6, lsi:40000},
+  CH32V203:{sys:96e6, pclk1:48e6, pclk2:96e6, lsi:40000},
+  CH32V303:{sys:96e6, pclk1:48e6, pclk2:96e6, lsi:40000},
+  CH32V307:{sys:96e6, pclk1:48e6, pclk2:96e6, lsi:40000},
+  CH32X035:{sys:48e6, pclk1:48e6, pclk2:48e6, lsi:46875},
+  CH32L103:{sys:96e6, pclk1:48e6, pclk2:96e6, lsi:40000},
+  CH32F203:{sys:96e6, pclk1:48e6, pclk2:96e6, lsi:40000},
+};
+function mod_clk(ctx){
+  const k = ctx.clk || {}, d = MOD_EVT_CLK[ctx.id];
+  if(k.known) return {known:true, sys:k.sysclk, pclk1:k.pclk1, pclk2:k.pclk2, lsi:(d && d.lsi) || k.lsi || 32000, lse:k.lse || 32768, lsSrc:k.lsSrc};
+  if(d) return Object.assign({known:false, lse:32768}, d);
+  return {known:false, sys:k.sysclk || 60e6, pclk1:k.pclk1 || 60e6, pclk2:k.pclk2 || 60e6, lsi:k.lsi || 32000, lse:32768, lsSrc:k.lsSrc};
+}
+const mod_ble = ctx => ctx.style === 'wchble';
+const mod_hz = hz => typeof fmtHz === 'function' ? fmtHz(hz) : hz + ' Hz';
+function mod_time(s){
+  if(!isFinite(s)) return '?';
+  if(s < 1e-3) return +(s * 1e6).toFixed(1) + ' µs';
+  if(s < 1) return +(s * 1e3).toFixed(2) + ' ms';
+  return +s.toFixed(3) + ' s';
+}
+const mod_hex = n => '0x' + (+n).toString(16).toUpperCase().padStart(2, '0');
+const mod_int = (v, def) => { const n = parseInt(v, 10); return isNaN(n) ? def : n; };
+/* left-panel text + config-list label in one property: base.html reads m.label both as text and as label(c, ctx) */
+function mod_label(text, fn){ fn.toString = () => text; fn.panel = text; return fn; }
+/* CH32L103 renamed the bus clock calls (RCC_HBPeriphClockCmd / RCC_PB1PeriphClockCmd / RCC_PB2PeriphClockCmd) */
+function mod_rcc(ctx, bus, names){
+  const b = ctx.id === 'CH32L103' ? {AHB:'HB', APB1:'PB1', APB2:'PB2'}[bus] : bus;
+  return `    RCC_${b}PeriphClockCmd(${names.map(n => `RCC_${b}Periph_${n}`).join(' | ')}, ENABLE);`;
+}
+/* interrupt handler head: CH32V (RISC-V, EVT style), CH32F (Cortex-M3) or CH5xx (SDK macros) */
+function mod_isr(ctx, name){
+  if(mod_ble(ctx)) return `__INTERRUPT\n__HIGH_CODE\nvoid ${name}(void)`;
+  if(ctx.family === 'ch32f') return `void ${name}(void)`;
+  return `void ${name}(void) __attribute__((interrupt("WCH-Interrupt-fast")));\nvoid ${name}(void)`;
+}
+function mod_nvic(irq, pp, sp){
+  return `    NVIC_InitStructure.NVIC_IRQChannel                   = ${irq};
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = ${pp};
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority        = ${sp};
+    NVIC_InitStructure.NVIC_IRQChannelCmd                = ENABLE;
+    NVIC_Init(&NVIC_InitStructure);`;
+}
+const MOD_NVIC_DECL = 'NVIC_InitTypeDef NVIC_InitStructure = {0};';
+const MOD_GPIO_DECL = 'GPIO_InitTypeDef GPIO_InitStructure = {0};';
+/* StdPeriph GPIO set-up for [{g:'PA4', mode:'AIN'|'AF_PP'|'IPU'...}], grouped per port and mode */
+function mod_gpio(ctx, list, afio){
+  const ports = [...new Set(list.map(x => x.g[1]))].sort();
+  const out = [mod_rcc(ctx, 'APB2', (afio ? ['AFIO'] : []).concat(ports.map(p => 'GPIO' + p)))];
+  const groups = [];
+  list.forEach(x => {
+    const k = x.g[1] + x.mode;
+    let gr = groups.find(y => y.k === k);
+    if(!gr) groups.push(gr = {k, port:x.g[1], mode:x.mode, pins:[], notes:[]});
+    if(!gr.pins.includes(+x.g.slice(2))){ gr.pins.push(+x.g.slice(2)); if(x.note) gr.notes.push(x.note); }
+  });
+  groups.forEach(gr => {
+    out.push(`    GPIO_InitStructure.GPIO_Pin   = ${gr.pins.map(p => 'GPIO_Pin_' + p).join(' | ')};${gr.notes.length ? '     /* ' + gr.notes.join(', ') + ' */' : ''}
+    GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_${gr.mode};${/^(AF|Out)/.test(gr.mode) ? '\n    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;' : ''}
+    GPIO_Init(GPIO${gr.port}, &GPIO_InitStructure);`);
+  });
+  return out.join('\n');
+}
+function mod_opt(list, sel){
+  return list.map(o => {
+    const [v, l] = Array.isArray(o) ? o : [o, o];
+    return `<option value="${v}"${String(v) === String(sel) ? ' selected' : ''}>${l}</option>`;
+  }).join('');
+}
+/* re-run fn whenever one of the form fields changes (also fires when a config is loaded for editing) */
+function mod_live(ids, fn){
+  ids.forEach(id => { const e = document.getElementById('f_' + id); if(e){ e.addEventListener('change', fn); e.addEventListener('input', fn); } });
+  fn();
+}
+const mod_val = id => { const e = document.getElementById('f_' + id); return e ? e.value : undefined; };
+function mod_setHint(id, html){ const e = document.getElementById(id); if(e) e.innerHTML = html; }
+/* true/false when the datasheet pin table of the selected package lists one of the names on the pin, null when unknown */
+function mod_pinListed(gpio, names){
+  if(typeof pinFns !== 'function' || !pinFns()) return null;
+  const fi = fnInfo(gpio);
+  if(!fi || (!fi.af.length && !fi.rm.length)) return null;
+  const all = fi.af.concat(fi.rm).map(x => x.replace(/^OTHER:/, '').split('@')[0]);
+  return names.some(n => all.includes(n));
+}
+/* forward declaration so a low-power helper can restore the Clock-view tree after STOP */
+function mod_clockFnUsed(){ return typeof clockSetupCode === 'function' && !!clockSetupCode(); }
+
+/* ======================= IWDG ======================= */
+PERIPH_MODULES.push({
+  tab:'iwdg', title:'Independent watchdog (IWDG)', cat:'System Core', color:'#e8a33d',
+  label: mod_label('IWDG', (c, ctx) => `IWDG · ÷${c.presc} × ${c.reload} ≈ ${mod_time(c.presc * c.reload / mod_clk(ctx).lsi)}`),
+  supports: ctx => MOD_STD_CHIPS.includes(ctx.id),
+  form(ctx){
+    return `<div class="row2">
+        <div class="field"><label>Prescaler (LSI ÷ N)</label><select id="f_presc">${mod_opt([4, 8, 16, 32, 64, 128, 256].map(n => [n, '÷' + n]), 32)}</select></div>
+        <div class="field"><label>Reload value (1–4095)</label><input type="number" id="f_reload" value="4000" min="1" max="4095"></div>
+      </div>
+      <div class="hint" id="mod_iwdg_t"></div>
+      <div class="hint">EVT example: IWDG/IWDG. Once enabled the IWDG cannot be stopped; call <b>IWDG_Feed()</b> from the main loop before the timeout. LSI is an RC oscillator, so allow a wide margin.</div>`;
+  },
+  bind(ctx){
+    mod_live(['presc', 'reload'], () => {
+      const lsi = mod_clk(ctx).lsi, t = mod_int(mod_val('presc'), 32) * mod_int(mod_val('reload'), 0) / lsi;
+      mod_setHint('mod_iwdg_t', `Timeout ≈ ${mod_time(t)} (LSI ≈ ${mod_hz(lsi)}); longest possible: ${mod_time(256 * 4095 / lsi)}`);
+    });
+  },
+  read: get => ({presc: mod_int(get('presc'), 32), reload: mod_int(get('reload'), 4000)}),
+  gen(c, ctx){
+    const t = c.presc * c.reload / mod_clk(ctx).lsi;
+    return `    IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);
+    IWDG_SetPrescaler(IWDG_Prescaler_${c.presc});
+    IWDG_SetReload(${c.reload});                    /* timeout ≈ ${c.presc} × ${c.reload} / LSI ≈ ${mod_time(t)} */
+    IWDG_ReloadCounter();
+    IWDG_Enable();                            /* cannot be stopped any more: call IWDG_Feed() in time */`;
+  },
+  helpers: () => `/* refresh the independent watchdog (call more often than the timeout) */
+void IWDG_Feed(void)
+{
+    IWDG_ReloadCounter();
+}`,
+  problems(cs, ctx){
+    const out = [];
+    if(cs.length > 1) out.push({lvl:'err', msg:'IWDG: there is only one independent watchdog — keep a single IWDG entry'});
+    cs.forEach(c => {
+      if(!(c.reload >= 1 && c.reload <= 4095)) out.push({lvl:'err', cfg:c.id, msg:`IWDG: reload value ${c.reload} is outside 1–4095 (12-bit IWDG_RLDR)`});
+    });
+    return out;
+  },
+});
+
+/* ======================= WWDG (CH32) / watchdog timer (CH5xx) ======================= */
+PERIPH_MODULES.push({
+  tab:'wwdg', cat:'System Core', color:'#d9773f',
+  get title(){ return typeof FAMILIES !== 'undefined' && FAMILIES[state.family].style === 'wchble' ? 'Watchdog timer (WWDG_* API)' : 'Window watchdog (WWDG)'; },
+  label: mod_label('WWDG', (c, ctx) => mod_ble(ctx)
+    ? `Watchdog · ${{reset:'reset', irq:'interrupt', both:'interrupt + reset'}[c.action]} after ${mod_time((256 - c.count) * 131072 / mod_clk(ctx).sys)}`
+    : `WWDG · ÷${c.presc}, counter ${mod_hex(c.counter)}, window ${mod_hex(c.window)}`),
+  supports: ctx => MOD_STD_CHIPS.includes(ctx.id) || MOD_BLE_CHIPS.includes(ctx.id),
+  form(ctx){
+    if(mod_ble(ctx)) return `<div class="row2">
+        <div class="field"><label>Reload count (0–255)</label><input type="number" id="f_count" value="0" min="0" max="255"></div>
+        <div class="field"><label>On overflow</label><select id="f_action">${mod_opt([['reset', 'Reset the chip'], ['irq', 'Interrupt only'], ['both', 'Interrupt + reset']], 'reset')}</select></div>
+      </div>
+      <div class="hint" id="mod_wwdg_t"></div>
+      <div class="hint">8-bit counter R8_WDOG_COUNT counts at Fsys / 131072 and overflows at 255 → 0 (SFR header comment). Call <b>WWDG_Feed()</b> before the overflow. The interrupt shares WDOG_BAT_IRQn with the battery monitor.</div>`;
+    return `<div class="row3">
+        <div class="field"><label>Prescaler</label><select id="f_presc">${mod_opt([1, 2, 4, 8].map(n => [n, '÷' + n]), 8)}</select></div>
+        <div class="field"><label>Counter (64–127)</label><input type="number" id="f_counter" value="127" min="64" max="127"></div>
+        <div class="field"><label>Window (64–127)</label><input type="number" id="f_window" value="95" min="64" max="127"></div>
+      </div>
+      <div class="field"><label>Early-wakeup interrupt (counter = 0x40)</label><select id="f_ewi">${mod_opt([['no', 'Off'], ['yes', 'On (WWDG_IRQHandler)']], 'no')}</select></div>
+      <div class="hint" id="mod_wwdg_t"></div>
+      <div class="hint">EVT example: WWDG/WWDG. The counter decrements at PCLK1 / 4096 / prescaler; refreshing while it is still above the window, or letting it drop below 0x40, resets the chip. Refresh with <b>WWDG_Feed()</b>.</div>`;
+  },
+  bind(ctx){
+    if(mod_ble(ctx)) return mod_live(['count'], () => {
+      const fs = mod_clk(ctx).sys, n = mod_int(mod_val('count'), 0);
+      mod_setHint('mod_wwdg_t', `Overflow after (256 − ${n}) × 131072 / ${mod_hz(fs)} ≈ ${mod_time((256 - n) * 131072 / fs)}`);
+    });
+    mod_live(['presc', 'counter', 'window'], () => {
+      const k = mod_clk(ctx), tick = 4096 * mod_int(mod_val('presc'), 8) / k.pclk1;
+      const cnt = mod_int(mod_val('counter'), 127), win = mod_int(mod_val('window'), 95);
+      mod_setHint('mod_wwdg_t', `PCLK1 ${mod_hz(k.pclk1)}${k.known ? '' : ' (EVT default)'} → tick ${mod_time(tick)}. Refresh between ${mod_time(Math.max(0, cnt - win) * tick)} and ${mod_time((cnt - 63) * tick)} after the last refresh.`);
+    });
+  },
+  read(get, ctx){
+    if(mod_ble(ctx)) return {count: mod_int(get('count'), 0), action: get('action') || 'reset'};
+    return {presc: mod_int(get('presc'), 8), counter: mod_int(get('counter'), 127), window: mod_int(get('window'), 95), ewi: get('ewi') || 'no'};
+  },
+  gen(c, ctx){
+    if(mod_ble(ctx)){
+      const t = (256 - c.count) * 131072 / mod_clk(ctx).sys;
+      return `    WWDG_SetCounter(${c.count});                     /* overflow after (256 - ${c.count}) x 131072 / Fsys ≈ ${mod_time(t)} */
+    WWDG_ClearFlag();
+    WWDG_ResetCfg(${c.action === 'irq' ? 'DISABLE' : 'ENABLE'});
+    WWDG_ITCfg(${c.action === 'reset' ? 'DISABLE' : 'ENABLE'});${c.action === 'reset' ? '' : '\n    PFIC_EnableIRQ(WDOG_BAT_IRQn);'}`;
+    }
+    return `    ${mod_rcc(ctx, 'APB1', ['WWDG']).trim()}
+    WWDG_SetCounter(${mod_hex(c.counter)});
+    WWDG_SetPrescaler(WWDG_Prescaler_${c.presc});
+    WWDG_SetWindowValue(${mod_hex(c.window)});
+    WWDG_Enable(${mod_hex(c.counter)});                    /* from here on refresh with WWDG_Feed() inside the window */
+    WWDG_ClearFlag();${c.ewi === 'yes' ? '\n' + mod_nvic('WWDG_IRQn', 0, 0) + '\n    WWDG_EnableIT();' : ''}`;
+  },
+  decls: (cs, ctx) => !mod_ble(ctx) && cs.some(c => c.ewi === 'yes') ? [MOD_NVIC_DECL] : [],
+  helpers(cs, ctx){
+    const c = cs[0];
+    if(mod_ble(ctx)) return `volatile uint8_t WWDG_Overflow;   /* set by the overflow interrupt */
+
+/* reload the watchdog counter (call before it overflows) */
+void WWDG_Feed(void)
+{
+    WWDG_SetCounter(${c.count});
+}${c.action === 'reset' ? '' : `
+
+${mod_isr(ctx, 'WDOG_BAT_IRQHandler')}
+{
+    if(WWDG_GetFlowFlag())
+    {
+        WWDG_ClearFlag();
+        WWDG_Overflow = 1;
+    }
+}`}`;
+    return `/* refresh the window watchdog: only while the counter is below the window value ${mod_hex(c.window)} */
+void WWDG_Feed(void)
+{
+    WWDG_SetCounter(${mod_hex(c.counter)});
+}${c.ewi === 'yes' ? `
+
+/* early wakeup: the counter reached 0x40, a reset follows one tick later unless WWDG_Feed() runs */
+${mod_isr(ctx, 'WWDG_IRQHandler')}
+{
+    WWDG_ClearFlag();
+}` : ''}`;
+  },
+  problems(cs, ctx){
+    const out = [];
+    if(cs.length > 1) out.push({lvl:'err', msg:'WWDG: the chip has one watchdog — keep a single entry'});
+    cs.forEach(c => {
+      if(mod_ble(ctx)){
+        if(!(c.count >= 0 && c.count <= 255)) out.push({lvl:'err', cfg:c.id, msg:`Watchdog: reload count ${c.count} is outside 0–255 (8-bit R8_WDOG_COUNT)`});
+        return;
+      }
+      if(!(c.counter >= 0x40 && c.counter <= 0x7F)) out.push({lvl:'err', cfg:c.id, msg:`WWDG: counter ${c.counter} must be 64–127 (0x40–0x7F); below 0x40 the chip resets at once`});
+      if(!(c.window >= 0x40 && c.window <= 0x7F)) out.push({lvl:'err', cfg:c.id, msg:`WWDG: window ${c.window} must be 64–127 (0x40–0x7F)`});
+      else if(c.window > c.counter) out.push({lvl:'warn', cfg:c.id, msg:`WWDG: window ${mod_hex(c.window)} is above the counter ${mod_hex(c.counter)}, so the window check never applies`});
+    });
+    return out;
+  },
+});
+
+/* ======================= DMA (CH32 DMA1) ======================= */
+/* request → channel: EVT examples ADC_DMA (ch1), SPI_DMA (SPI1 RX ch2 / TX ch3), USART_DMA (USART1 TX ch4 / RX ch5,
+ * USART2 RX ch6 / TX ch7, USART3 TX ch2 / RX ch3), I2C_DMA (I2C1 TX ch6 / RX ch7); SPI2 / I2C2 from the reference-manual table */
+const MOD_DMA_REQ = [
+  {r:'ADC1', ch:1, dir:'p2m', reg:'ADC1->RDATAR', on:'ADC_DMACmd(ADC1, ENABLE);', w:16, own:'adc'},
+  {r:'SPI1_RX', ch:2, dir:'p2m', reg:'SPI1->DATAR', on:'SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Rx, ENABLE);', inst:'SPI1', own:'spi'},
+  {r:'SPI1_TX', ch:3, dir:'m2p', reg:'SPI1->DATAR', on:'SPI_I2S_DMACmd(SPI1, SPI_I2S_DMAReq_Tx, ENABLE);', inst:'SPI1', own:'spi'},
+  {r:'SPI2_RX', ch:4, dir:'p2m', reg:'SPI2->DATAR', on:'SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Rx, ENABLE);', inst:'SPI2', own:'spi'},
+  {r:'SPI2_TX', ch:5, dir:'m2p', reg:'SPI2->DATAR', on:'SPI_I2S_DMACmd(SPI2, SPI_I2S_DMAReq_Tx, ENABLE);', inst:'SPI2', own:'spi'},
+  {r:'USART1_TX', ch:4, dir:'m2p', reg:'USART1->DATAR', on:'USART_DMACmd(USART1, USART_DMAReq_Tx, ENABLE);', inst:'USART1', own:'uart'},
+  {r:'USART1_RX', ch:5, dir:'p2m', reg:'USART1->DATAR', on:'USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);', inst:'USART1', own:'uart'},
+  {r:'USART2_RX', ch:6, dir:'p2m', reg:'USART2->DATAR', on:'USART_DMACmd(USART2, USART_DMAReq_Rx, ENABLE);', inst:'USART2', own:'uart'},
+  {r:'USART2_TX', ch:7, dir:'m2p', reg:'USART2->DATAR', on:'USART_DMACmd(USART2, USART_DMAReq_Tx, ENABLE);', inst:'USART2', own:'uart'},
+  {r:'USART3_TX', ch:2, dir:'m2p', reg:'USART3->DATAR', on:'USART_DMACmd(USART3, USART_DMAReq_Tx, ENABLE);', inst:'USART3', own:'uart'},
+  {r:'USART3_RX', ch:3, dir:'p2m', reg:'USART3->DATAR', on:'USART_DMACmd(USART3, USART_DMAReq_Rx, ENABLE);', inst:'USART3', own:'uart'},
+  {r:'I2C1_TX', ch:6, dir:'m2p', reg:'I2C1->DATAR', on:'I2C_DMACmd(I2C1, ENABLE);', inst:'I2C1', own:'i2c'},
+  {r:'I2C1_RX', ch:7, dir:'p2m', reg:'I2C1->DATAR', on:'I2C_DMACmd(I2C1, ENABLE);', inst:'I2C1', own:'i2c'},
+  {r:'I2C2_TX', ch:4, dir:'m2p', reg:'I2C2->DATAR', on:'I2C_DMACmd(I2C2, ENABLE);', inst:'I2C2', own:'i2c'},
+  {r:'I2C2_RX', ch:5, dir:'p2m', reg:'I2C2->DATAR', on:'I2C_DMACmd(I2C2, ENABLE);', inst:'I2C2', own:'i2c'},
+];
+function mod_dmaReqs(ctx){
+  const v = ctx.v, usarts = /^CH32V00/.test(ctx.id) ? ['USART1'] : ['USART1', 'USART2', 'USART3'];
+  return MOD_DMA_REQ.filter(q => !q.inst || (/^SPI/.test(q.inst) ? (v.spi || []).includes(q.inst) : /^I2C/.test(q.inst) ? (v.i2c || []).includes(q.inst) : usarts.includes(q.inst)));
+}
+const mod_dmaCh = c => c.req === 'M2M' ? +c.ch : (MOD_DMA_REQ.find(q => q.r === c.req) || {}).ch;
+const MOD_DMA_W = {8:['Byte', 'uint8_t'], 16:['HalfWord', 'uint16_t'], 32:['Word', 'uint32_t']};
+PERIPH_MODULES.push({
+  tab:'dma', title:'DMA controller (DMA1)', cat:'System Core', color:'#7fb4c9',
+  label: mod_label('DMA', c => `DMA1 ch${mod_dmaCh(c)} · ${c.req === 'M2M' ? 'memory → memory' : c.req} · ${c.len} × ${c.width}-bit${c.mode === 'circular' ? ' circular' : ''}`),
+  supports: ctx => MOD_STD_CHIPS.includes(ctx.id),
+  form(ctx){
+    const reqs = mod_dmaReqs(ctx);
+    return `<div class="field"><label>Request</label><select id="f_req">${mod_opt(reqs.map(q => [q.r, `${q.r} → DMA1 channel ${q.ch} (${q.dir === 'p2m' ? 'peripheral → memory' : 'memory → peripheral'})`]).concat([['M2M', 'Memory → memory (any channel)']]), 'USART1_TX')}</select></div>
+      <div class="row2">
+        <div class="field" id="mod_dma_chf"><label>Channel (memory → memory)</label><select id="f_ch">${mod_opt([1, 2, 3, 4, 5, 6, 7].map(n => [n, 'DMA1_Channel' + n]), 1)}</select></div>
+        <div class="field"><label>Buffer length (items)</label><input type="number" id="f_len" value="64" min="1" max="65535"></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Item width</label><select id="f_width">${mod_opt([[8, '8-bit'], [16, '16-bit'], [32, '32-bit']], 8)}</select></div>
+        <div class="field"><label>Mode</label><select id="f_mode">${mod_opt([['normal', 'Normal'], ['circular', 'Circular']], 'normal')}</select></div>
+        <div class="field"><label>Priority</label><select id="f_prio">${mod_opt([['Low', 'Low'], ['Medium', 'Medium'], ['High', 'High'], ['VeryHigh', 'Very high']], 'Medium')}</select></div>
+      </div>
+      <div class="field"><label>Transfer-complete interrupt</label><select id="f_irq">${mod_opt([['no', 'Off'], ['yes', 'On (DMA1_ChannelN_IRQHandler stub)']], 'yes')}</select></div>
+      <div class="hint" id="mod_dma_h"></div>`;
+  },
+  bind(ctx){
+    mod_live(['req', 'width'], () => {
+      const r = mod_val('req'), q = MOD_DMA_REQ.find(x => x.r === r), chf = document.getElementById('mod_dma_chf');
+      if(chf) chf.style.visibility = r === 'M2M' ? '' : 'hidden';
+      mod_setHint('mod_dma_h', r === 'M2M'
+        ? 'Memory-to-memory copies DMA1_Ch<i>N</i>_Src → DMA1_Ch<i>N</i>_Dst; start a copy with <b>DMA1_ChN_StartCopy()</b>. EVT example: DMA/DMA_MEM2MEM.'
+        : `${r} is fixed to DMA1 channel ${q && q.ch} on this chip. The ${q && q.own === 'adc' ? 'ADC' : q && q.inst} itself is configured in its own tab; this entry enables its DMA request. Buffer: <b>DMA1_Ch${q && q.ch}_Buf</b>.`);
+    });
+  },
+  read: get => ({req: get('req'), ch: mod_int(get('ch'), 1), len: mod_int(get('len'), 64), width: mod_int(get('width'), 8),
+    mode: get('mode') || 'normal', prio: get('prio') || 'Medium', irq: get('irq') || 'no'}),
+  gen(c, ctx){
+    const n = mod_dmaCh(c), chn = `DMA1_Channel${n}`, w = MOD_DMA_W[c.width] || MOD_DMA_W[8];
+    const m2m = c.req === 'M2M', q = MOD_DMA_REQ.find(x => x.r === c.req);
+    const lines = [mod_rcc(ctx, 'AHB', ['DMA1']),
+`    DMA_DeInit(${chn});
+    DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)${m2m ? `DMA1_Ch${n}_Src` : '&' + q.reg};
+    DMA_InitStructure.DMA_MemoryBaseAddr     = (uint32_t)${m2m ? `DMA1_Ch${n}_Dst` : `DMA1_Ch${n}_Buf`};
+    DMA_InitStructure.DMA_DIR                = ${m2m || q.dir === 'p2m' ? 'DMA_DIR_PeripheralSRC' : 'DMA_DIR_PeripheralDST'};
+    DMA_InitStructure.DMA_BufferSize         = ${c.len};
+    DMA_InitStructure.DMA_PeripheralInc      = DMA_PeripheralInc_${m2m ? 'Enable' : 'Disable'};
+    DMA_InitStructure.DMA_MemoryInc          = DMA_MemoryInc_Enable;
+    DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_${w[0]};
+    DMA_InitStructure.DMA_MemoryDataSize     = DMA_MemoryDataSize_${w[0]};
+    DMA_InitStructure.DMA_Mode               = DMA_Mode_${c.mode === 'circular' && !m2m ? 'Circular' : 'Normal'};
+    DMA_InitStructure.DMA_Priority           = DMA_Priority_${c.prio};
+    DMA_InitStructure.DMA_M2M                = DMA_M2M_${m2m ? 'Enable' : 'Disable'};
+    DMA_Init(${chn}, &DMA_InitStructure);`];
+    if(c.irq === 'yes') lines.push(`    DMA_ITConfig(${chn}, DMA_IT_TC, ENABLE);\n` + mod_nvic(`DMA1_Channel${n}_IRQn`, 1, 0));
+    if(m2m) lines.push(`    /* memory-to-memory: start a copy with DMA1_Ch${n}_StartCopy() */`);
+    else lines.push(`    ${q.on}${' '.repeat(Math.max(1, 46 - q.on.length))}/* ${q.own === 'adc' ? 'ADC1' : q.inst} itself is set up in its own tab */
+    DMA_Cmd(${chn}, ENABLE);`);
+    return lines.join('\n');
+  },
+  decls: cs => ['DMA_InitTypeDef DMA_InitStructure = {0};'].concat(cs.some(c => c.irq === 'yes') ? [MOD_NVIC_DECL] : []),
+  helpers(cs, ctx){
+    return cs.map(c => {
+      const n = mod_dmaCh(c), w = (MOD_DMA_W[c.width] || MOD_DMA_W[8])[1];
+      const bufs = c.req === 'M2M'
+        ? `${w} DMA1_Ch${n}_Src[${c.len}];             /* fill before DMA1_Ch${n}_StartCopy() */
+${w} DMA1_Ch${n}_Dst[${c.len}];
+
+/* copy DMA1_Ch${n}_Src → DMA1_Ch${n}_Dst (${c.len} items) */
+void DMA1_Ch${n}_StartCopy(void)
+{
+    DMA_Cmd(DMA1_Channel${n}, DISABLE);
+    DMA_SetCurrDataCounter(DMA1_Channel${n}, ${c.len});
+    DMA_Cmd(DMA1_Channel${n}, ENABLE);
+}`
+        : `${MOD_DMA_REQ.find(q => q.r === c.req).dir === 'p2m' ? 'volatile ' : ''}${w} DMA1_Ch${n}_Buf[${c.len}];   /* ${c.req} ${MOD_DMA_REQ.find(q => q.r === c.req).dir === 'p2m' ? 'receive' : 'transmit'} buffer */`;
+      const isr = c.irq !== 'yes' ? '' : `
+
+volatile uint8_t DMA1_Ch${n}_Done;   /* set when the transfer completes */
+${mod_isr(ctx, `DMA1_Channel${n}_IRQHandler`)}
+{
+    if(DMA_GetITStatus(DMA1_IT_TC${n}) != RESET)
+    {
+        DMA_ClearITPendingBit(DMA1_IT_TC${n});
+        DMA1_Ch${n}_Done = 1;
+    }
+}`;
+      return bufs + isr;
+    }).join('\n\n');
+  },
+  problems(cs, ctx){
+    const out = [], used = {};
+    const reqs = mod_dmaReqs(ctx).map(q => q.r);
+    cs.forEach(c => {
+      const n = mod_dmaCh(c);
+      if(c.req !== 'M2M' && !reqs.includes(c.req)) out.push({lvl:'err', cfg:c.id, msg:`DMA: ${c.req} does not exist on ${ctx.id}`});
+      if(!(c.len >= 1 && c.len <= 65535)) out.push({lvl:'err', cfg:c.id, msg:`DMA: buffer length ${c.len} is outside 1–65535 (16-bit DMA_CNTR)`});
+      if(c.req === 'M2M' && c.mode === 'circular') out.push({lvl:'warn', cfg:c.id, msg:`DMA1 channel ${n}: memory-to-memory cannot run circular; Normal mode is generated`});
+      if(used[n]) out.push({lvl:'err', cfg:c.id, msg:`DMA1 channel ${n} is used twice (${used[n]} and ${c.req})`});
+      used[n] = c.req;
+      const q = MOD_DMA_REQ.find(x => x.r === c.req);
+      if(q && !state.configs.some(x => x.type === q.own && (!q.inst || x.inst === q.inst || (q.own === 'i2c' && !x.inst))))
+        out.push({lvl:'info', cfg:c.id, msg:`DMA: ${c.req} request enabled, but ${q.own === 'adc' ? 'the ADC' : q.inst} is not configured yet — add it in its tab`});
+      if(q && q.own === 'adc' && c.width === 8) out.push({lvl:'warn', cfg:c.id, msg:'DMA: ADC results are 16-bit — use a 16-bit item width'});
+    });
+    return out;
+  },
+});
+
+/* ======================= RTC ======================= */
+const MOD_RTC_STD = ['CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32L103', 'CH32F203'];
+const mod_is57 = ctx => ctx.id === 'CH570' || ctx.id === 'CH572';
+function mod_rtcPeriods(ctx){
+  return mod_is57(ctx)
+    ? [4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288].map(n => ['Period_' + n, `${n} LSI cycles (≈ ${mod_time(n / 32000)})`])
+    : [['Period_0_125_S', '0.125 s'], ['Period_0_25_S', '0.25 s'], ['Period_0_5_S', '0.5 s'], ['Period_1_S', '1 s'], ['Period_2_S', '2 s'], ['Period_4_S', '4 s'], ['Period_8_S', '8 s'], ['Period_16_S', '16 s']];
+}
+PERIPH_MODULES.push({
+  tab:'rtc', title:'Real-time clock (RTC)', cat:'Timers', color:'#b5a0e0',
+  label: mod_label('RTC', (c, ctx) => mod_ble(ctx)
+    ? `RTC · ${c.period !== 'none' ? 'tick ' + c.period.replace('Period_', '').replace(/_S$/, ' s').replace(/_/g, '.') : 'no tick'}${c.trig > 0 ? ' · trigger ' + c.trig + ' s' : ''}`
+    : `RTC · ${String(c.src).toUpperCase()} 1 Hz${c.sec === 'yes' ? ' · second IRQ' : ''}${c.alarm > 0 ? ' · alarm +' + c.alarm + ' s' : ''}`),
+  supports: ctx => MOD_RTC_STD.includes(ctx.id) || MOD_BLE_CHIPS.includes(ctx.id),
+  form(ctx){
+    if(mod_ble(ctx)){
+      const k = mod_clk(ctx);
+      return `<div class="row2">
+          <div class="field"><label>Set date/time at start-up</label><select id="f_settime">${mod_opt([['yes', 'Yes (RTC_InitTime)'], ['no', 'No']], 'yes')}</select></div>
+          <div class="field"><label>Date and time</label><input type="text" id="f_when" value="2025-01-01 00:00:00" placeholder="YYYY-MM-DD hh:mm:ss"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Periodic tick interrupt</label><select id="f_period">${mod_opt([['none', 'Off']].concat(mod_rtcPeriods(ctx)), mod_is57(ctx) ? 'Period_32768' : 'Period_1_S')}</select></div>
+          <div class="field"><label>One-shot trigger after (s, 0 = off)</label><input type="number" id="f_trig" value="0" min="0" max="86400"></div>
+        </div>
+        <div class="hint">RTC_IRQHandler sets <b>RTC_TickFlag</b> / <b>RTC_TriggerFlag</b>; read the time with RTC_GetTime(). ${mod_is57(ctx) ? 'CH570/CH572 count the internal LSI (no 32 kHz crystal).' : `32 kHz source: ${k.lsSrc ? k.lsSrc + ' (Clock view)' : 'SDK default — choose LSE/LSI in the Clock view'}.`} Years start at BEGYEAR = 2020.</div>`;
+    }
+    return `<div class="row2">
+        <div class="field"><label>RTC clock</label><select id="f_src">${mod_opt([['lse', 'LSE 32.768 kHz crystal'], ['lsi', 'LSI (internal RC)']], 'lse')}</select></div>
+        <div class="field"><label>Second interrupt</label><select id="f_sec">${mod_opt([['yes', 'On'], ['no', 'Off']], 'yes')}</select></div>
+      </div>
+      <div class="field"><label>Alarm after start-up (s, 0 = off)</label><input type="number" id="f_alarm" value="0" min="0" max="4294967"></div>
+      <div class="hint" id="mod_rtc_h"></div>
+      <div class="hint">EVT example: RTC/RTC_Calendar. The RTC runs from the backup domain, so it is set up once (BKP_DR1 marker) and keeps counting through resets and on VBAT. RTC_IRQHandler keeps <b>RTC_Seconds</b> and sets <b>RTC_AlarmFlag</b>.</div>`;
+  },
+  bind(ctx){
+    if(mod_ble(ctx)) return;
+    mod_live(['src'], () => {
+      const k = mod_clk(ctx), lse = mod_val('src') !== 'lsi';
+      mod_setHint('mod_rtc_h', lse ? 'Prescaler 32767 → 1 Hz. If the crystal does not start within 5 s the code falls back to LSI.'
+        : `Prescaler ${k.lsi - 1} → 1 Hz from LSI ≈ ${mod_hz(k.lsi)} (RC: expect a few % error).`);
+    });
+  },
+  read(get, ctx){
+    if(mod_ble(ctx)) return {settime: get('settime') || 'yes', when: get('when') || '2025-01-01 00:00:00', period: get('period') || 'none', trig: mod_int(get('trig'), 0)};
+    return {src: get('src') || 'lse', sec: get('sec') || 'yes', alarm: mod_int(get('alarm'), 0)};
+  },
+  gen(c, ctx){
+    if(mod_ble(ctx)){
+      const out = [];
+      const m = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(String(c.when).trim());
+      if(c.settime === 'yes' && m) out.push(`    RTC_InitTime(${+m[1]}, ${+m[2]}, ${+m[3]}, ${+m[4]}, ${+m[5]}, ${+(m[6] || 0)});     /* ${c.when} */`);
+      if(c.period !== 'none') out.push(`    RTC_TMRFunCfg(${c.period});                      /* periodic tick → RTC_TickFlag */`);
+      if(c.trig > 0) out.push(mod_is57(ctx)
+        ? `    RTC_TRIGFunCfg(Freq_LSI * ${c.trig});             /* one-shot trigger ${c.trig} s from now → RTC_TriggerFlag */`
+        : `    RTC_TRIGFunCfg(32768UL * ${c.trig});              /* one-shot trigger ${c.trig} s from now (32768 cycles per second) → RTC_TriggerFlag */`);
+      if(c.period !== 'none' || c.trig > 0) out.push('    PFIC_EnableIRQ(RTC_IRQn);');
+      return out.join('\n') || '    /* RTC: nothing to configure (no time set, no tick, no trigger) */';
+    }
+    const k = mod_clk(ctx), lsiPre = Math.round(k.lsi) - 1;
+    const lsiStart = `        RCC_LSICmd(ENABLE);
+        while(RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
+        RCC_RTCCLKConfig(RCC_RTCCLKSource_LSI);`;
+    const its = (c.sec === 'yes' ? ['RTC_IT_SEC'] : []).concat(c.alarm > 0 ? ['RTC_IT_ALR'] : []);
+    return `${mod_rcc(ctx, 'APB1', ['PWR', 'BKP'])}
+    PWR_BackupAccessCmd(ENABLE);
+    if(BKP_ReadBackupRegister(BKP_DR1) != 0xA1A1)    /* first start (or backup domain lost): configure the RTC once */
+    {
+${c.src === 'lse' ? `        uint16_t wait = 0;
+        uint32_t prescaler = 32767;               /* 32.768 kHz / 32768 = 1 Hz */
+        BKP_DeInit();
+        RCC_LSEConfig(RCC_LSE_ON);
+        while(RCC_GetFlagStatus(RCC_FLAG_LSERDY) == RESET && wait < 250)
+        {
+            wait++;
+            Delay_Ms(20);
+        }
+        if(wait < 250)
+        {
+            RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
+        }
+        else                                      /* no 32.768 kHz crystal: fall back to LSI */
+        {
+            RCC_LSEConfig(RCC_LSE_OFF);
+    ${lsiStart.replace(/\n/g, '\n    ')}
+            prescaler = ${lsiPre};               /* LSI ≈ ${mod_hz(k.lsi)} */
+        }` : `        uint32_t prescaler = ${lsiPre};             /* LSI ≈ ${mod_hz(k.lsi)} → 1 Hz */
+        BKP_DeInit();
+${lsiStart}`}
+        RCC_RTCCLKCmd(ENABLE);
+        RTC_WaitForLastTask();
+        RTC_WaitForSynchro();
+        RTC_WaitForLastTask();
+        RTC_EnterConfigMode();
+        RTC_SetPrescaler(prescaler);
+        RTC_WaitForLastTask();
+        RTC_SetCounter(0);
+        RTC_WaitForLastTask();
+        RTC_ExitConfigMode();
+        BKP_WriteBackupRegister(BKP_DR1, 0xA1A1);
+    }
+    else
+    {
+        RTC_WaitForSynchro();
+    }${c.alarm > 0 ? `
+    RTC_WaitForLastTask();
+    RTC_SetAlarm(RTC_GetCounter() + ${c.alarm});           /* alarm ${c.alarm} s from now → RTC_AlarmFlag */
+    RTC_WaitForLastTask();` : ''}${its.length ? `${c.alarm > 0 ? '' : '\n    RTC_WaitForLastTask();'}
+    RTC_ClearITPendingBit(RTC_IT_SEC | RTC_IT_ALR | RTC_IT_OW);
+    RTC_ITConfig(${its.join(' | ')}, ENABLE);
+    RTC_WaitForLastTask();
+${mod_nvic('RTC_IRQn', 1, 0)}` : ''}`;
+  },
+  decls: (cs, ctx) => !mod_ble(ctx) && cs.some(c => c.sec === 'yes' || c.alarm > 0) ? [MOD_NVIC_DECL] : [],
+  helpers(cs, ctx){
+    const c = cs[0];
+    if(mod_ble(ctx)){
+      if(c.period === 'none' && !(c.trig > 0)) return '';
+      return `volatile uint8_t RTC_TickFlag;       /* set by the periodic tick */
+volatile uint8_t RTC_TriggerFlag;    /* set by the one-shot trigger */
+
+${mod_isr(ctx, 'RTC_IRQHandler')}
+{
+    if(RTC_GetITFlag(RTC_TMR_EVENT))
+    {
+        RTC_ClearITFlag(RTC_TMR_EVENT);
+        RTC_TickFlag = 1;
+    }
+    if(RTC_GetITFlag(RTC_TRIG_EVENT))
+    {
+        RTC_ClearITFlag(RTC_TRIG_EVENT);
+        RTC_TriggerFlag = 1;
+    }
+}`;
+    }
+    if(c.sec !== 'yes' && !(c.alarm > 0)) return '';
+    return `volatile uint32_t RTC_Seconds;     /* counter value, updated every second */
+volatile uint8_t RTC_AlarmFlag;     /* set by the alarm */
+
+${mod_isr(ctx, 'RTC_IRQHandler')}
+{
+    if(RTC_GetITStatus(RTC_IT_SEC) != RESET)
+    {
+        RTC_Seconds = RTC_GetCounter();
+    }
+    if(RTC_GetITStatus(RTC_IT_ALR) != RESET)
+    {
+        RTC_ClearITPendingBit(RTC_IT_ALR);
+        RTC_AlarmFlag = 1;
+    }
+    RTC_ClearITPendingBit(RTC_IT_SEC | RTC_IT_OW);
+    RTC_WaitForLastTask();
+}`;
+  },
+  problems(cs, ctx){
+    const out = [];
+    if(cs.length > 1) out.push({lvl:'err', msg:'RTC: there is only one RTC — keep a single entry'});
+    cs.forEach(c => {
+      if(mod_ble(ctx)){
+        const m = /^(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(String(c.when).trim());
+        if(c.settime === 'yes' && !m) out.push({lvl:'err', cfg:c.id, msg:`RTC: "${c.when}" is not YYYY-MM-DD hh:mm:ss`});
+        else if(c.settime === 'yes' && (+m[1] < 2020 || +m[1] > 2064 || +m[2] < 1 || +m[2] > 12 || +m[3] < 1 || +m[3] > 31 || +m[4] > 23 || +m[5] > 59 || +(m[6] || 0) > 59))
+          out.push({lvl:'err', cfg:c.id, msg:`RTC: ${c.when} is out of range (RTC_InitTime accepts 2020–2064, BEGYEAR + 44)`});
+        if(c.trig > 0 && !mod_is57(ctx) && c.trig * 32768 > 0xA8C00000) out.push({lvl:'err', cfg:c.id, msg:'RTC: trigger time exceeds RTC_MAX_COUNT'});
+        if(!mod_is57(ctx) && !mod_clk(ctx).lsSrc) out.push({lvl:'info', cfg:c.id, msg:'RTC: the 32 kHz source is the SDK default — pick LSE (crystal) or LSI in the Clock view'});
+      } else if(c.alarm < 0) out.push({lvl:'err', cfg:c.id, msg:'RTC: alarm time cannot be negative'});
+      if(!mod_ble(ctx) && c.src === 'lse' && typeof bondedGpios === 'function'){
+        const b = bondedGpios();
+        if(b && !b.has('PC14') && !b.has('PC15')) out.push({lvl:'warn', cfg:c.id, msg:`RTC: LSE needs a 32.768 kHz crystal on OSC32_IN/OUT (PC14/PC15), which ${currentPkg().name} does not bond out — use LSI`});
+      }
+    });
+    return out;
+  },
+  pins(c, ctx){
+    if(mod_ble(ctx) || c.src !== 'lse') return [];
+    return [{gpio:'PC14', role:'OSC32_IN', af:'OTHER:OSC32_IN'}, {gpio:'PC15', role:'OSC32_OUT', af:'OTHER:OSC32_OUT'}];
+  },
+});
+
+/* ======================= CAN ======================= */
+const MOD_CAN_CHIPS = ['CH32V203', 'CH32V303', 'CH32V307', 'CH32L103', 'CH32F203'];
+/* pin sets: EVT CAN/Networking (PB8/PB9 + GPIO_Remap1_CAN1), datasheet pin tables, ch32*_gpio.h remap names */
+const MOD_CAN_PINS = {
+  CAN1:[{k:'default', rx:'PA11', tx:'PA12', remap:null}, {k:'remap1', rx:'PB8', tx:'PB9', remap:'GPIO_Remap1_CAN1'}, {k:'remap2', rx:'PD0', tx:'PD1', remap:'GPIO_Remap2_CAN1'}],
+  CAN2:[{k:'default', rx:'PB12', tx:'PB13', remap:null}, {k:'remap', rx:'PB5', tx:'PB6', remap:'GPIO_Remap_CAN2'}],
+};
+const mod_canInsts = ctx => ctx.id === 'CH32V307' || ctx.id === 'CH32F203' ? ['CAN1', 'CAN2'] : ['CAN1'];
+const mod_canPins = c => (MOD_CAN_PINS[c.inst] || MOD_CAN_PINS.CAN1).find(p => p.k === c.pins) || MOD_CAN_PINS[c.inst || 'CAN1'][0];
+/* bxCAN bit timing: 1 + BS1 (1..16) + BS2 (1..8) time quanta, prescaler 1..1024 */
+function mod_canTiming(pclk, bitrate, spTarget){
+  let best = null;
+  for(let tq = 25; tq >= 4; tq--){
+    const pre = Math.round(pclk / (bitrate * tq));
+    if(pre < 1 || pre > 1024) continue;
+    const real = pclk / (pre * tq), err = Math.abs(real - bitrate) / bitrate;
+    for(let bs2 = 1; bs2 <= 8; bs2++){
+      const bs1 = tq - 1 - bs2;
+      if(bs1 < 1 || bs1 > 16) continue;
+      const sp = (1 + bs1) / tq, d = Math.abs(sp - spTarget);
+      if(!best || err < best.err - 1e-9 || (Math.abs(err - best.err) <= 1e-9 && d < best.d - 1e-9))
+        best = {pre, tq, bs1, bs2, real, err, sp, d};
+    }
+  }
+  return best;
+}
+function mod_canCalc(c, ctx){
+  const k = mod_clk(ctx);
+  return Object.assign({pclk:k.pclk1, known:k.known}, mod_canTiming(k.pclk1, c.kbps * 1000, c.sp / 100) || {});
+}
+const mod_canIrq = c => c.inst === 'CAN2' ? ['CAN2_RX0_IRQn', 'CAN2_RX0_IRQHandler'] : ['USB_LP_CAN1_RX0_IRQn', 'USB_LP_CAN1_RX0_IRQHandler'];
+PERIPH_MODULES.push({
+  tab:'can', title:'CAN 2.0B controller (bxCAN)', cat:'Connectivity', color:'#e07a9b',
+  label: mod_label('CAN', (c, ctx) => { const p = mod_canPins(c), t = mod_canCalc(c, ctx); return `${c.inst} · ${c.kbps} kbit/s${t.sp ? ' · SP ' + (t.sp * 100).toFixed(1) + ' %' : ''} · RX=${p.rx} TX=${p.tx}`; }),
+  supports: ctx => MOD_CAN_CHIPS.includes(ctx.id),
+  form(ctx){
+    const k = mod_clk(ctx);
+    return `<div class="row2">
+        <div class="field"><label>Instance</label><select id="f_inst">${mod_opt(mod_canInsts(ctx), 'CAN1')}</select></div>
+        <div class="field"><label>Pins (RX / TX)</label><select id="f_pins"></select></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Bitrate (kbit/s)</label><input type="number" id="f_kbps" value="500" min="10" max="1000" list="mod_can_rates"><datalist id="mod_can_rates">${[1000, 800, 500, 250, 125, 100, 50, 20, 10].map(n => `<option value="${n}">`).join('')}</datalist></div>
+        <div class="field"><label>Sample point (%)</label><input type="number" id="f_sp" value="87.5" min="50" max="95" step="0.5"></div>
+        <div class="field"><label>SJW (tq)</label><select id="f_sjw">${mod_opt([1, 2, 3, 4], 1)}</select></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Mode</label><select id="f_mode">${mod_opt([['Normal', 'Normal'], ['LoopBack', 'Loop-back'], ['Silent', 'Silent'], ['Silent_LoopBack', 'Silent loop-back']], 'Normal')}</select></div>
+        <div class="field"><label>Auto bus-off recovery</label><select id="f_abom">${mod_opt([['yes', 'On'], ['no', 'Off']], 'yes')}</select></div>
+        <div class="field"><label>RX interrupt</label><select id="f_rxirq">${mod_opt([['yes', 'On (FIFO0)'], ['no', 'Off (poll)']], 'yes')}</select></div>
+      </div>
+      <div class="hint" id="mod_can_h"></div>
+      <div class="hint">EVT example: CAN/Networking. ${ctx.id === 'CH32L103' ? 'CH32L103 has no hardware acceptance filter, so every frame reaches FIFO0.' : 'An all-pass mask filter (bank 0 for CAN1, 14 for CAN2) puts every frame into FIFO0.'} Send with <b>CANx_Send(id, extended, data, len)</b>; received frames land in <b>CANx_RxMessage</b> / <b>CANx_RxReady</b>. APB1: ${mod_hz(k.pclk1)}${k.known ? ' (Clock view)' : ' (EVT default clock)'}.</div>`;
+  },
+  bind(ctx){
+    const fill = () => {
+      const s = document.getElementById('f_pins'); if(!s) return;
+      const inst = mod_val('inst') || 'CAN1', keep = s.value;
+      s.innerHTML = mod_opt(MOD_CAN_PINS[inst].map(p => [p.k, `${p.rx} / ${p.tx}${p.remap ? ' (' + p.remap + ')' : ''}`]), keep);
+      if(![...s.options].some(o => o.value === keep)) s.value = MOD_CAN_PINS[inst][0].k;
+    };
+    const instEl = document.getElementById('f_inst');
+    if(instEl) instEl.addEventListener('change', fill);
+    fill();
+    mod_live(['inst', 'kbps', 'sp'], () => {
+      const c = {inst: mod_val('inst'), kbps: +mod_val('kbps'), sp: +mod_val('sp')}, t = mod_canCalc(c, ctx);
+      if(!t.pre){ mod_setHint('mod_can_h', `<span style="color:var(--red)">No prescaler/segment combination reaches ${c.kbps} kbit/s from ${mod_hz(t.pclk)}.</span>`); return; }
+      const bad = t.err > 0.01;
+      mod_setHint('mod_can_h', `${mod_hz(t.pclk)} / (${t.pre} × ${t.tq} tq) = <b${bad ? ' style="color:var(--red)"' : ''}>${+(t.real / 1000).toFixed(3)} kbit/s</b> (error ${(t.err * 100).toFixed(2)} %) · BS1 ${t.bs1} tq, BS2 ${t.bs2} tq · sample point <b>${(t.sp * 100).toFixed(1)} %</b>`);
+    });
+  },
+  read: get => ({inst: get('inst') || 'CAN1', pins: get('pins') || 'default', kbps: +get('kbps') || 500, sp: +get('sp') || 87.5, sjw: mod_int(get('sjw'), 1),
+    mode: get('mode') || 'Normal', abom: get('abom') || 'yes', rxirq: get('rxirq') || 'yes'}),
+  pins(c){
+    const p = mod_canPins(c);
+    return [{gpio:p.rx, role:c.inst + '_RX', af:'OTHER:' + c.inst + '_RX'}, {gpio:p.tx, role:c.inst + '_TX', af:'OTHER:' + c.inst + '_TX'}];
+  },
+  gen(c, ctx){
+    const p = mod_canPins(c), t = mod_canCalc(c, ctx), can2 = c.inst === 'CAN2';
+    if(!t.pre) return `    /* ${c.inst}: ${c.kbps} kbit/s cannot be generated from APB1 = ${mod_hz(t.pclk)} — see the Problems tab */`;
+    const sjw = Math.min(c.sjw, t.bs2);
+    const out = [mod_gpio(ctx, [{g:p.tx, mode:'AF_PP', note:c.inst + '_TX'}, {g:p.rx, mode:'IPU', note:c.inst + '_RX'}], !!p.remap)];
+    out.push(mod_rcc(ctx, 'APB1', can2 ? ['CAN1', 'CAN2'] : ['CAN1']) + (can2 ? '   /* CAN2 needs CAN1 clocked: the filter banks live in CAN1 */' : ''));
+    if(p.remap) out.push(`    GPIO_PinRemapConfig(${p.remap}, ENABLE);`);
+    out.push(`    CAN_InitStructure.CAN_TTCM      = DISABLE;
+    CAN_InitStructure.CAN_ABOM      = ${c.abom === 'yes' ? 'ENABLE' : 'DISABLE'};
+    CAN_InitStructure.CAN_AWUM      = DISABLE;
+    CAN_InitStructure.CAN_NART      = DISABLE;
+    CAN_InitStructure.CAN_RFLM      = DISABLE;
+    CAN_InitStructure.CAN_TXFP      = DISABLE;
+    CAN_InitStructure.CAN_Mode      = CAN_Mode_${c.mode};
+    CAN_InitStructure.CAN_SJW       = CAN_SJW_${sjw}tq;
+    CAN_InitStructure.CAN_BS1       = CAN_BS1_${t.bs1}tq;
+    CAN_InitStructure.CAN_BS2       = CAN_BS2_${t.bs2}tq;
+    CAN_InitStructure.CAN_Prescaler = ${t.pre};
+    CAN_Init(${c.inst}, &CAN_InitStructure);      /* ${mod_hz(t.pclk)} / (${t.pre} x ${t.tq} tq) = ${+(t.real / 1000).toFixed(3)} kbit/s, sample point ${(t.sp * 100).toFixed(1)} % */
+${ctx.id === 'CH32L103' ? `
+    /* CH32L103 has no hardware acceptance filter (its driver has no CAN_FilterInit; the EVT CAN/Networking
+     * example filters in software), so every frame on the bus reaches FIFO0 */` : `${can2 ? '\n    CAN_SlaveStartBank(14);                   /* filters 0-13 for CAN1, 14-27 for CAN2 */' : ''}
+    CAN_FilterInitStructure.CAN_FilterNumber         = ${can2 ? 14 : 0};       /* mask 0 = accept every frame */
+    CAN_FilterInitStructure.CAN_FilterMode           = CAN_FilterMode_IdMask;
+    CAN_FilterInitStructure.CAN_FilterScale          = CAN_FilterScale_32bit;
+    CAN_FilterInitStructure.CAN_FilterIdHigh         = 0x0000;
+    CAN_FilterInitStructure.CAN_FilterIdLow          = 0x0000;
+    CAN_FilterInitStructure.CAN_FilterMaskIdHigh     = 0x0000;
+    CAN_FilterInitStructure.CAN_FilterMaskIdLow      = 0x0000;
+    CAN_FilterInitStructure.CAN_FilterFIFOAssignment = CAN_Filter_FIFO0;
+    CAN_FilterInitStructure.CAN_FilterActivation     = ENABLE;
+    CAN_FilterInit(&CAN_FilterInitStructure);`}`);
+    if(c.rxirq === 'yes') out.push(`    CAN_ITConfig(${c.inst}, CAN_IT_FMP0, ENABLE);\n` + mod_nvic(mod_canIrq(c)[0], 1, 0));
+    return out.join('\n');
+  },
+  decls: (cs, ctx) => [MOD_GPIO_DECL, 'CAN_InitTypeDef CAN_InitStructure = {0};'].concat(ctx.id === 'CH32L103' ? [] : ['CAN_FilterInitTypeDef CAN_FilterInitStructure = {0};'],cs.some(c => c.rxirq === 'yes') ? [MOD_NVIC_DECL] : []),
+  helpers(cs, ctx){
+    return cs.map(c => {
+      const i = c.inst;
+      return `CanRxMsg ${i}_RxMessage;          /* last received frame */
+volatile uint8_t ${i}_RxReady;      /* 1 when ${i}_RxMessage holds a new frame */
+
+/* queue one data frame; returns 0 when a mailbox was free, 1 otherwise */
+uint8_t ${i}_Send(uint32_t id, uint8_t extended, const uint8_t *data, uint8_t len)
+{
+    CanTxMsg tx = {0};
+    uint8_t i;
+
+    if(len > 8) len = 8;
+    if(extended){ tx.ExtId = id; tx.IDE = CAN_Id_Extended; }
+    else        { tx.StdId = id; tx.IDE = CAN_Id_Standard; }
+    tx.RTR = CAN_RTR_Data;
+    tx.DLC = len;
+    for(i = 0; i < len; i++) tx.Data[i] = data[i];
+    return CAN_Transmit(${i}, &tx) == CAN_TxStatus_NoMailBox ? 1 : 0;
+}${c.rxirq === 'yes' ? `
+
+${mod_isr(ctx, mod_canIrq(c)[1])}
+{
+    if(CAN_GetITStatus(${i}, CAN_IT_FMP0) != RESET)
+    {
+        CAN_Receive(${i}, CAN_FIFO0, &${i}_RxMessage);     /* also releases the FIFO entry */
+        ${i}_RxReady = 1;
+    }
+}` : `
+
+/* poll FIFO0; returns 1 and fills ${i}_RxMessage when a frame was waiting */
+uint8_t ${i}_Poll(void)
+{
+    if(CAN_MessagePending(${i}, CAN_FIFO0) == 0) return 0;
+    CAN_Receive(${i}, CAN_FIFO0, &${i}_RxMessage);
+    return 1;
+}`}`;
+    }).join('\n\n');
+  },
+  problems(cs, ctx){
+    const out = [], seen = {};
+    cs.forEach(c => {
+      if(seen[c.inst]) out.push({lvl:'err', cfg:c.id, msg:`${c.inst} is configured twice`});
+      seen[c.inst] = 1;
+      if(!mod_canInsts(ctx).includes(c.inst)) out.push({lvl:'err', cfg:c.id, msg:`${c.inst} does not exist on ${ctx.id}`});
+      const t = mod_canCalc(c, ctx);
+      if(c.kbps > 1000) out.push({lvl:'err', cfg:c.id, msg:`${c.inst}: ${c.kbps} kbit/s is above the CAN 2.0 maximum of 1000 kbit/s`});
+      if(!t.pre) out.push({lvl:'err', cfg:c.id, msg:`${c.inst}: ${c.kbps} kbit/s cannot be generated from APB1 = ${mod_hz(t.pclk)} (prescaler 1–1024, 4–25 tq)`});
+      else if(t.err > 0.01) out.push({lvl:'err', cfg:c.id, msg:`${c.inst}: APB1 = ${mod_hz(t.pclk)} cannot hit ${c.kbps} kbit/s within 1 % — best is ${+(t.real / 1000).toFixed(3)} kbit/s (${(t.err * 100).toFixed(2)} % off). Change APB1 in the Clock view or pick another bitrate`});
+      else if(t.err > 0.001) out.push({lvl:'warn', cfg:c.id, msg:`${c.inst}: bitrate is ${(t.err * 100).toFixed(2)} % off (${+(t.real / 1000).toFixed(3)} kbit/s)`});
+      if(t.pre && Math.abs(t.sp * 100 - c.sp) > 2.5) out.push({lvl:'warn', cfg:c.id, msg:`${c.inst}: sample point ${(t.sp * 100).toFixed(1)} % is far from the requested ${c.sp} % at this clock`});
+      if(t.pre && c.sjw > t.bs2) out.push({lvl:'warn', cfg:c.id, msg:`${c.inst}: SJW ${c.sjw} tq is longer than BS2 (${t.bs2} tq); ${t.bs2} tq is generated`});
+      const p = mod_canPins(c);
+      [[p.rx, 'RX'], [p.tx, 'TX']].forEach(([g, s]) => {
+        const ok = mod_pinListed(g, [c.inst + '_' + s, 'CAN_' + s]);
+        if(ok === false) out.push({lvl:'warn', pin:g, cfg:c.id, msg:`${c.inst}_${s} is not listed on ${g} in the ${pinout().ds} pin table`});
+      });
+    });
+    if(cs.some(c => c.inst === 'CAN1' && c.rxirq === 'yes')) out.push({lvl:'info', msg:'CAN1: the RX0 interrupt shares USB_LP_CAN1_RX0_IRQHandler with the USBD low-priority interrupt — do not use both'});
+    return out;
+  },
+});
+
+/* ======================= DAC (CH32V30x) ======================= */
+PERIPH_MODULES.push({
+  tab:'dac', title:'DAC (12-bit)', cat:'Analog', color:'#8bd3a5',
+  label: mod_label('DAC', c => `DAC${c.ch} · PA${c.ch === 1 ? 4 : 5}${c.wave !== 'None' ? ' · ' + c.wave.toLowerCase() : ' · ' + c.value + '/4095'}`),
+  supports: ctx => ctx.id === 'CH32V303' || ctx.id === 'CH32V307',
+  form(ctx){
+    return `<div class="row2">
+        <div class="field"><label>Channel</label><select id="f_ch">${mod_opt([[1, 'DAC1 → PA4'], [2, 'DAC2 → PA5']], 1)}</select></div>
+        <div class="field"><label>Output buffer</label><select id="f_buf">${mod_opt([['Disable', 'Off (as EVT)'], ['Enable', 'On (lower output impedance)']], 'Disable')}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Trigger</label><select id="f_trig">${mod_opt([['None', 'None (write = output)'], ['Software', 'Software'], ['T6_TRGO', 'TIM6 TRGO'], ['T7_TRGO', 'TIM7 TRGO'], ['T2_TRGO', 'TIM2 TRGO'], ['T4_TRGO', 'TIM4 TRGO']], 'None')}</select></div>
+        <div class="field"><label>Wave generation</label><select id="f_wave">${mod_opt([['None', 'None'], ['Triangle', 'Triangle'], ['Noise', 'Noise (LFSR)']], 'None')}</select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Triangle amplitude / noise bits</label><select id="f_amp">${mod_opt([1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095].map((n, i) => [i, `${n} / ${i + 1} bit${i ? 's' : ''}`]), 11)}</select></div>
+        <div class="field"><label>Initial value (0–4095)</label><input type="number" id="f_value" value="2048" min="0" max="4095"></div>
+      </div>
+      <div class="hint" id="mod_dac_h"></div>
+      <div class="hint">EVT examples: DAC/DAC_Normal_OUT, DAC_Triangle_Generation, DAC_Noise_Generation. Write new values with <b>DACx_Write(value)</b>. A timer trigger needs that timer's TRGO set up (TIM_SelectOutputTrigger) in your code.</div>`;
+  },
+  bind(){
+    mod_live(['value', 'wave'], () => {
+      const v = mod_int(mod_val('value'), 0);
+      mod_setHint('mod_dac_h', mod_val('wave') === 'None' ? `Output ≈ ${(v / 4095 * 3.3).toFixed(3)} V with VREF+ = 3.3 V (12-bit right aligned).` : 'Wave generation adds to the DHR value on every trigger; it needs a trigger other than None.');
+    });
+  },
+  read: get => ({ch: mod_int(get('ch'), 1), buf: get('buf') || 'Disable', trig: get('trig') || 'None', wave: get('wave') || 'None', amp: mod_int(get('amp'), 11), value: mod_int(get('value'), 0)}),
+  pins: c => [{gpio: c.ch === 1 ? 'PA4' : 'PA5', role:'DAC' + c.ch + '_OUT', af:'OTHER:DAC' + c.ch + '_OUT'}],
+  gen(c, ctx){
+    const amp = c.wave === 'Noise' ? (c.amp ? `DAC_LFSRUnmask_Bits${c.amp}_0` : 'DAC_LFSRUnmask_Bit0') : `DAC_TriangleAmplitude_${[1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095][c.amp]}`;
+    return `${mod_gpio(ctx, [{g: c.ch === 1 ? 'PA4' : 'PA5', mode:'AIN', note:'DAC' + c.ch + '_OUT'}], false)}
+${mod_rcc(ctx, 'APB1', ['DAC'])}
+    DAC_InitStructure.DAC_Trigger                      = DAC_Trigger_${c.trig};
+    DAC_InitStructure.DAC_WaveGeneration               = DAC_WaveGeneration_${c.wave};
+    DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = ${c.wave === 'None' ? 'DAC_LFSRUnmask_Bit0' : amp};
+    DAC_InitStructure.DAC_OutputBuffer                 = DAC_OutputBuffer_${c.buf};
+    DAC_Init(DAC_Channel_${c.ch}, &DAC_InitStructure);
+    DAC_Cmd(DAC_Channel_${c.ch}, ENABLE);
+    DAC_SetChannel${c.ch}Data(DAC_Align_12b_R, ${c.value});${c.trig === 'Software' ? `\n    DAC_SoftwareTriggerCmd(DAC_Channel_${c.ch}, ENABLE);` : ''}`;
+  },
+  decls: () => [MOD_GPIO_DECL, 'DAC_InitTypeDef DAC_InitStructure = {0};'],
+  helpers: cs => cs.map(c => `/* new 12-bit value for DAC${c.ch} (PA${c.ch === 1 ? 4 : 5}) */
+void DAC${c.ch}_Write(uint16_t value)
+{
+    DAC_SetChannel${c.ch}Data(DAC_Align_12b_R, value & 0x0FFF);${c.trig === 'Software' ? `\n    DAC_SoftwareTriggerCmd(DAC_Channel_${c.ch}, ENABLE);` : ''}
+}`).join('\n\n'),
+  problems(cs){
+    const out = [], seen = {};
+    cs.forEach(c => {
+      if(seen[c.ch]) out.push({lvl:'err', cfg:c.id, msg:`DAC${c.ch} is configured twice`});
+      seen[c.ch] = 1;
+      if(!(c.value >= 0 && c.value <= 4095)) out.push({lvl:'err', cfg:c.id, msg:`DAC${c.ch}: value ${c.value} is outside 0–4095`});
+      if(c.wave !== 'None' && c.trig === 'None') out.push({lvl:'err', cfg:c.id, msg:`DAC${c.ch}: ${c.wave.toLowerCase()} generation only advances on a trigger — choose Software or a timer trigger`});
+      if(/^T\d/.test(c.trig) && !state.configs.some(x => x.type === 'timer' && x.inst === 'TIM' + c.trig[1])) out.push({lvl:'info', cfg:c.id, msg:`DAC${c.ch}: TIM${c.trig[1]} TRGO must be configured for the trigger to fire`});
+    });
+    return out;
+  },
+});
+
+/* ======================= OPA ======================= */
+/* pins from the datasheet pin tables (OPAx_CHyP / CHyN / OUTy); enum names from ch32*_opa.h */
+const MOD_OPA = {
+  CH32V003:{opas:{OPA1:{p:['PA2', 'PD7'], n:['PA1', 'PD0'], o:['PD4']}}, single:true},
+  CH32V203:{opas:{OPA1:{p:['PB15', 'PB0'], n:['PB11', 'PA6'], o:['PA3', 'PB1']}, OPA2:{p:['PB14', 'PA7'], n:['PB10', 'PA5'], o:['PA2', 'PA4']}}, inc:'ch32v20x_opa.h'},
+  CH32F203:{opas:{OPA1:{p:['PB15', 'PB0'], n:['PB11', 'PA6'], o:['PA3', 'PB1']}, OPA2:{p:['PB14', 'PA7'], n:['PB10', 'PA5'], o:['PA2', 'PA4']}}, inc:'ch32f20x_opa.h'},
+  CH32V303:{opas:{OPA1:{p:['PB15', 'PB0'], n:['PB11', 'PA6'], o:['PA3', 'PE15']}, OPA2:{p:['PB14', 'PA7'], n:['PB10', 'PA5'], o:['PA2', 'PE14']},
+    OPA3:{p:['PB13', 'PC5'], n:['PB2', 'PC2'], o:['PA1', 'PE7']}, OPA4:{p:['PB12', 'PC4'], n:['PB1', 'PC3'], o:['PA0', 'PE8']}}, inc:'ch32v30x_opa.h'},
+  CH32X035:{opas:{OPA1:{p:['PB0', 'PB8', 'PB4'], n:['PA6', 'PB6', 'PA1'], o:['PA3', 'PB5']}, OPA2:{p:['PA7', 'PB3', 'PB7'], n:['PA5', 'PB1', 'PA1'], o:['PA4', 'PA2']}},
+    pga:['CHN_PGA_4xIN', 'CHN_PGA_8xIN', 'CHN_PGA_16xIN', 'CHN_PGA_32xIN'], unlock:'OPA_Unlock();', inc:'ch32x035_opa.h'},
+  CH32L103:{opas:{OPA1:{p:['PB15', 'PB0', 'PB14', 'PA7', 'PA0', 'PA6'], n:['PB11', 'PA6', 'PB10', 'PA5', 'PA1', 'PA7'], o:['PA3', 'PB1', 'PA2', 'PA4', 'PB0']}},
+    pga:['CHN_PGA_8xIN', 'CHN_PGA_16xIN', 'CHN_PGA_32xIN', 'CHN_PGA_64xIN'], unlock:'OPCM_Unlock();'},
+};
+MOD_OPA.CH32V307 = MOD_OPA.CH32V303;
+const mod_opaDef = ctx => MOD_OPA[ctx.id];
+function mod_opaPins(c, ctx){
+  const d = mod_opaDef(ctx), o = d && d.opas[c.num]; if(!o) return [];
+  const out = [{gpio:o.p[c.psel], role:`${c.num}_CH${c.psel}P`, af:'OTHER:opa'}];
+  if(/^\d+$/.test(c.nsel)) out.push({gpio:o.n[+c.nsel], role:`${c.num}_CH${c.nsel}N`, af:'OTHER:opa'});
+  if(o.o[c.out]) out.push({gpio:o.o[c.out], role:`${c.num}_OUT${c.out}`, af:'OTHER:opa'});
+  return out.filter(x => x.gpio);
+}
+PERIPH_MODULES.push({
+  tab:'opa', title:'Operational amplifier (OPA)', cat:'Analog', color:'#5fb3e0',
+  label: mod_label('OPA', (c, ctx) => `${c.num} · ${mod_opaPins(c, ctx).map(p => p.role.replace(c.num + '_', '') + '=' + p.gpio).join(' ')}${/PGA/.test(c.nsel) ? ' · ' + c.nsel.replace(/CHN_PGA_|IN/g, '') : ''}`),
+  supports: ctx => !!MOD_OPA[ctx.id],
+  form(ctx){
+    const d = mod_opaDef(ctx);
+    return `<div class="row2">
+        <div class="field"><label>Amplifier</label><select id="f_num">${mod_opt(Object.keys(d.opas), 'OPA1')}</select></div>
+        <div class="field"><label>Output</label><select id="f_out"></select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Non-inverting input (+)</label><select id="f_psel"></select></div>
+        <div class="field"><label>Inverting input (−) / gain</label><select id="f_nsel"></select></div>
+      </div>
+      <div class="hint">EVT example: OPA/OPA${d.pga ? ', OPA/OPA_PGA' : ''}. Inputs and output are set to analog mode; read the output with the ADC channel of that pin.${d.pga ? ' PGA settings use the internal feedback network (FB_ON), so no (−) pin is used.' : ''}</div>`;
+  },
+  bind(ctx){
+    const d = mod_opaDef(ctx);
+    const fill = () => {
+      const o = d.opas[mod_val('num')] || Object.values(d.opas)[0];
+      const set = (id, list) => { const s = document.getElementById('f_' + id); if(!s) return; const keep = s.value; s.innerHTML = mod_opt(list, keep); if(![...s.options].some(x => x.value === keep)) s.value = list[0][0]; };
+      set('psel', o.p.map((g, i) => [i, `CHP${i} · ${g}`]));
+      set('nsel', o.n.map((g, i) => [i, `CHN${i} · ${g}`]).concat((d.pga || []).map(p => [p, 'PGA ' + p.replace(/CHN_PGA_|IN/g, '') + ' (internal)'])));
+      set('out', o.o.map((g, i) => [i, `OUT${i} · ${g}`]));
+    };
+    const n = document.getElementById('f_num');
+    if(n) n.addEventListener('change', fill);
+    fill();
+  },
+  read: get => ({num: get('num') || 'OPA1', psel: mod_int(get('psel'), 0), nsel: get('nsel') || '0', out: mod_int(get('out'), 0)}),
+  pins: (c, ctx) => mod_opaPins(c, ctx),
+  gen(c, ctx){
+    const d = mod_opaDef(ctx), pga = /PGA/.test(c.nsel);
+    const pins = mod_opaPins(c, ctx).map(p => ({g:p.gpio, mode:'AIN', note:p.role}));
+    const lines = [mod_gpio(ctx, pins, false)];
+    if(d.unlock) lines.push(`    ${d.unlock}                           /* OPA registers are write-protected after reset */`);
+    if(d.single) lines.push(`    OPA_InitStructure.PSEL = CHP${c.psel};
+    OPA_InitStructure.NSEL = CHN${c.nsel};
+    OPA_Init(&OPA_InitStructure);
+    OPA_Cmd(ENABLE);                          /* output on ${mod_opaDef(ctx).opas.OPA1.o[0]} */`);
+    else lines.push(`    OPA_InitStructure.OPA_NUM = ${c.num};
+    OPA_InitStructure.PSEL    = CHP${c.psel};
+    OPA_InitStructure.NSEL    = ${pga ? c.nsel : 'CHN' + c.nsel};
+    OPA_InitStructure.Mode    = OUT_IO_OUT${c.out};${d.pga ? `\n    OPA_InitStructure.FB      = ${pga ? 'FB_ON' : 'FB_OFF'};` : ''}
+    OPA_Init(&OPA_InitStructure);
+    OPA_Cmd(${c.num}, ENABLE);`);
+    return lines.join('\n');
+  },
+  decls: () => [MOD_GPIO_DECL, 'OPA_InitTypeDef OPA_InitStructure = {0};'],
+  includes: (cs, ctx) => mod_opaDef(ctx).inc ? [`#include "${mod_opaDef(ctx).inc}"           /* not pulled in by the EVT *_conf.h of GPIO_Toggle */`] : [],
+  problems(cs, ctx){
+    const out = [], seen = {}, d = mod_opaDef(ctx);
+    cs.forEach(c => {
+      if(seen[c.num]) out.push({lvl:'err', cfg:c.id, msg:`${c.num} is configured twice`});
+      seen[c.num] = 1;
+      const o = d.opas[c.num];
+      if(!o) { out.push({lvl:'err', cfg:c.id, msg:`${c.num} does not exist on ${ctx.id}`}); return; }
+      if(c.psel >= o.p.length || (/^\d+$/.test(c.nsel) && +c.nsel >= o.n.length) || c.out >= o.o.length) out.push({lvl:'err', cfg:c.id, msg:`${c.num}: input/output selection does not exist on ${ctx.id}`});
+    });
+    return out;
+  },
+});
+
+/* ======================= CMP ======================= */
+const MOD_CMP = {
+  CH32X035:{cmps:{CMP1:{p:['PC19', 'PA0'], n:['PC3', 'PA23'], o:['PA1']}, CMP2:{p:['PA12', 'PA11'], n:['PA22', 'PC3'], o:['PB2']}, CMP3:{p:['PA13', 'PA14'], n:['PA2', 'PC3'], o:['PB3']}},
+    psel:['CMP_CHP1', 'CMP_CHP2'], hys:['CMP_HYEN1', 'CMP_HYEN2'], modes:[['OUT_IO0', 'Output pin'], ['OUT_IO_TIM2', 'TIM2 (internal)']], unlock:'OPA_CMP_Unlock();', inc:'ch32x035_opa.h'},
+  CH32L103:{cmps:{CMP1:{p:['PA2', 'PB2'], n:['PB1', 'PB3'], o:['PB0', 'PB10']}, CMP2:{p:['PB8', 'PB6'], n:['PB3', 'PB7'], o:['PB5', 'PB11']}, CMP3:{p:['PB5', 'PB10'], n:['PB3', 'PB11'], o:['PB4', 'PB12']}},
+    psel:['CMP_CHP_0', 'CMP_CHP_1'], hys:['CMP_HYEN0', 'CMP_HYEN1'], modes:[['OUT_IO0', 'Output pin OUT0'], ['OUT_IO1', 'Output pin OUT1'], ['OUT_IO_TIM2', 'TIM2 (internal)']], unlock:'OPCM_Unlock();'},
+};
+/* CH570/CH572: CMPSwTypeDef in CH57x_cmp.h */
+const MOD_CMP57 = [['cmp_sw_0', 'P = PA3, N = PA2'], ['cmp_sw_1', 'P = PA3, N = internal reference'], ['cmp_sw_2', 'P = PA7, N = PA2'], ['cmp_sw_3', 'P = PA7, N = internal reference']];
+function mod_cmpPins(c, ctx){
+  if(mod_ble(ctx)){
+    const s = +String(c.sw).slice(-1);
+    return [{gpio: s < 2 ? 'PA3' : 'PA7', role: s < 2 ? 'CMP_P0' : 'CMP_P1', af:'OTHER:CMP'}].concat(s % 2 ? [] : [{gpio:'PA2', role:'CMP_N', af:'OTHER:CMP'}]);
+  }
+  const d = MOD_CMP[ctx.id], m = d && d.cmps[c.num]; if(!m) return [];
+  const out = [{gpio:m.p[c.psel], role:`${c.num}_P${c.psel}`, af:'OTHER:cmp'}, {gpio:m.n[c.nsel], role:`${c.num}_N${c.nsel}`, af:'OTHER:cmp'}];
+  const oi = c.mode === 'OUT_IO1' ? 1 : c.mode === 'OUT_IO0' ? 0 : -1;
+  if(oi >= 0 && m.o[oi]) out.push({gpio:m.o[oi], role:`${c.num}_OUT`, af:'OTHER:cmp'});
+  return out.filter(x => x.gpio);
+}
+PERIPH_MODULES.push({
+  tab:'cmp', title:'Analog comparator (CMP)', cat:'Analog', color:'#c3d96b',
+  label: mod_label('CMP', (c, ctx) => mod_ble(ctx)
+    ? `CMP · ${(MOD_CMP57.find(x => x[0] === c.sw) || ['', ''])[1]}${c.sw.slice(-1) % 2 ? ' ' + c.vref + ' mV' : ''}`
+    : `${c.num} · ${mod_cmpPins(c, ctx).map(p => p.role.replace(c.num + '_', '') + '=' + p.gpio).join(' ')}${c.mode === 'OUT_IO_TIM2' ? ' → TIM2' : ''}`),
+  supports: ctx => !!MOD_CMP[ctx.id] || mod_is57(ctx),
+  form(ctx){
+    if(mod_ble(ctx)) return `<div class="field"><label>Inputs</label><select id="f_sw">${mod_opt(MOD_CMP57, 'cmp_sw_0')}</select></div>
+      <div class="row2">
+        <div class="field"><label>Internal reference (N)</label><select id="f_vref">${mod_opt(Array.from({length:16}, (_, i) => [50 * (i + 1), `${50 * (i + 1)} mV`]), 800)}</select></div>
+        <div class="field"><label>Interrupt</label><select id="f_irq">${mod_opt([['none', 'Off'], ['cmp_out_sel_rise', 'Rising edge'], ['cmp_out_sel_fall', 'Falling edge'], ['cmp_out_sel_high', 'Output high'], ['cmp_out_sel_low', 'Output low']], 'cmp_out_sel_rise')}</select></div>
+      </div>
+      <div class="field"><label>Output to timer capture</label><select id="f_totim">${mod_opt([['no', 'Off'], ['yes', 'On (CMP_OutToTIMCAPCfg)']], 'no')}</select></div>
+      <div class="hint">EVT example: CMP. Read the result with <b>CMP_Read()</b>; the interrupt sets <b>CMP_Event</b>. Level interrupts are disabled inside the handler (as in the EVT) to avoid an interrupt storm — re-arm with CMP_INTCfg().</div>`;
+    const d = MOD_CMP[ctx.id];
+    return `<div class="row2">
+        <div class="field"><label>Comparator</label><select id="f_num">${mod_opt(Object.keys(d.cmps), 'CMP1')}</select></div>
+        <div class="field"><label>Output</label><select id="f_mode">${mod_opt(d.modes, 'OUT_IO0')}</select></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>+ input</label><select id="f_psel"></select></div>
+        <div class="field"><label>− input</label><select id="f_nsel"></select></div>
+        <div class="field"><label>Hysteresis bit</label><select id="f_hys">${mod_opt(d.hys.map((h, i) => [i, h]), ctx.id === 'CH32X035' ? 1 : 1)}</select></div>
+      </div>
+      <div class="hint" id="mod_cmp_h"></div>
+      <div class="hint">EVT example: OPA/CMP (CMP_TIM2 for the timer route). Inputs are analog, the output pin is alternate-function push-pull.</div>`;
+  },
+  bind(ctx){
+    if(mod_ble(ctx)) return mod_live(['sw'], () => { const v = document.getElementById('f_vref'); if(v) v.disabled = !(+String(mod_val('sw')).slice(-1) % 2); });
+    const d = MOD_CMP[ctx.id];
+    const fill = () => {
+      const m = d.cmps[mod_val('num')] || d.cmps.CMP1;
+      const set = (id, list) => { const s = document.getElementById('f_' + id); if(!s) return; const keep = s.value; s.innerHTML = mod_opt(list, keep); if(![...s.options].some(x => x.value === keep)) s.value = list[0][0]; };
+      set('psel', m.p.map((g, i) => [i, `P${i} · ${g}`]));
+      set('nsel', m.n.map((g, i) => [i, `N${i} · ${g}`]));
+      mod_setHint('mod_cmp_h', `Output pin${m.o.length > 1 ? 's' : ''}: ${m.o.map((g, i) => (m.o.length > 1 ? 'OUT' + i + ' ' : '') + g).join(', ')}`);
+    };
+    const n = document.getElementById('f_num');
+    if(n) n.addEventListener('change', fill);
+    fill();
+  },
+  read(get, ctx){
+    if(mod_ble(ctx)) return {sw: get('sw') || 'cmp_sw_0', vref: mod_int(get('vref'), 800), irq: get('irq') || 'none', totim: get('totim') || 'no'};
+    return {num: get('num') || 'CMP1', mode: get('mode') || 'OUT_IO0', psel: mod_int(get('psel'), 0), nsel: mod_int(get('nsel'), 0), hys: mod_int(get('hys'), 1)};
+  },
+  pins: (c, ctx) => mod_cmpPins(c, ctx),
+  gen(c, ctx){
+    if(mod_ble(ctx)){
+      const pins = mod_cmpPins(c, ctx).map(p => 'GPIO_Pin_' + p.gpio.slice(2));
+      return `    GPIOA_ModeCfg(${pins.join(' | ')}, GPIO_ModeIN_Floating);
+    CMP_Init(${c.sw}, cmp_nref_level_${c.vref});${+c.sw.slice(-1) % 2 ? '' : '          /* reference level unused: N is PA2 */'}${c.irq !== 'none' ? `
+    CMP_INTCfg(${c.irq}, ENABLE);
+    CMP_ClearITStatus();
+    PFIC_EnableIRQ(CMP_IRQn);` : ''}${c.totim === 'yes' ? '\n    CMP_OutToTIMCAPCfg(ENABLE);' : ''}
+    CMP_Enable();`;
+    }
+    const d = MOD_CMP[ctx.id];
+    const pins = mod_cmpPins(c, ctx).map(p => ({g:p.gpio, mode: /OUT$/.test(p.role) ? 'AF_PP' : 'AIN', note:p.role}));
+    return `${mod_gpio(ctx, pins, false)}
+    ${d.unlock}                    /* comparator registers are write-protected after reset */
+    CMP_InitStructure.CMP_NUM = ${c.num};
+    CMP_InitStructure.Mode    = ${c.mode};
+    CMP_InitStructure.NSEL    = CMP_CHN${c.nsel};
+    CMP_InitStructure.PSEL    = ${d.psel[c.psel]};
+    CMP_InitStructure.HYEN    = ${d.hys[c.hys]};
+    OPA_CMP_Init(&CMP_InitStructure);
+    OPA_CMP_Cmd(${c.num}, ENABLE);`;
+  },
+  decls: (cs, ctx) => mod_ble(ctx) ? [] : [MOD_GPIO_DECL, 'CMP_InitTypeDef CMP_InitStructure = {0};'],
+  includes: (cs, ctx) => MOD_CMP[ctx.id] && MOD_CMP[ctx.id].inc ? [`#include "${MOD_CMP[ctx.id].inc}"           /* not pulled in by the EVT *_conf.h of GPIO_Toggle */`] : [],
+  helpers(cs, ctx){
+    if(!mod_ble(ctx)) return '';
+    const c = cs[0];
+    return `/* 1 when the + input is above the - input */
+uint8_t CMP_Read(void)
+{
+    return CMP_ReadAPROut() ? 1 : 0;
+}${c.irq !== 'none' ? `
+
+volatile uint8_t CMP_Event;   /* set by the comparator interrupt */
+${mod_isr(ctx, 'CMP_IRQHandler')}
+{
+    if(CMP_GetITStatus())
+    {
+        CMP_ClearITStatus();${/high|low/.test(c.irq) ? `\n        CMP_INTCfg(${c.irq}, DISABLE);    /* level interrupt: re-enable after handling */` : ''}
+        CMP_Event = 1;
+    }
+}` : ''}`;
+  },
+  problems(cs, ctx){
+    const out = [], seen = {};
+    if(mod_ble(ctx)){ if(cs.length > 1) out.push({lvl:'err', msg:'CMP: the chip has one comparator — keep a single entry'}); return out; }
+    cs.forEach(c => {
+      if(seen[c.num]) out.push({lvl:'err', cfg:c.id, msg:`${c.num} is configured twice`});
+      seen[c.num] = 1;
+    });
+    return out;
+  },
+});
+
+/* ======================= Low power / PWR ======================= */
+const MOD_BLE_RAM = {CH570:'RB_PWR_RAM12K', CH572:'RB_PWR_RAM12K', CH581:'RB_PWR_RAM30K | RB_PWR_RAM2K', CH582:'RB_PWR_RAM30K | RB_PWR_RAM2K', CH583:'RB_PWR_RAM30K | RB_PWR_RAM2K',
+  CH585:'RB_PWR_RAM96K | RB_PWR_RAM32K', CH591:'RB_PWR_RAM24K | RB_PWR_RAM2K', CH592:'RB_PWR_RAM24K | RB_PWR_RAM2K'};
+const MOD_AWU_PRE = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 10240, 61440];
+const mod_awu = ctx => ctx.id === 'CH32V003' || ctx.id === 'CH32X035';
+/* AWU: period = window × prescaler / f(LSI); window is 6-bit (1..63) */
+function mod_awuCalc(sec, lsi){
+  let best = null;
+  MOD_AWU_PRE.forEach(p => {
+    const w = Math.round(sec * lsi / p);
+    if(w < 1 || w > 63) return;
+    const real = w * p / lsi, e = Math.abs(real - sec);
+    if(!best || e < best.e - 1e-12) best = {p, w, real, e};
+  });
+  return best;
+}
+function mod_pwrModes(ctx){
+  if(mod_ble(ctx)) return [['idle', 'Idle (CPU clock stopped)'], ['halt', 'Halt'], ['sleep', 'Sleep (RAM kept)'], ['shutdown', 'Shutdown (wake = reset)']];
+  if(ctx.id === 'CH32V003') return [['sleep', 'Sleep (WFI)'], ['standby', 'Standby + auto-wakeup (AWU)']];
+  if(ctx.id === 'CH32X035') return [['sleep', 'Sleep (WFI)'], ['stop', 'Stop (EXTI wake)'], ['standby', 'Standby + auto-wakeup (AWU)']];
+  return [['sleep', 'Sleep (WFI)'], ['stop', 'Stop (EXTI wake)'], ['standby', 'Standby (wake = reset)']];
+}
+PERIPH_MODULES.push({
+  tab:'pwr', title:'Low-power modes (PWR)', cat:'Power', color:'#9aa5b5',
+  label: mod_label('Low power', (c, ctx) => `Low power · ${(mod_pwrModes(ctx).find(m => m[0] === c.mode) || [c.mode, c.mode])[1].replace(/ \(.*/, '')}${mod_ble(ctx)
+    ? (c.gpio === 'yes' ? ` · wake P${c.port}${c.pin}` : '') + (c.rtcwake === 'yes' ? ' · wake RTC' : '')
+    : c.mode === 'standby' ? (mod_awu(ctx) ? ` · ${mod_time((mod_awuCalc(c.awu, mod_clk(ctx).lsi) || {}).real)}` : c.wake === 'wkup' ? ' · WKUP PA0' : ' · RTC alarm') : ''}`),
+  supports: ctx => MOD_STD_CHIPS.includes(ctx.id) || MOD_BLE_CHIPS.includes(ctx.id),
+  form(ctx){
+    const modes = mod_pwrModes(ctx);
+    if(mod_ble(ctx)){
+      const ports = ctx.v.ports || ['A'];
+      return `<div class="field"><label>Mode used by LowPower_Enter()</label><select id="f_mode">${mod_opt(modes, 'sleep')}</select></div>
+        <div class="row3">
+          <div class="field"><label>GPIO wake-up</label><select id="f_gpio">${mod_opt([['yes', 'On'], ['no', 'Off']], 'yes')}</select></div>
+          <div class="field"><label>Port</label><select id="f_port">${mod_opt(ports.map(p => [p, 'P' + p]), ports[0])}</select></div>
+          <div class="field"><label>Pin</label><input type="number" id="f_pin" value="5" min="0" max="23"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Wake edge</label><select id="f_edge">${mod_opt([['GPIO_ITMode_FallEdge', 'Falling (pull-up)'], ['GPIO_ITMode_RiseEdge', 'Rising (pull-down)']], 'GPIO_ITMode_FallEdge')}</select></div>
+          <div class="field"><label>RTC wake-up</label><select id="f_rtcwake">${mod_opt([['no', 'Off'], ['yes', 'On (tick / trigger from the RTC tab)']], 'no')}</select></div>
+        </div>
+        <div class="hint">EVT example: PM. Call <b>LowPower_Enter()</b> from the main loop. Sleep keeps ${MOD_BLE_RAM[ctx.id] ? MOD_BLE_RAM[ctx.id].replace(/RB_PWR_RAM/g, '').replace(/ \| /g, ' + ') : 'the retention'} RAM; after Halt/Sleep the HSE bias current is restored with HSECFG_Current(HSE_RCur_100) as in the EVT. Shutdown restarts from reset.</div>`;
+    }
+    return `<div class="field"><label>Mode used by LowPower_Enter()</label><select id="f_mode">${mod_opt(modes, 'sleep')}</select></div>
+      ${mod_awu(ctx) ? `<div class="field" id="mod_pwr_awu"><label>Auto-wakeup period (s)</label><input type="number" id="f_awu" value="2" min="0.001" max="30" step="0.001"></div>`
+        : `<div class="field" id="mod_pwr_wk"><label>Standby wake-up source</label><select id="f_wake">${mod_opt([['wkup', 'WKUP pin PA0 (rising edge)'], ['rtc', 'RTC alarm (RTC tab)']], 'wkup')}</select></div>`}
+      <div class="hint" id="mod_pwr_h"></div>
+      <div class="hint">EVT examples: PWR/Sleep_Mode, Stop_Mode, Standby_Mode. Call <b>LowPower_Enter()</b> from the main loop. Unused pins should be inputs with pull-up/down to reach the datasheet current.</div>`;
+  },
+  bind(ctx){
+    if(mod_ble(ctx)) return mod_live(['gpio'], () => ['port', 'pin', 'edge'].forEach(k => { const e = document.getElementById('f_' + k); if(e) e.disabled = mod_val('gpio') !== 'yes'; }));
+    mod_live(['mode', 'awu'], () => {
+      const m = mod_val('mode'), k = mod_clk(ctx);
+      const box = document.getElementById(mod_awu(ctx) ? 'mod_pwr_awu' : 'mod_pwr_wk');
+      if(box) box.style.display = m === 'standby' ? '' : 'none';
+      let h = m === 'sleep' ? 'Sleep: the core stops (WFI) and any enabled interrupt wakes it; peripherals keep running.'
+        : m === 'stop' ? 'Stop: all clocks stop, any EXTI line configured as interrupt wakes the chip (add one in NVIC / EXTI). The clock tree is restored after wake-up.'
+        : mod_awu(ctx) ? 'Standby with AWU: execution continues after the wake-up, then the clock is restored.' : 'Standby: only the backup domain stays on; the wake-up restarts the program from reset. LowPower_WokeFromStandby tells you why it started.';
+      if(m === 'standby' && mod_awu(ctx)){
+        const a = mod_awuCalc(+mod_val('awu'), k.lsi);
+        h += a ? ` AWU: prescaler ${a.p}, window ${a.w} → ${mod_time(a.real)} (LSI ≈ ${mod_hz(k.lsi)}).` : ` <span style="color:var(--red)">This period is outside the AWU range (${mod_time(1 / k.lsi)} – ${mod_time(63 * 61440 / k.lsi)}).</span>`;
+      }
+      mod_setHint('mod_pwr_h', h);
+    });
+  },
+  read(get, ctx){
+    if(mod_ble(ctx)) return {mode: get('mode') || 'sleep', gpio: get('gpio') || 'yes', port: get('port') || 'A', pin: mod_int(get('pin'), 5), edge: get('edge') || 'GPIO_ITMode_FallEdge', rtcwake: get('rtcwake') || 'no'};
+    return {mode: get('mode') || 'sleep', wake: get('wake') || 'wkup', awu: get('awu') !== undefined ? +get('awu') : 2};
+  },
+  pins(c, ctx){
+    if(mod_ble(ctx)) return c.gpio === 'yes' ? [{gpio:'P' + c.port + c.pin, role:'Wake-up (GPIO_IRQ)', af:null}] : [];
+    if(c.mode === 'standby' && !mod_awu(ctx) && c.wake === 'wkup') return [{gpio:'PA0', role:'WKUP', af:'OTHER:WKUP'}];
+    return [];
+  },
+  gen(c, ctx){
+    if(mod_ble(ctx)){
+      const wk = (c.gpio === 'yes' ? ['RB_SLP_GPIO_WAKE'] : []).concat(c.rtcwake === 'yes' ? ['RB_SLP_RTC_WAKE'] : []);
+      const out = [];
+      if(c.gpio === 'yes') out.push(`    GPIO${c.port}_ModeCfg(GPIO_Pin_${c.pin}, ${c.edge === 'GPIO_ITMode_RiseEdge' ? 'GPIO_ModeIN_PD' : 'GPIO_ModeIN_PU'});
+    GPIO${c.port}_ITModeCfg(GPIO_Pin_${c.pin}, ${c.edge});
+    PFIC_EnableIRQ(GPIO_${c.port}_IRQn);`);
+      if(wk.length && c.mode !== 'idle') out.push(`    PWR_PeriphWakeUpCfg(ENABLE, ${wk.join(' | ')}, ${mod_is57(ctx) ? 'Fsys_Delay_4096' : 'Long_Delay'});`);
+      out.push('    /* enter the low-power mode with LowPower_Enter() from the main loop */');
+      return out.join('\n');
+    }
+    const out = [mod_rcc(ctx, 'APB1', ['PWR'])];
+    if(c.mode === 'standby'){
+      if(ctx.id === 'CH32V003'){
+        const a = mod_awuCalc(c.awu, mod_clk(ctx).lsi) || {p:10240, w:25, real:0};
+        out.push(`    EXTI_InitStructure.EXTI_Line    = EXTI_Line9;               /* AWU wake-up event */
+    EXTI_InitStructure.EXTI_Mode    = EXTI_Mode_Event;
+    EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
+    EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+    EXTI_Init(&EXTI_InitStructure);
+    RCC_LSICmd(ENABLE);
+    while(RCC_GetFlagStatus(RCC_FLAG_LSIRDY) == RESET);
+    PWR_AWU_SetPrescaler(PWR_AWU_Prescaler_${a.p});
+    PWR_AWU_SetWindowValue(${a.w});                 /* ${a.w} x ${a.p} / LSI ≈ ${mod_time(a.real)} */
+    PWR_AutoWakeUpCmd(ENABLE);`);
+      } else if(ctx.id === 'CH32X035'){
+        const a = mod_awuCalc(c.awu, mod_clk(ctx).lsi) || {p:10240, w:25, real:0};
+        out.push(`    EXTI_InitStructure.EXTI_Line    = EXTI_Line27;              /* AWU wake-up interrupt */
+    EXTI_InitStructure.EXTI_Mode    = EXTI_Mode_Interrupt;
+    EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
+    EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+    EXTI_Init(&EXTI_InitStructure);
+${mod_nvic('AWU_IRQn', 1, 0)}
+    AWU_SetPrescaler(AWU_Prescaler_${a.p});
+    AWU_SetWindowValue(${a.w});                     /* ${a.w} x ${a.p} / LSI ≈ ${mod_time(a.real)} */
+    AutoWakeUpCmd(ENABLE);`);
+      } else {
+        out.push(`    LowPower_WokeFromStandby = (PWR_GetFlagStatus(PWR_FLAG_SB) != RESET);
+    PWR_ClearFlag(PWR_FLAG_SB);
+    PWR_ClearFlag(PWR_FLAG_WU);${c.wake === 'wkup' ? '\n    PWR_WakeUpPinCmd(ENABLE);                 /* a rising edge on WKUP (PA0) leaves standby */' : '\n    /* standby wake-up: RTC alarm (configured in the RTC tab) */'}`);
+      }
+    }
+    out.push('    /* enter the low-power mode with LowPower_Enter() from the main loop */');
+    return out.join('\n');
+  },
+  decls: (cs, ctx) => !mod_ble(ctx) && cs.some(c => c.mode === 'standby' && mod_awu(ctx)) ? ['EXTI_InitTypeDef EXTI_InitStructure = {0};'].concat(ctx.id === 'CH32X035' ? [MOD_NVIC_DECL] : []) : [],
+  helpers(cs, ctx){
+    const c = cs[0];
+    if(mod_ble(ctx)){
+      const call = {idle:'LowPower_Idle();', halt:'LowPower_Halt();', sleep:`LowPower_Sleep(${MOD_BLE_RAM[ctx.id] || 'RB_PWR_RAM2K'});`, shutdown:'LowPower_Shutdown(0);'}[c.mode];
+      return `/* enter the selected low-power mode; returns after the wake-up (Shutdown restarts from reset instead) */
+void LowPower_Enter(void)
+{
+    ${c.mode === 'idle' ? call : `DelayMs(2);
+    ${call}${c.mode === 'shutdown' ? '                     /* does not return: the wake-up resets the chip */' : `
+    HSECFG_Current(HSE_RCur_100);             /* back to rated HSE bias current (lowered by the low-power call) */`}`}
+}${c.gpio === 'yes' ? `
+
+${mod_isr(ctx, `GPIO${c.port}_IRQHandler`)}
+{
+    ${c.port === 'B' && c.pin >= 22 ? `R16_PB_INT_IF = (uint16_t)(GPIO_Pin_${c.pin} >> 14);   /* PB22/PB23 flags are bits 8/9 of R16_PB_INT_IF */` : `GPIO${c.port}_ClearITFlagBit(GPIO_Pin_${c.pin});`}        /* wake-up pin P${c.port}${c.pin} */
+}` : ''}`;
+    }
+    const restore = `
+    SystemInit();                             /* the chip wakes on HSI: restore the EVT clock tree */
+    SystemCoreClockUpdate();${mod_clockFnUsed() ? '\n    SystemClock_Config();                     /* and the Clock-view tree */' : ''}`;
+    const body = {
+      sleep: '    __WFI();                                  /* any enabled interrupt wakes the core */',
+      stop: (ctx.id === 'CH32X035' ? '    PWR_EnterSTOPMode(PWR_STOPEntry_WFI);' : '    PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI);') + restore,
+      standby: ctx.id === 'CH32V003' ? '    PWR_EnterSTANDBYMode(PWR_STANDBYEntry_WFE);' + restore
+        : ctx.id === 'CH32X035' ? '    PWR_EnterSTANDBYMode();' + restore
+        : '    PWR_EnterSTANDBYMode();                   /* does not return: the wake-up restarts from reset */',
+    }[c.mode];
+    return `${mod_clockFnUsed() && /stop|standby/.test(c.mode) && (c.mode === 'stop' || mod_awu(ctx)) ? 'static void SystemClock_Config(void);\n' : ''}${c.mode === 'standby' && !mod_awu(ctx) ? 'volatile uint8_t LowPower_WokeFromStandby;   /* 1 when this start was a wake-up from standby */\n\n' : ''}/* enter the selected low-power mode */
+void LowPower_Enter(void)
+{
+${body}
+}${ctx.id === 'CH32X035' && c.mode === 'standby' ? `
+
+${mod_isr(ctx, 'AWU_IRQHandler')}
+{
+    EXTI_ClearITPendingBit(EXTI_Line27);
+}` : ''}`;
+  },
+  problems(cs, ctx){
+    const out = [];
+    if(cs.length > 1) out.push({lvl:'err', msg:'Low power: keep a single entry (LowPower_Enter() is generated once)'});
+    const c = cs[0];
+    if(mod_ble(ctx)){
+      if(c.mode !== 'idle' && c.gpio !== 'yes' && c.rtcwake !== 'yes') out.push({lvl:'warn', cfg:c.id, msg:'Low power: no wake-up source enabled — only a reset ends Halt/Sleep/Shutdown'});
+      if(c.rtcwake === 'yes' && !state.configs.some(x => x.type === 'rtc' && (x.period !== 'none' || x.trig > 0))) out.push({lvl:'warn', cfg:c.id, msg:'Low power: RTC wake-up is on, but no RTC tick/trigger is configured in the RTC tab'});
+      if(c.gpio === 'yes'){
+        if(!(c.pin >= 0 && c.pin <= 23) || (c.port === 'A' && c.pin > 15)) out.push({lvl:'err', cfg:c.id, msg:`Low power: P${c.port}${c.pin} is not a valid pin`});
+        if(c.port === 'B' && c.pin >= 16 && c.pin <= 21) out.push({lvl:'err', cfg:c.id, msg:`Low power: PB${c.pin} cannot raise a GPIO interrupt (only PB0-PB15 and PB22/PB23 can)`});
+        if(state.configs.some(x => x.type === 'timer' && x.wmode === 'encoder' && x.wencport === c.port)) out.push({lvl:'err', cfg:c.id, msg:`Low power: GPIO${c.port}_IRQHandler is also generated by the software encoder on port ${c.port}`});
+        else if(state.configs.some(x => x.type === 'exti' && x.port === c.port)) out.push({lvl:'warn', cfg:c.id, msg:`Low power: GPIO${c.port}_IRQHandler only clears P${c.port}${c.pin}; add the other port-${c.port} EXTI pins to it`});
+      }
+      return out;
+    }
+    if(c.mode === 'stop' && !state.configs.some(x => x.type === 'exti')) out.push({lvl:'warn', cfg:c.id, msg:'Low power: Stop mode needs an EXTI interrupt to wake up — add one in NVIC / EXTI'});
+    if(c.mode === 'standby' && mod_awu(ctx) && !mod_awuCalc(c.awu, mod_clk(ctx).lsi)) out.push({lvl:'err', cfg:c.id, msg:`Low power: auto-wakeup period ${c.awu} s is outside the AWU range (window 1–63 × prescaler up to 61440 at LSI ≈ ${mod_hz(mod_clk(ctx).lsi)})`});
+    if(c.mode === 'standby' && !mod_awu(ctx) && c.wake === 'rtc' && !state.configs.some(x => x.type === 'rtc' && x.alarm > 0)) out.push({lvl:'warn', cfg:c.id, msg:'Low power: standby wake-up by RTC alarm needs an alarm in the RTC tab'});
+    return out;
+  },
+});
+/* On CH5xx the BLE stack (TMOS, EVT BLE/HAL/RTC.c) owns the RTC and its RTC_IRQHandler: with BLE on, the RTC
+   module generates nothing and says why. */
+(function(){
+  const m = PERIPH_MODULES.find(x => x.tab === 'rtc'); if(!m) return;
+  const gen = m.gen, helpers = m.helpers, problems = m.problems, decls = m.decls;
+  const bleOn = ctx => ctx.style === 'wchble' && typeof bleEnabled === 'function' && bleEnabled();
+  m.gen = (c, ctx) => bleOn(ctx) ? '    /* RTC: used by the Bluetooth LE stack as its timer (TMOS) - use tmos_start_task() for timed work */' : gen(c, ctx);
+  if(helpers) m.helpers = (cs, ctx) => bleOn(ctx) ? '' : helpers(cs, ctx);
+  if(decls) m.decls = (cs, ctx) => bleOn(ctx) ? [] : decls(cs, ctx);
+  m.problems = (cs, ctx) => (bleOn(ctx) ? [{lvl:'warn', msg:'RTC: Bluetooth LE uses the RTC as the TMOS timer, so these RTC settings are not generated - use tmos_start_task() for periodic work'}] : [])
+    .concat(problems && !bleOn(ctx) ? problems(cs, ctx) : []);
+})();
+(function(){ const u = PERIPH_MODULES.find(x => x.tab === 'usbcdc'); if(u && typeof u.label === 'function' && !u.label.panel) u.label.panel = 'USB CDC (virtual COM)'; })();
 /* MODULES END */
 
 /* CLOCK DEFS BEGIN */
@@ -5661,7 +6843,7 @@ const CATS = [
 ];
 /* left-panel groups = fixed items + the peripheral modules that support the selected chip */
 function catGroups(){
-  return CATS.map(g => ({title: g.title, items: g.items.concat(PERIPH_MODULES.filter(m => m.cat === g.title && modSupported(m)).map(m => ({tab: m.tab, l: m.label || m.title, mod: true})))}));
+  return CATS.map(g => ({title: g.title, items: g.items.concat(PERIPH_MODULES.filter(m => m.cat === g.title && modSupported(m)).map(m => ({tab: m.tab, l: (typeof m.label === 'function' ? (m.label.panel || m.title) : m.label) || m.title, mod: true})))}));
 }
 function tabTitle(tab){ const m = modFor(tab); return m ? m.title : (TAB_TITLE[tab] || tab); }
 const TAB_TITLE = {gpio:'GPIO', exti:'External interrupt (EXTI)', adc:'ADC', timer:'Timer', spi:'SPI', i2c:'I²C', uart:'UART / USART', ble:'Bluetooth LE (GATT)', usb:'USB device'};
@@ -5792,7 +6974,7 @@ function pinLabelSuffix(g){ return state.labels[g] ? ` (${state.labels[g]})` : '
 function relabel(c){
   const P = (port, pin) => 'P' + port + pin;
   const mod = modFor(c.type);
-  if(mod){ try{ c.label = mod.label(c, periphCtx()); }catch(e){ c.label = mod.title; } return; }
+  if(mod){ try{ c.label = typeof mod.label === 'function' ? mod.label(c, periphCtx()) : (mod.title || String(mod.label)); }catch(e){ c.label = mod.title; } return; }
   if(c.type === 'gpio'){
     const m = FAMILIES[c.family].gpioModes.find(x => x.v === c.mode);
     c.label = `${P(c.port, c.pin)} · GPIO ${m ? m.l : c.mode}${pinLabelSuffix(P(c.port, c.pin))}`;
