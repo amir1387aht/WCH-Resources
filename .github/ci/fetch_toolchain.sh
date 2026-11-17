@@ -40,7 +40,7 @@ if [ "$MODE" = info ]; then
   exit 0
 fi
 
-find_bin() { find "$DEST" -type f -name riscv-wch-elf-gcc -path '*GCC12*' 2>/dev/null | head -1; }
+find_bin() { [ -d "$DEST" ] || return 0; find "$DEST" -type f -name riscv-wch-elf-gcc -path '*GCC12*' 2>/dev/null | head -1 || true; }
 gcc="$(find_bin)"
 if [ -z "$gcc" ]; then
   url="${MRS_TOOLCHAIN_URL:-}"
