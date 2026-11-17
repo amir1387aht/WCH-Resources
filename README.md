@@ -197,6 +197,7 @@ Setup + build from scratch (EVT downloaded automatically) was tested on Windows 
 - **CH32V006**: no public EVT, so no clock tree, no new modules and no auto EVT download.
 - **CH571 / CH573**: no public SDK in openwch, so no auto EVT download and no WWDG/RTC modules.
 - **CH581**: pinout (CH581F, QFN28) is from CH583DS1 V1.6; WCH removed CH581F from the datasheet in V1.9. The EVT linker script allows 448 KB, but CH581 has 192 KB for the application: keep the program below that.
+- **UNVERIFIED packages**: CH573Q (LQFP32), CH571D (QFN20) and CH571K (ESSOP10) could not be checked against a pin table and are marked **UNVERIFIED**.
 - **CH570 / CH572**: the timer and ADC generators do not match their SDK yet.
 - **CH570** has no Bluetooth; **CH591** has no USB.
 
@@ -408,6 +409,7 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **CH32V006**: EVT عمومی ندارد. بنابراین درخت کلاک، ماژول‌های جدید و دانلود خودکار EVT ندارد.
 - **CH571 / CH573**: SDK عمومی در openwch ندارند. بنابراین دانلود خودکار EVT و ماژول‌های WWDG/RTC ندارند.
 - **CH581**: پین‌اوت (CH581F، QFN28) از دیتاشیت CH583DS1 نسخه‌ی V1.6 گرفته شده است، چون WCH در نسخه‌ی V1.9 این تراشه را از دیتاشیت حذف کرده. اسکریپت لینکر EVT تا ۴۴۸ کیلوبایت اجازه می‌دهد، ولی CH581 فقط ۱۹۲ کیلوبایت برای برنامه دارد؛ برنامه را کوچک‌تر از این نگه دارید.
+- **پکیج‌های UNVERIFIED**: CH573Q (LQFP32)، CH571D (QFN20) و CH571K (ESSOP10) با جدول پایه تطبیق داده نشده‌اند و علامت **UNVERIFIED** دارند.
 - **CH570 / CH572**: مولد تایمر و ADC هنوز با SDK آن‌ها جور نیست.
 - **CH570** بلوتوث ندارد و **CH591** USB ندارد.
 
