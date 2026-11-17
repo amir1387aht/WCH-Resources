@@ -338,7 +338,8 @@
   html[data-theme="light"] .clock-wrap{background:#f7f8fa;}
   html[data-theme="light"] .ck-node.src{background:#e9f5ef;}
   html[data-theme="light"] .ck-node.out{background:#eef3fa;}
-  html[data-theme="light"] .ck-canvas svg.wires path{stroke:#b4bec8;}
+  html[data-theme="light"] .ck-canvas svg.wires path{stroke:#b4bec8;}
+  html[data-theme="light"] .ck-canvas svg.wires path.on{stroke:#0b5cad; stroke-width:2.5;}
   html[data-theme="light"] .pin-menu{box-shadow:0 10px 30px rgba(20,40,70,0.22);}
   html[data-theme="light"] .cm{color:#6a737d;} html[data-theme="light"] .kw{color:#0b5cad; font-weight:600;} html[data-theme="light"] .fn{color:#6f42c1;} html[data-theme="light"] .str{color:#a3402a;} html[data-theme="light"] .num{color:#0a7a52;}
   html[data-theme="light"] .pin text.psig{filter:brightness(0.62) saturate(1.4);}
@@ -3668,21 +3669,55 @@ function renderClockView(){
   let html = '', wires = [], W = 1060, H = 520;
   const head = `<div class="ck-head"><b>Clock Configuration · ${esc(v.id)}</b><span>${state.clock ? `custom clock — <code>${d.kind === 'ble' ? 'SetSysClock()' : 'SystemClock_Config()'}</code> is generated` : 'EVT default clock (nothing generated)'}</span><span class="sp"></span>
     ${state.clock ? '<button class="icon-btn" id="ckReset">Back to EVT default</button>' : ''}</div>`;
-  const wire = (x1, y1, x2, y2, on) => { const mx = Math.round((x1 + x2) / 2); wires.push(`<path class="${on ? 'on' : ''}" d="M${x1} ${y1} H${mx} V${y2} H${x2}"/>`); };
+  const wire = (x1, y1, x2, y2, on, lane) => { const mx = lane || Math.round((x1 + x2) / 2); wires.push(`<path class="${on ? 'on' : ''}" d="M${x1} ${y1} H${mx} V${y2} H${x2}"/>`); };
   if(d.kind === 'ble'){
-    H = 330;
-    const o = d.options.find(x => x.e === c.sys) || d.options[0];
-    if(!d.lse) html += node(10, 240, 150, 'src', '32 kHz clock', `<div class="f">LSI RC</div><div class="m">~32 kHz (24–42 kHz uncalibrated); no LSE on this chip</div>`);
-    const srcY = {HSE:40, PLL:40, HSI:150, LSI:250, LSE:250};
-    html += node(10, 30, 150, 'src' + (o.src === 'HSE' || o.src === 'PLL' ? ' on' : ''), 'HSE crystal', `<div class="f">${fmtHz(d.hse)}</div><div class="m">32 MHz crystal (BLE reference)</div>`);
-    html += node(220, 30, 150, 'mux' + (o.src === 'PLL' ? ' on' : ''), 'PLL', `<div class="f">${fmtHz(d.pll)}</div><div class="m">from HSE</div>`);
-    if(d.hsi) html += node(10, 140, 150, 'src' + (o.src === 'HSI' ? ' on' : ''), 'Internal RC', `<div class="f">${fmtHz(d.hsi)}</div>`);
-    if(d.lse) html += node(10, 240, 150, 'src', '32 kHz clock', `<select data-ck="ls">${['LSI', 'LSE'].map(x => `<option ${c.ls === x ? 'selected' : ''}>${x}</option>`).join('')}</select><div class="m">${c.ls === 'LSE' ? 'LSE 32.768 kHz crystal' : 'LSI ~32 kHz RC'} → RTC / sleep timer / BLE sleep</div>`);
-    html += node(440, 60, 300, 'mux on', 'SetSysClock()', `<select data-ck="sys">${d.options.map(x => `<option value="${x.e}" ${x.e === c.sys ? 'selected' : ''}>${x.e} (${fmtHz(x.hz)})</option>`).join('')}</select><div class="m">${esc(o.path)}${o.note ? ' · ' + esc(o.note) : ''}</div>`);
-    html += node(800, 70, 200, 'out on', 'SYSCLK = HCLK = timers', `<div class="f">${fmtHz(f.sysclk)}</div><div class="m">UART / SPI / TMR / PWM use this clock</div>`);
-    wire(160, 55, 220, 55, o.src === 'PLL'); wire(370, 55, 440, 85, o.src === 'PLL'); wire(160, 55, 440, 95, o.src === 'HSE');
-    if(d.hsi) wire(160, 165, 440, 105, o.src === 'HSI');
-    wire(740, 95, 800, 95, true);
+    /* CubeMX-style: sources -> dividers / PLL -> system clock mux -> SYSCLK. Every combination maps back to
+       one SetSysClock(CLK_SOURCE_...) value of this chip's SDK. */
+    H = 380;
+    const parsed = d.options.map(o => {
+      let m;
+      if((m = /^PLL(?:\((HSI|HSE)\))?\s+(\d+(?:\.\d+)?)M\s*\/(\d+)$/.exec(o.path))) return {o, mux:'PLL', pllIn:m[1] || 'HSE', pllMHz:+m[2], div:+m[3]};
+      if((m = /^(HSE|HSI)(?:\s+direct|\/(\d+))$/.exec(o.path))) return {o, mux:m[1], div:m[2] ? +m[2] : 1};
+      return {o, mux:'32K', div:1};
+    });
+    const cur = parsed.find(x => x.o.e === c.sys) || parsed[0];
+    const muxes = ['PLL', 'HSE', 'HSI', '32K'].filter(m => parsed.some(x => x.mux === m));
+    const pllIns = [...new Set(parsed.filter(x => x.mux === 'PLL').map(x => x.pllIn))];
+    const pllIn = cur.mux === 'PLL' ? cur.pllIn : (pllIns.includes('HSE') ? 'HSE' : pllIns[0]);
+    const divsOf = (mux, pin) => parsed.filter(x => x.mux === mux && (mux !== 'PLL' || x.pllIn === pin)).sort((a, b) => a.div - b.div);
+    const sel = (key, list, val, lab) => `<select data-bck="${key}">${list.map(x => `<option value="${x}" ${String(x) === String(val) ? 'selected' : ''}>${lab ? lab(x) : x}</option>`).join('')}</select>`;
+    const pllEntry = parsed.find(x => x.mux === 'PLL' && x.pllIn === pllIn);
+    const pllHz = pllEntry ? pllEntry.pllMHz * 1e6 : d.pll;
+    const pllDivs = divsOf('PLL', pllIn), hseDivs = divsOf('HSE'), hsiDivs = divsOf('HSI');
+    const pick2 = (list, mux) => (cur.mux === mux && (mux !== 'PLL' || cur.pllIn === pllIn)) ? cur.div : (list[0] ? list[0].div : 1);
+    const on = m => cur.mux === m;
+    /* sources */
+    html += node(10, 30, 150, 'src' + (on('HSE') || (on('PLL') && pllIn === 'HSE') ? ' on' : ''), 'HSE crystal', `<div class="f">${fmtHz(d.hse)}</div><div class="m">32 MHz crystal (BLE reference)</div>`);
+    if(d.hsi) html += node(10, 150, 150, 'src' + (on('HSI') || (on('PLL') && pllIn === 'HSI') ? ' on' : ''), 'HSI (internal RC)', `<div class="f">${fmtHz(d.hsi)}</div>`);
+    html += node(10, 410, 150, 'src' + (on('32K') ? ' on' : ''), '32 kHz clock', d.lse ? `${sel('ls', ['LSI', 'LSE'], c.ls)}<div class="m">${c.ls === 'LSE' ? 'LSE 32.768 kHz crystal' : 'LSI ~32 kHz RC'}</div>` : `<div class="f">LSI RC</div><div class="m">~32 kHz; no LSE on this chip</div>`);
+    /* PLL block: input (where selectable), fixed VCO, divider */
+    if(pllDivs.length){
+      html += node(220, 20, 190, 'mux' + (on('PLL') ? ' on' : ''), 'PLL',
+        (pllIns.length > 1 ? `<div class="m">PLL source</div>${sel('pllIn', pllIns, pllIn)}` : `<div class="m">source: ${pllIn}</div>`) +
+        `<div class="f">${fmtHz(pllHz)}</div><div class="m">PLL divider</div>${sel('pllDiv', pllDivs.map(x => x.div), pick2(pllDivs, 'PLL'), x => '/' + x)}<div class="m">= ${fmtHz(pllHz / pick2(pllDivs, 'PLL'))}</div>`);
+    }
+    if(hseDivs.length) html += node(220, 200, 190, 'mux' + (on('HSE') ? ' on' : ''), 'HSE divider', `${sel('hseDiv', hseDivs.map(x => x.div), pick2(hseDivs, 'HSE'), x => x === 1 ? 'direct' : '/' + x)}<div class="f">${fmtHz(d.hse / pick2(hseDivs, 'HSE'))}</div>`);
+    if(hsiDivs.length) html += node(220, 300, 190, 'mux' + (on('HSI') ? ' on' : ''), 'HSI divider', `${sel('hsiDiv', hsiDivs.map(x => x.div), pick2(hsiDivs, 'HSI'), x => x === 1 ? 'direct' : '/' + x)}<div class="f">${fmtHz(d.hsi / pick2(hsiDivs, 'HSI'))}</div>`);
+    /* system clock mux */
+    html += node(470, 110, 190, 'mux on' + (bad('SYSCLK') ? ' bad' : ''), 'System Clock Mux', `${sel('mux', muxes, cur.mux, x => x === '32K' ? '32 kHz' : x)}<div class="m">SetSysClock(${esc(cur.o.e)})</div>${cur.o.note ? `<div class="m">${esc(cur.o.note)}</div>` : ''}`);
+    html += node(720, 120, 220, 'out on', 'SYSCLK = HCLK = timers', `<div class="f">${fmtHz(f.sysclk)}</div><div class="m">UART / SPI / TMR / PWM use this clock${cur.o.ble === false ? '<br><b>BLE needs an HSE-based clock</b>' : ''}</div>`);
+    /* wires */
+    /* each source and each mux input gets its own vertical lane so lines never overlap */
+    wire(160, 55, 220, 50, on('PLL') && pllIn === 'HSE', 182);
+    if(d.hsi) wire(160, 175, 220, 62, on('PLL') && pllIn === 'HSI', 200);
+    if(hseDivs.length) wire(160, 55, 220, 225, on('HSE'), 182);
+    if(hsiDivs.length) wire(160, 175, 220, 325, on('HSI'), 200);
+    wire(410, 60, 470, 128, on('PLL'), 428);
+    if(hseDivs.length) wire(410, 225, 470, 138, on('HSE'), 442);
+    if(hsiDivs.length) wire(410, 325, 470, 148, on('HSI'), 456);
+    wire(160, 435, 470, 158, on('32K'), 462);
+    wire(660, 140, 720, 145, true);
+    W = 980; H = 500;
   } else {
     const pin = d.pllIn.find(x => x.id === c.pllIn) || d.pllIn[0];
     const sysPLL = c.sys === 'PLL';
@@ -3710,6 +3745,24 @@ function renderClockView(){
   wrap.innerHTML = head + `<div class="ck-canvas" id="ckCanvas" style="width:${W}px; height:${H}px"><svg class="wires" width="${W}" height="${H}">${wires.join('')}</svg>${html}</div>` + legend;
   const cv = $('ckCanvas'), avail = wrap.clientWidth - 28;
   if(avail > 200 && avail < W){ cv.style.transform = `scale(${avail / W})`; cv.style.marginBottom = `${-(H * (1 - avail / W))}px`; }
+  wrap.querySelectorAll('[data-bck]').forEach(e => e.addEventListener('change', () => {
+    const k = e.dataset.bck;
+    if(k === 'ls'){ setClock('ls', e.value); return; }
+    const parsed = d.options.map(o => {
+      let m;
+      if((m = /^PLL(?:\((HSI|HSE)\))?\s+(\d+(?:\.\d+)?)M\s*\/(\d+)$/.exec(o.path))) return {o, mux:'PLL', pllIn:m[1] || 'HSE', div:+m[3]};
+      if((m = /^(HSE|HSI)(?:\s+direct|\/(\d+))$/.exec(o.path))) return {o, mux:m[1], div:m[2] ? +m[2] : 1};
+      return {o, mux:'32K', div:1};
+    });
+    const cur = parsed.find(x => x.o.e === clockCfg().sys) || parsed[0];
+    const val = (key, dflt) => { const el = wrap.querySelector(`[data-bck="${key}"]`); return el ? el.value : dflt; };
+    let mux = k === 'mux' ? e.value : (k === 'pllIn' || k === 'pllDiv' ? 'PLL' : k === 'hseDiv' ? 'HSE' : k === 'hsiDiv' ? 'HSI' : cur.mux);
+    const pin = val('pllIn', cur.pllIn || 'HSE');
+    const want = mux === 'PLL' ? +val('pllDiv', 0) : mux === 'HSE' ? +val('hseDiv', 0) : mux === 'HSI' ? +val('hsiDiv', 0) : 1;
+    const cands = parsed.filter(x => x.mux === mux && (mux !== 'PLL' || x.pllIn === pin));
+    const hit = cands.find(x => x.div === want) || cands[0];
+    if(hit) setClock('sys', hit.o.e);
+  }));
   wrap.querySelectorAll('[data-ck]').forEach(e => e.addEventListener('change', () => {
     const k = e.dataset.ck; setClock(k, k === 'hse' ? Math.round(parseFloat(e.value) * 1e6) : e.value);
   }));
