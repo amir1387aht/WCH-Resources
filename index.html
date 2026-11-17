@@ -261,111 +261,111 @@
   .pin-cell.used{color:#0c0f12; font-weight:700;}
   .brand .mark.mark-logo{background:none; box-shadow:none; padding:0; overflow:hidden;}
   .brand .mark.mark-logo svg{width:100%; height:100%; display:block;}
-
-  /* ---------- CubeMX-style main tabs and page layouts ---------- */
-  .maintabs{display:flex; align-items:flex-end; gap:2px; padding:6px 12px 0; background:var(--tabs-bg); border-bottom:1px solid var(--line);}
-  .mtab{font-family:var(--sans); font-size:13px; font-weight:600; color:var(--tab-text); background:var(--tab-off); border:1px solid var(--line); border-bottom:none; border-radius:7px 7px 0 0; padding:8px 18px; cursor:pointer; margin-bottom:-1px;}
-  .mtab:hover{color:var(--text);}
-  .mtab.active{background:var(--panel); color:var(--accent); border-color:var(--line); box-shadow:inset 0 3px 0 var(--accent);}
-  .mt-badge{display:inline-block; min-width:18px; margin-left:6px; padding:0 6px; border-radius:9px; font-size:10.5px; line-height:17px; background:var(--red); color:#fff; text-align:center;}
-  .maintabs .sp{flex:1;}
-  .mt-info{font-family:var(--mono); font-size:11px; color:var(--text-faint); padding-bottom:7px;}
-  .ide{height:calc(100vh - 100px);}
-  .ide[data-page="pinout"]{grid-template-columns:220px minmax(360px,0.85fr) minmax(0,1.15fr);}
-  .ide[data-page="pinout"] > .right{display:none;}
-  .ide[data-page="clock"]{grid-template-columns:minmax(0,1fr);}
-  .ide[data-page="clock"] > .left, .ide[data-page="clock"] > .mid, .ide[data-page="clock"] > .right{display:none;}
-  .ide[data-page="clock"] .center .toolbar, .ide[data-page="clock"] .statusbar{display:none;}
-  .ide[data-page="project"]{grid-template-columns:minmax(0,1fr);}
-  .ide[data-page="project"] > .left, .ide[data-page="project"] > .mid, .ide[data-page="project"] > .center{display:none;}
-  @media (max-width:1100px){
-    .ide[data-page="pinout"]{grid-template-columns:230px minmax(0,1fr); height:auto;}
-    .ide[data-page="pinout"] > .center{grid-column:1 / -1; height:64vh; min-height:420px;}
-  }
-  @media (max-width:720px){
-    .ide[data-page="pinout"]{grid-template-columns:1fr;}
-    .maintabs{overflow-x:auto;}
-    .mtab{padding:8px 11px; font-size:12px; white-space:nowrap;}
-  }
-  .cat-head{padding:8px 10px;}
-  .seg-wrap{display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden;}
-  .seg{font-family:var(--sans); font-size:11.5px; font-weight:600; background:var(--panel-2); color:var(--text-dim); border:none; padding:5px 12px; cursor:pointer;}
-  .seg + .seg{border-left:1px solid var(--line);}
-  .seg.active{background:var(--accent); color:var(--accent-ink);}
-  .cat-search{padding:8px 10px; border-bottom:1px solid var(--line-soft);}
-  .cat-search input{width:100%; padding:6px 9px; font-size:12px;}
-  .mode-head .mh-sub{font-family:var(--sans); font-weight:500; color:var(--text-dim); font-size:12px;}
-  .mode-head .mode{font-family:var(--mono); font-size:10.5px; color:var(--copper); font-weight:400;}
-  .mid .scroll{flex:1; overflow:auto;}
-  .sec-title{display:flex; align-items:center; justify-content:space-between; margin:0; padding:7px 14px; font-family:var(--sans); font-size:11.5px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-dim); background:var(--panel-2); border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);}
-  .sec-title .tag{font-family:var(--mono); font-weight:400; text-transform:none; color:var(--text-faint);}
-  .pm-head{display:flex; flex-wrap:wrap; gap:8px; padding:10px; border-bottom:1px solid var(--line); background:var(--panel-2);}
-  .pm-card{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:6px 10px; min-width:120px;}
-  .pm-k{font-family:var(--mono); font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-faint);}
-  .pm-v{font-family:var(--mono); font-size:12px; color:var(--text); margin-top:2px;}
-  .theme-btn{white-space:nowrap;}
-
-  /* ---------- light theme (CubeMX-like): dark blue bar, light grey workspace, white panels ---------- */
-  :root{--accent:var(--copper); --accent-ink:#1a1305; --tabs-bg:var(--bg); --tab-off:var(--panel-2); --tab-text:var(--text-dim);}
-  html[data-theme="light"]{
-    --bg:#e9ecf0; --bg-grid:#e1e5ea; --panel:#ffffff; --panel-2:#f3f5f8; --panel-3:#e6eaef;
-    --line:#c5ccd5; --line-soft:#dde2e8; --text:#17212b; --text-dim:#3f4c59; --text-faint:#73808d;
-    --copper:#0b5cad; --copper-dim:#5b8fc7; --teal:#16805a; --teal-dim:#6aaf8f; --red:#cf3a2f; --yellow:#a87b00;
-    --accent:#0b5cad; --accent-ink:#ffffff; --tabs-bg:#d7dde5; --tab-off:#e7ebf0; --tab-text:#3f4c59;
-  }
-  html[data-theme="light"] header.top{background:#0b2e57; border-bottom-color:#08213f;}
-  html[data-theme="light"] header.top .brand h1{color:#ffffff;}
-  html[data-theme="light"] header.top .brand .sub, html[data-theme="light"] header.top .chip-pick label{color:#a9bdd4;}
-  html[data-theme="light"] header.top .fam-btn{background:#123b6b; border-color:#2a5385; color:#d5e2f1;}
-  html[data-theme="light"] header.top .fam-btn:hover{border-color:#8fb3dc; color:#fff;}
-  html[data-theme="light"] header.top .fam-btn.active{background:#ffffff; border-color:#ffffff; color:#0b2e57;}
-  html[data-theme="light"] header.top select{background:#ffffff; border-color:#2a5385; color:#0b2e57;}
-  html[data-theme="light"] header.top .icon-btn{background:#123b6b; border-color:#2a5385; color:#d5e2f1;}
-  html[data-theme="light"] header.top .icon-btn:hover{color:#fff; border-color:#8fb3dc;}
-  html[data-theme="light"] .btn-primary{background:#0b5cad; color:#fff;}
-  html[data-theme="light"] .cat-item.active{background:#dceafa; border-left-color:#0b5cad;}
-  html[data-theme="light"] .cat-item .cnt.on{color:#fff;}
-  html[data-theme="light"] .stage{background:#f7f8fa;}
-  html[data-theme="light"] .chip-body{fill:#2b3138; stroke:#1d2228;}
-  html[data-theme="light"] .pin rect.pad{fill:#d9dde2; stroke:#9aa4ae;}
-  html[data-theme="light"] .pin.io rect.pad{fill:#eef1f4; stroke:#8b96a1;}
-  html[data-theme="light"] .pin.power rect.pad{fill:#c9cd8d; stroke:#8b8f45;}
-  html[data-theme="light"] .pin.special rect.pad{fill:#aebfd1; stroke:#6f8396;}
-  html[data-theme="light"] .pin.power text.pname, html[data-theme="light"] .pin.special text.pname{fill:#1b1f24;}
-  html[data-theme="light"] .pin text.pnum{fill:#5e6b78;}
-  html[data-theme="light"] .pin:hover rect.pad{stroke:#0b5cad;}
-  html[data-theme="light"] pre#codeOut{color:#1f2b37; background:#ffffff;}
-  html[data-theme="light"] .clock-wrap{background:#f7f8fa;}
-  html[data-theme="light"] .ck-node.src{background:#e9f5ef;}
-  html[data-theme="light"] .ck-node.out{background:#eef3fa;}
+
+  /* ---------- CubeMX-style main tabs and page layouts ---------- */
+  .maintabs{display:flex; align-items:flex-end; gap:2px; padding:6px 12px 0; background:var(--tabs-bg); border-bottom:1px solid var(--line);}
+  .mtab{font-family:var(--sans); font-size:13px; font-weight:600; color:var(--tab-text); background:var(--tab-off); border:1px solid var(--line); border-bottom:none; border-radius:7px 7px 0 0; padding:8px 18px; cursor:pointer; margin-bottom:-1px;}
+  .mtab:hover{color:var(--text);}
+  .mtab.active{background:var(--panel); color:var(--accent); border-color:var(--line); box-shadow:inset 0 3px 0 var(--accent);}
+  .mt-badge{display:inline-block; min-width:18px; margin-left:6px; padding:0 6px; border-radius:9px; font-size:10.5px; line-height:17px; background:var(--red); color:#fff; text-align:center;}
+  .maintabs .sp{flex:1;}
+  .mt-info{font-family:var(--mono); font-size:11px; color:var(--text-faint); padding-bottom:7px;}
+  .ide{height:calc(100vh - 100px);}
+  .ide[data-page="pinout"]{grid-template-columns:220px minmax(360px,0.85fr) minmax(0,1.15fr);}
+  .ide[data-page="pinout"] > .right{display:none;}
+  .ide[data-page="clock"]{grid-template-columns:minmax(0,1fr);}
+  .ide[data-page="clock"] > .left, .ide[data-page="clock"] > .mid, .ide[data-page="clock"] > .right{display:none;}
+  .ide[data-page="clock"] .center .toolbar, .ide[data-page="clock"] .statusbar{display:none;}
+  .ide[data-page="project"]{grid-template-columns:minmax(0,1fr);}
+  .ide[data-page="project"] > .left, .ide[data-page="project"] > .mid, .ide[data-page="project"] > .center{display:none;}
+  @media (max-width:1100px){
+    .ide[data-page="pinout"]{grid-template-columns:230px minmax(0,1fr); height:auto;}
+    .ide[data-page="pinout"] > .center{grid-column:1 / -1; height:64vh; min-height:420px;}
+  }
+  @media (max-width:720px){
+    .ide[data-page="pinout"]{grid-template-columns:1fr;}
+    .maintabs{overflow-x:auto;}
+    .mtab{padding:8px 11px; font-size:12px; white-space:nowrap;}
+  }
+  .cat-head{padding:8px 10px;}
+  .seg-wrap{display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  .seg{font-family:var(--sans); font-size:11.5px; font-weight:600; background:var(--panel-2); color:var(--text-dim); border:none; padding:5px 12px; cursor:pointer;}
+  .seg + .seg{border-left:1px solid var(--line);}
+  .seg.active{background:var(--accent); color:var(--accent-ink);}
+  .cat-search{padding:8px 10px; border-bottom:1px solid var(--line-soft);}
+  .cat-search input{width:100%; padding:6px 9px; font-size:12px;}
+  .mode-head .mh-sub{font-family:var(--sans); font-weight:500; color:var(--text-dim); font-size:12px;}
+  .mode-head .mode{font-family:var(--mono); font-size:10.5px; color:var(--copper); font-weight:400;}
+  .mid .scroll{flex:1; overflow:auto;}
+  .sec-title{display:flex; align-items:center; justify-content:space-between; margin:0; padding:7px 14px; font-family:var(--sans); font-size:11.5px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-dim); background:var(--panel-2); border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);}
+  .sec-title .tag{font-family:var(--mono); font-weight:400; text-transform:none; color:var(--text-faint);}
+  .pm-head{display:flex; flex-wrap:wrap; gap:8px; padding:10px; border-bottom:1px solid var(--line); background:var(--panel-2);}
+  .pm-card{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:6px 10px; min-width:120px;}
+  .pm-k{font-family:var(--mono); font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-faint);}
+  .pm-v{font-family:var(--mono); font-size:12px; color:var(--text); margin-top:2px;}
+  .theme-btn{white-space:nowrap;}
+
+  /* ---------- light theme (CubeMX-like): dark blue bar, light grey workspace, white panels ---------- */
+  :root{--accent:var(--copper); --accent-ink:#1a1305; --tabs-bg:var(--bg); --tab-off:var(--panel-2); --tab-text:var(--text-dim);}
+  html[data-theme="light"]{
+    --bg:#e9ecf0; --bg-grid:#e1e5ea; --panel:#ffffff; --panel-2:#f3f5f8; --panel-3:#e6eaef;
+    --line:#c5ccd5; --line-soft:#dde2e8; --text:#17212b; --text-dim:#3f4c59; --text-faint:#73808d;
+    --copper:#0b5cad; --copper-dim:#5b8fc7; --teal:#16805a; --teal-dim:#6aaf8f; --red:#cf3a2f; --yellow:#a87b00;
+    --accent:#0b5cad; --accent-ink:#ffffff; --tabs-bg:#d7dde5; --tab-off:#e7ebf0; --tab-text:#3f4c59;
+  }
+  html[data-theme="light"] header.top{background:#0b2e57; border-bottom-color:#08213f;}
+  html[data-theme="light"] header.top .brand h1{color:#ffffff;}
+  html[data-theme="light"] header.top .brand .sub, html[data-theme="light"] header.top .chip-pick label{color:#a9bdd4;}
+  html[data-theme="light"] header.top .fam-btn{background:#123b6b; border-color:#2a5385; color:#d5e2f1;}
+  html[data-theme="light"] header.top .fam-btn:hover{border-color:#8fb3dc; color:#fff;}
+  html[data-theme="light"] header.top .fam-btn.active{background:#ffffff; border-color:#ffffff; color:#0b2e57;}
+  html[data-theme="light"] header.top select{background:#ffffff; border-color:#2a5385; color:#0b2e57;}
+  html[data-theme="light"] header.top .icon-btn{background:#123b6b; border-color:#2a5385; color:#d5e2f1;}
+  html[data-theme="light"] header.top .icon-btn:hover{color:#fff; border-color:#8fb3dc;}
+  html[data-theme="light"] .btn-primary{background:#0b5cad; color:#fff;}
+  html[data-theme="light"] .cat-item.active{background:#dceafa; border-left-color:#0b5cad;}
+  html[data-theme="light"] .cat-item .cnt.on{color:#fff;}
+  html[data-theme="light"] .stage{background:#f7f8fa;}
+  html[data-theme="light"] .chip-body{fill:#2b3138; stroke:#1d2228;}
+  html[data-theme="light"] .pin rect.pad{fill:#d9dde2; stroke:#9aa4ae;}
+  html[data-theme="light"] .pin.io rect.pad{fill:#eef1f4; stroke:#8b96a1;}
+  html[data-theme="light"] .pin.power rect.pad{fill:#c9cd8d; stroke:#8b8f45;}
+  html[data-theme="light"] .pin.special rect.pad{fill:#aebfd1; stroke:#6f8396;}
+  html[data-theme="light"] .pin.power text.pname, html[data-theme="light"] .pin.special text.pname{fill:#1b1f24;}
+  html[data-theme="light"] .pin text.pnum{fill:#5e6b78;}
+  html[data-theme="light"] .pin:hover rect.pad{stroke:#0b5cad;}
+  html[data-theme="light"] pre#codeOut{color:#1f2b37; background:#ffffff;}
+  html[data-theme="light"] .clock-wrap{background:#f7f8fa;}
+  html[data-theme="light"] .ck-node.src{background:#e9f5ef;}
+  html[data-theme="light"] .ck-node.out{background:#eef3fa;}
   html[data-theme="light"] .ck-canvas svg.wires path{stroke:#b4bec8;}
-  html[data-theme="light"] .ck-canvas svg.wires path.on{stroke:#0b5cad; stroke-width:2.5;}
+  html[data-theme="light"] .ck-canvas svg.wires path.on{stroke:#0b5cad; stroke-width:2.5;}
   html[data-theme="light"] .pin-menu{box-shadow:0 10px 30px rgba(20,40,70,0.22);}
   html[data-theme="light"] .cm{color:#6a737d;} html[data-theme="light"] .kw{color:#0b5cad; font-weight:600;} html[data-theme="light"] .fn{color:#6f42c1;} html[data-theme="light"] .str{color:#a3402a;} html[data-theme="light"] .num{color:#0a7a52;}
   html[data-theme="light"] .pin text.psig{filter:brightness(0.62) saturate(1.4);}
-  html[data-theme="light"] .legend span, html[data-theme="light"] .statusbar{color:var(--text-dim);}
-
-  /* ---------- CubeMX-style GPIO table ---------- */
-  .gp-tabs{display:flex; gap:2px; padding:8px 10px 0; border-bottom:1px solid var(--line);}
-  .gp-tab{font-family:var(--sans); font-size:12px; font-weight:600; color:var(--text-dim); background:var(--panel-2); border:1px solid var(--line); border-bottom:none; border-radius:6px 6px 0 0; padding:5px 12px; cursor:pointer; margin-bottom:-1px;}
-  .gp-tab.active{background:var(--panel); color:var(--accent);}
-  .gp-search{display:flex; gap:6px; align-items:center; padding:8px 10px;}
-  .gp-search input{flex:1; padding:5px 8px; font-size:12px;}
-  .gp-wrap{overflow:auto; max-height:260px; border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);}
-  table.gp{border-collapse:collapse; width:100%; font-family:var(--mono); font-size:11px;}
-  table.gp th{position:sticky; top:0; background:var(--panel-2); color:var(--text-dim); font-weight:600; text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; font-family:var(--sans); font-size:11px;}
-  table.gp td{padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--text); white-space:nowrap;}
-  table.gp tr{cursor:pointer;}
-  table.gp tr:hover td{background:var(--panel-2);}
-  table.gp tr.sel td{background:var(--sel-bg, rgba(224,164,88,0.14));}
-  html[data-theme="light"] table.gp tr.sel td{background:#cfe2f7;}
-  table.gp td.mod{color:var(--text-faint);}
-  .gp-cfg{padding:10px 14px 4px;}
-  .gp-cfg-title{font-family:var(--sans); font-weight:700; font-size:12.5px; margin:2px 0 10px; color:var(--text);}
-  .gp-empty{padding:16px 14px; color:var(--text-faint); font-size:12px; line-height:1.5;}
-  .gp-add{display:flex; gap:6px; align-items:flex-end; padding:8px 14px 12px; border-top:1px solid var(--line-soft);}
-  .gp-add .field{margin:0; flex:1;}
-  .gp-add .icon-btn{flex:none; height:31px;}
+  html[data-theme="light"] .legend span, html[data-theme="light"] .statusbar{color:var(--text-dim);}
+
+  /* ---------- CubeMX-style GPIO table ---------- */
+  .gp-tabs{display:flex; gap:2px; padding:8px 10px 0; border-bottom:1px solid var(--line);}
+  .gp-tab{font-family:var(--sans); font-size:12px; font-weight:600; color:var(--text-dim); background:var(--panel-2); border:1px solid var(--line); border-bottom:none; border-radius:6px 6px 0 0; padding:5px 12px; cursor:pointer; margin-bottom:-1px;}
+  .gp-tab.active{background:var(--panel); color:var(--accent);}
+  .gp-search{display:flex; gap:6px; align-items:center; padding:8px 10px;}
+  .gp-search input{flex:1; padding:5px 8px; font-size:12px;}
+  .gp-wrap{overflow:auto; max-height:260px; border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);}
+  table.gp{border-collapse:collapse; width:100%; font-family:var(--mono); font-size:11px;}
+  table.gp th{position:sticky; top:0; background:var(--panel-2); color:var(--text-dim); font-weight:600; text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; font-family:var(--sans); font-size:11px;}
+  table.gp td{padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--text); white-space:nowrap;}
+  table.gp tr{cursor:pointer;}
+  table.gp tr:hover td{background:var(--panel-2);}
+  table.gp tr.sel td{background:var(--sel-bg, rgba(224,164,88,0.14));}
+  html[data-theme="light"] table.gp tr.sel td{background:#cfe2f7;}
+  table.gp td.mod{color:var(--text-faint);}
+  .gp-cfg{padding:10px 14px 4px;}
+  .gp-cfg-title{font-family:var(--sans); font-weight:700; font-size:12.5px; margin:2px 0 10px; color:var(--text);}
+  .gp-empty{padding:16px 14px; color:var(--text-faint); font-size:12px; line-height:1.5;}
+  .gp-add{display:flex; gap:6px; align-items:flex-end; padding:8px 14px 12px; border-top:1px solid var(--line-soft);}
+  .gp-add .field{margin:0; flex:1;}
+  .gp-add .icon-btn{flex:none; height:31px;}
 </style>
 </head>
 <body>
@@ -1268,6 +1268,14 @@ function genWchbleEncoder(c){
 
 function adcSampleTime(st){
   /* EVT names: ADC_SampleTime_41Cycles5 (CH32V1/V2/V3/F), CH32V00x uses whole cycles (ADC_SampleTime_43Cycles) */
+  if(currentVariant().id === 'CH32L103'){   /* L103: ADC_SampleTime_CyclesMode0 (shortest) .. CyclesMode7 (longest) */
+    const order = ['1_5','7_5','13_5','28_5','41_5','55_5','71_5','239_5'];
+    return 'ADC_SampleTime_CyclesMode' + Math.max(0, order.indexOf(st));
+  }
+  if(currentVariant().id === 'CH32X035'){
+    const map = {'1_5':'4','7_5':'5','13_5':'6','28_5':'7','41_5':'8','55_5':'9','71_5':'10','239_5':'11'};
+    return 'ADC_SampleTime_' + (map[st] || '11') + 'Cycles';
+  }
   if(/^CH32V00/.test(currentVariant().id)){
     const map = {'1_5':'3','7_5':'9','13_5':'15','28_5':'30','41_5':'43','55_5':'57','71_5':'73','239_5':'241'};
     return 'ADC_SampleTime_' + (map[st] || '43') + 'Cycles';
@@ -1276,6 +1284,7 @@ function adcSampleTime(st){
 }
 /* ADC clock line: the prescaler chosen in the clock view, or the original fixed /8 when the EVT default clock is kept */
 function adcClockLine(){
+  if(currentVariant().id === 'CH32X035') return '';   /* X035: ADC_CLKConfig() after ADC_DeInit(), see genStdperiphADC */
   const d = typeof clockDef === 'function' ? clockDef() : null;
   if(d && state.clock && d.adc && d.adc.api){
     const e = (d.adc.divs.find(x => String(x.n) === String(clockCfg().adc)) || d.adc.divs[0]).e;
@@ -1297,7 +1306,8 @@ ${adcClockLine()}
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
     GPIO_Init(GPIO${c.port}, &GPIO_InitStructure);
 
-    ADC_DeInit(${c.inst});
+    ADC_DeInit(${c.inst});${currentVariant().id === 'CH32X035' ? `
+    ADC_CLKConfig(${c.inst}, ADC_CLK_Div6);   /* X035: ADC clock divider is in the ADC (EVT ADC examples) */` : ''}
     ADC_InitStructure.ADC_Mode               = ADC_Mode_Independent;
     ADC_InitStructure.ADC_ScanConvMode       = DISABLE;
     ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
@@ -1306,12 +1316,12 @@ ${adcClockLine()}
     ADC_InitStructure.ADC_NbrOfChannel       = 1;
     ADC_Init(${c.inst}, &ADC_InitStructure);
     ADC_Cmd(${c.inst}, ENABLE);
-
+${currentVariant().id === 'CH32X035' ? '' : `
     ADC_ResetCalibration(${c.inst});
     while(ADC_GetResetCalibrationStatus(${c.inst}));
     ADC_StartCalibration(${c.inst});
     while(ADC_GetCalibrationStatus(${c.inst}));
-
+`}
     ADC_RegularChannelConfig(${c.inst}, ADC_Channel_${c.ch}, 1, ${adcSampleTime(c.stime)});`;
 }
 
@@ -3536,11 +3546,1801 @@ const PINOUTS = {"CH32F103":{"ds":"CH32F103DS0.PDF V1.32","fn":"ch32f103","pkgs"
  * The configurator wires them into the left panel, the config list, the chip view and the generated code. */
 const PERIPH_MODULES = [];
 /* MODULES BEGIN */
+/* ---- USB device: CDC virtual COM port for the CH32 families ----
+ * USB stack follows the EVT examples EXAM/USB/USBFS/DEVICE/SimulateCDC (CH32V103/V20x/V30x/X035/L103)
+ * and EXAM/USB/USBHS/DEVICE/SimulateCDC (CH32V307), without their USART bridge. */
+const mod_usbcdc_chips = {
+  /* dia: register dialect of the USBFS block in the EVT headers
+   *   r8    = R8_xxx / RB_xxx macros, one control byte per endpoint (ch32v10x_usb.h)
+   *   split = USBFSD->UEPn_TX_CTRL / UEPn_RX_CTRL (ch32v20x_usb.h, ch32v30x_usb.h, ch32l103_usb.h)
+   *   ctrlh = USBFSD->UEPn_CTRL_H, TX and RX bits in one register (ch32x035_usb.h) */
+  CH32V103: {ctrls:['usbfs'], dia:'r8', usbh:'ch32v10x_usb.h', sysDef:72e6, evtClk:'SYSCLK_FREQ_72MHz_HSE',
+    rccFn:'RCC_USBCLKConfig', presc:{48e6:'RCC_USBCLKSource_PLLCLK_Div1', 72e6:'RCC_USBCLKSource_PLLCLK_1Div5'},
+    clkEn:'RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBFS, ENABLE );', pins:{usbfs:['PA11', 'PA12', 'USBFS']}},
+  CH32V203: {ctrls:['usbfs'], dia:'split', usbh:'ch32v20x_usb.h', sysDef:96e6, evtClk:'SYSCLK_FREQ_96MHz_HSE',
+    rccFn:'RCC_USBCLKConfig', presc:{48e6:'RCC_USBCLKSource_PLLCLK_Div1', 96e6:'RCC_USBCLKSource_PLLCLK_Div2', 144e6:'RCC_USBCLKSource_PLLCLK_Div3'},
+    clkEn:'RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBFS, ENABLE );', pins:{usbfs:['PB6', 'PB7', 'USBFS']}},
+  CH32V303: {ctrls:['usbfs'], dia:'split', usbh:'ch32v30x_usb.h', sysDef:96e6, evtClk:'SYSCLK_FREQ_96MHz_HSE',
+    rccFn:'RCC_USBFSCLKConfig', presc:{48e6:'RCC_USBFSCLKSource_PLLCLK_Div1', 96e6:'RCC_USBFSCLKSource_PLLCLK_Div2', 144e6:'RCC_USBFSCLKSource_PLLCLK_Div3'},
+    clkEn:'RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBFS, ENABLE );', pins:{usbfs:['PA11', 'PA12', 'OTG_FS']}},
+  CH32V307: {ctrls:['usbfs', 'usbhs'], dia:'split', usbh:'ch32v30x_usb.h', sysDef:96e6, evtClk:'SYSCLK_FREQ_96MHz_HSE', phy:true,
+    clkEn:'RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBFS, ENABLE );', pins:{usbfs:['PA11', 'PA12', 'OTG_FS'], usbhs:['PB6', 'PB7', 'USBHS']}},
+  CH32X035: {ctrls:['usbfs'], dia:'ctrlh', usbh:'ch32x035_usb.h', sysDef:48e6, evtClk:'SYSCLK_FREQ_48MHz_HSI', fixed48:true,
+    clkEn:'RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBFS, ENABLE );', pins:{usbfs:['PC16', 'PC17', 'USBFS']}},
+  CH32L103: {ctrls:['usbfs'], dia:'split', usbh:'ch32l103_usb.h', sysDef:96e6, evtClk:'SYSCLK_FREQ_96MHz_HSI',
+    rccFn:'RCC_USBCLKConfig', presc:{48e6:'RCC_USBCLKSource_PLLCLK_Div1', 72e6:'RCC_USBCLKSource_PLLCLK_Div1_5', 96e6:'RCC_USBCLKSource_PLLCLK_Div2'},
+    clkEn:'RCC_HBPeriphClockCmd( RCC_HBPeriph_USBFS, ENABLE );', pins:{usbfs:['PA11', 'PA12', 'USBFS']}},
+};
+const mod_usbcdc_ctrlName = {usbfs:'USBFS (full speed, 12 Mbit/s)', usbhs:'USBHS (high speed, 480 Mbit/s)'};
+
+function mod_usbcdc_chip(ctx){ return mod_usbcdc_chips[ctx.id] || null; }
+function mod_usbcdc_ctrl(c, ctx){
+  const ch = mod_usbcdc_chip(ctx);
+  return ch && ch.ctrls.includes(c.ctrl) ? c.ctrl : (ch ? ch.ctrls[0] : 'usbfs');
+}
+function mod_usbcdc_hex4(s, def){
+  const t = String(s || '').trim().replace(/^0x/i, '');
+  return /^[0-9a-f]{1,4}$/i.test(t) ? parseInt(t, 16) : def;
+}
+function mod_usbcdc_ident(s, def){ const t = String(s || '').trim(); return /^[A-Za-z_]\w*$/.test(t) ? t : def; }
+/* USB string descriptor (UTF-16LE), at most 126 characters */
+function mod_usbcdc_str(s){
+  const t = String(s).slice(0, 126), b = [2 + t.length * 2, 0x03];
+  for(let i = 0; i < t.length; i++){ const u = t.charCodeAt(i); b.push(u & 0xFF, u >> 8); }
+  return b;
+}
+function mod_usbcdc_hx(n){ return '0x' + (n & 0xFF).toString(16).toUpperCase().padStart(2, '0'); }
+function mod_usbcdc_arr(name, bytes, ram){
+  const rows = []; for(let i = 0; i < bytes.length; i += 12) rows.push('    ' + bytes.slice(i, i + 12).map(mod_usbcdc_hx).join(', '));
+  return `${ram ? '' : 'const '}uint8_t ${name}[${bytes.length}] =\n{\n${rows.join(',\n')}\n};\n`;
+}
+/* USBHS PHY PLL: HSE / div must be one of the reference clocks the PHY accepts (3/4/5/8 MHz), EVT uses 8 MHz / 2 = 4 MHz */
+function mod_usbcdc_phyRef(hse){
+  for(const ref of [4e6, 8e6, 5e6, 3e6]) for(let d = 1; d <= 8; d++) if(Math.abs(hse / d - ref) < 1) return {div:d, ref:ref / 1e6};
+  return null;
+}
+function mod_usbcdc_hse(ctx){ return ctx.clk && ctx.clk.known && ctx.clk.hse ? ctx.clk.hse : 8e6; }
+
+/* descriptors, endpoint layout of the EVT SimulateCDC examples */
+function mod_usbcdc_desc(c, ctx){
+  const hs = mod_usbcdc_ctrl(c, ctx) === 'usbhs';
+  const vid = mod_usbcdc_hex4(c.vid, 0x1A86), pid = mod_usbcdc_hex4(c.pid, 0xFE0C);
+  const serial = String(c.serial || '').trim();
+  const pw = Math.max(1, Math.min(250, Math.ceil((+c.maxpow || 100) / 2)));
+  /* USBFS: EP1 IN interrupt (notification), EP2 OUT bulk, EP3 IN bulk; USBHS: EP3 IN interrupt, EP2 OUT/IN bulk */
+  const ep = hs ? {notif:3, out:2, in:2} : {notif:1, out:2, in:3};
+  const dev = [0x12, 0x01, hs ? 0x00 : 0x10, hs ? 0x02 : 0x01, 0x02, 0x00, 0x00, 64,
+    vid & 0xFF, vid >> 8, pid & 0xFF, pid >> 8, 0x00, 0x01, 0x01, 0x02, serial ? 0x03 : 0x00, 0x01];
+  const cfg = bulk => {
+    const body = [
+      0x09, 0x04, 0x00, 0x00, 0x01, 0x02, 0x02, 0x01, 0x00,       /* interface 0: CDC communication, 1 endpoint */
+      0x05, 0x24, 0x00, 0x10, 0x01,                               /* header functional descriptor, CDC 1.10 */
+      0x05, 0x24, 0x01, 0x00, 0x01,                               /* call management, data interface 1 */
+      0x04, 0x24, 0x02, 0x02,                                     /* ACM: line coding + control line state */
+      0x05, 0x24, 0x06, 0x00, 0x01,                               /* union: master 0, slave 1 */
+      0x07, 0x05, 0x80 | ep.notif, 0x03, 64, 0x00, 0x01,          /* notification endpoint (interrupt IN) */
+      0x09, 0x04, 0x01, 0x00, 0x02, 0x0A, 0x00, 0x00, 0x00,       /* interface 1: CDC data, 2 endpoints */
+      0x07, 0x05, ep.out, 0x02, bulk & 0xFF, bulk >> 8, 0x00,     /* bulk OUT */
+      0x07, 0x05, 0x80 | ep.in, 0x02, bulk & 0xFF, bulk >> 8, 0x00];   /* bulk IN */
+    const total = 9 + body.length;
+    return [0x09, 0x02, total & 0xFF, total >> 8, 0x02, 0x01, 0x00, 0x80, pw].concat(body);
+  };
+  return {hs, ep, vid, pid, dev, cfgFs:cfg(64), cfgHs:hs ? cfg(512) : null,
+    qual:[0x0A, 0x06, 0x00, 0x02, 0x02, 0x00, 0x00, 64, 0x01, 0x00],
+    lang:[0x04, 0x03, 0x09, 0x04], manu:mod_usbcdc_str(c.manu || 'WCH'), prod:mod_usbcdc_str(c.prod || 'USB Serial'),
+    serial:serial ? mod_usbcdc_str(serial) : null};
+}
+
+/* register names of one USBFS dialect (all taken from the EVT *_usb.h headers / SimulateCDC sources) */
+function mod_usbcdc_regs(dia){
+  if(dia === 'r8') return {
+    comb:true, T:n => `R8_UEP${n}_CTRL`, R:n => `R8_UEP${n}_CTRL`, TL:n => n === 0 ? 'R8_UEP0_T_LEN' : `R16_UEP${n}_T_LEN`,
+    DMA:(n, b) => `R16_UEP${n}_DMA = (uint16_t)(uint32_t)${b};`, RXLEN:'(uint16_t)( R16_USB_RX_LEN & MASK_UIS_RX_LEN )',
+    INT_FG:'R8_USB_INT_FG', INT_ST:'R8_USB_INT_ST', ADDR:'R8_USB_DEV_AD', MIS:'R8_USB_MIS_ST', MOD41:'R8_UEP4_1_MOD', MOD23:'R8_UEP2_3_MOD',
+    T_TOG:'RB_UEP_T_TOG', R_TOG:'RB_UEP_R_TOG', T_MASK:'MASK_UEP_T_RES', R_MASK:'MASK_UEP_R_RES',
+    T_ACK:'UEP_T_RES_ACK', T_NAK:'UEP_T_RES_NAK', T_STALL:'UEP_T_RES_STALL', R_ACK:'UEP_R_RES_ACK', R_NAK:'UEP_R_RES_NAK', R_STALL:'UEP_R_RES_STALL',
+    UIF_TRANSFER:'RB_UIF_TRANSFER', UIF_BUS_RST:'RB_UIF_BUS_RST', UIF_SUSPEND:'RB_UIF_SUSPEND',
+    TOKEN_MASK:'MASK_UIS_TOKEN', ENDP_MASK:'MASK_UIS_ENDP', TOKEN_IN:'UIS_TOKEN_IN', TOKEN_OUT:'UIS_TOKEN_OUT', TOKEN_SETUP:'UIS_TOKEN_SETUP',
+    TOG_OK:'RB_UIS_TOG_OK', UDA_GP:'RB_UDA_GP_BIT', UMS_SUSPEND:'RB_UMS_SUSPEND',
+    EP1_TX_EN:'RB_UEP1_TX_EN', EP2_RX_EN:'RB_UEP2_RX_EN', EP3_TX_EN:'RB_UEP3_TX_EN'};
+  const ch = dia === 'ctrlh';
+  return {
+    comb:ch, T:n => ch ? `USBFSD->UEP${n}_CTRL_H` : `USBFSD->UEP${n}_TX_CTRL`, R:n => ch ? `USBFSD->UEP${n}_CTRL_H` : `USBFSD->UEP${n}_RX_CTRL`,
+    TL:n => `USBFSD->UEP${n}_TX_LEN`, DMA:(n, b) => `USBFSD->UEP${n}_DMA = (uint32_t)${b};`, RXLEN:'USBFSD->RX_LEN',
+    INT_FG:'USBFSD->INT_FG', INT_ST:'USBFSD->INT_ST', ADDR:'USBFSD->DEV_ADDR', MIS:'USBFSD->MIS_ST', MOD41:'USBFSD->UEP4_1_MOD', MOD23:'USBFSD->UEP2_3_MOD',
+    T_TOG:'USBFS_UEP_T_TOG', R_TOG:'USBFS_UEP_R_TOG', T_MASK:'USBFS_UEP_T_RES_MASK', R_MASK:'USBFS_UEP_R_RES_MASK',
+    T_ACK:'USBFS_UEP_T_RES_ACK', T_NAK:'USBFS_UEP_T_RES_NAK', T_STALL:'USBFS_UEP_T_RES_STALL',
+    R_ACK:'USBFS_UEP_R_RES_ACK', R_NAK:'USBFS_UEP_R_RES_NAK', R_STALL:'USBFS_UEP_R_RES_STALL',
+    UIF_TRANSFER:'USBFS_UIF_TRANSFER', UIF_BUS_RST:'USBFS_UIF_BUS_RST', UIF_SUSPEND:'USBFS_UIF_SUSPEND',
+    TOKEN_MASK:'USBFS_UIS_TOKEN_MASK', ENDP_MASK:'USBFS_UIS_ENDP_MASK', TOKEN_IN:'USBFS_UIS_TOKEN_IN', TOKEN_OUT:'USBFS_UIS_TOKEN_OUT', TOKEN_SETUP:'USBFS_UIS_TOKEN_SETUP',
+    TOG_OK:'USBFS_UIS_TOG_OK', UDA_GP:'USBFS_UDA_GP_BIT', UMS_SUSPEND:'USBFS_UMS_SUSPEND',
+    EP1_TX_EN:'USBFS_UEP1_TX_EN', EP2_RX_EN:'USBFS_UEP2_RX_EN', EP3_TX_EN:'USBFS_UEP3_TX_EN'};
+}
+
+/* clock + controller start-up, per chip, as in the EVT USBFS_RCC_Init() / USBFS_Device_Init() */
+function mod_usbcdc_fsRcc(ch, ctx){
+  if(ch.fixed48) return `    /* USBFS runs from the 48 MHz HSI: no USB prescaler on this chip */
+    RCC_APB2PeriphClockCmd( RCC_APB2Periph_AFIO, ENABLE );
+    ${ch.clkEn}`;
+  if(ch.phy){
+    const r = mod_usbcdc_phyRef(mod_usbcdc_hse(ctx)) || {div:2, ref:4};
+    return `    /* 48 MHz USB clock from the USBHS PHY PLL: HSE ${fmtHz(mod_usbcdc_hse(ctx))} / ${r.div} = ${r.ref} MHz reference */
+    RCC_USBCLK48MConfig( RCC_USBCLK48MCLKSource_USBPHY );
+    RCC_USBHSPLLCLKConfig( RCC_HSBHSPLLCLKSource_HSE );
+    RCC_USBHSConfig( RCC_USBPLL_Div${r.div} );
+    RCC_USBHSPLLCKREFCLKConfig( RCC_USBHSPLLCKREFCLK_${r.ref}M );
+    RCC_USBHSPHYPLLALIVEcmd( ENABLE );
+    RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBHS, ENABLE );
+    ${ch.clkEn}`;
+  }
+  const keys = Object.keys(ch.presc).map(Number).sort((a, b) => b - a);
+  const ifs = keys.map((k, i) => `    ${i ? 'else if' : 'if'}( RCC_ClocksStatus.SYSCLK_Frequency == ${k} )
+    {
+        ${ch.rccFn}( ${ch.presc[k]} );
+    }`).join('\n');
+  const d8 = ctx.id === 'CH32V203' ? `
+#if defined(CH32V20x_D8W) || defined(CH32V20x_D8)
+    else if( RCC_ClocksStatus.SYSCLK_Frequency == 240000000 && RCC_USB5PRE_JUDGE() == SET )
+    {
+        RCC_USBCLKConfig( RCC_USBCLKSource_PLLCLK_Div5 );
+    }
+#endif` : '';
+  const pre = ctx.id === 'CH32V103' ? `    RCC_APB2PeriphClockCmd( RCC_APB2Periph_GPIOA, ENABLE );
+    EXTEN->EXTEN_CTR |= EXTEN_USBFS_IO_EN;
+` : '';
+  return `${pre}    /* USB clock = PLLCLK / n = 48 MHz (${keys.map(k => fmtHz(k)).join(' / ')} SYSCLK supported) */
+    RCC_ClocksTypeDef RCC_ClocksStatus = {0};
+    RCC_GetClocksFreq( &RCC_ClocksStatus );
+${ifs}${d8}
+    ${ch.clkEn}`;
+}
+function mod_usbcdc_fsStart(ch, r){
+  if(ch.dia === 'ctrlh') return `    /* UDM (PC16) floating input, UDP (PC17) pull-up input; USB pins and pull-up via AFIO_CTLR */
+    GPIO_InitTypeDef GPIO_InitStructure = {0};
+    RCC_APB2PeriphClockCmd( RCC_APB2Periph_GPIOC, ENABLE );
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_16;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+    GPIO_Init( GPIOC, &GPIO_InitStructure );
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_17;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+    GPIO_Init( GPIOC, &GPIO_InitStructure );
+    if( PWR_VDD_SupplyVoltage( ) == PWR_VDD_5V )
+    {
+        AFIO->CTLR = ( AFIO->CTLR & ~( USBCDC_UDP_PUE_MASK | USBCDC_UDM_PUE_MASK | AFIO_CTLR_USB_PHY_V33 ) ) | USBCDC_UDP_PUE_10K | AFIO_CTLR_USB_IOEN;
+    }
+    else
+    {
+        AFIO->CTLR = ( AFIO->CTLR & ~( USBCDC_UDP_PUE_MASK | USBCDC_UDM_PUE_MASK ) ) | AFIO_CTLR_USB_PHY_V33 | USBCDC_UDP_PUE_1K5 | AFIO_CTLR_USB_IOEN;
+    }
+    USBFSD->BASE_CTRL = 0x00;
+    usbfs_endp_init( );
+    USBFSD->DEV_ADDR = 0x00;
+    USBFSD->BASE_CTRL = USBFS_UC_DEV_PU_EN | USBFS_UC_INT_BUSY | USBFS_UC_DMA_EN;
+    USBFSD->INT_FG = 0xFF;
+    USBFSD->UDEV_CTRL = USBFS_UD_PD_DIS | USBFS_UD_PORT_EN;
+    USBFSD->INT_EN = USBFS_UIE_SUSPEND | USBFS_UIE_BUS_RST | USBFS_UIE_TRANSFER;
+    NVIC_EnableIRQ( USBFS_IRQn );`;
+  if(ch.dia === 'r8') return `    /* USB I/O supply: 5 V or 3.3 V */
+    if( PWR_VDD_SupplyVoltage( ) == PWR_VDD_5V )
+    {
+        EXTEN->EXTEN_CTR |= EXTEN_USB_5V_SEL;
+    }
+    else
+    {
+        EXTEN->EXTEN_CTR &= ~EXTEN_USB_5V_SEL;
+    }
+    R8_USB_CTRL = RB_UC_RESET_SIE | RB_UC_CLR_ALL;
+    Delay_Us( 10 );
+    R8_USB_CTRL = 0x00;
+    R8_USB_INT_EN = RB_UIE_SUSPEND | RB_UIE_BUS_RST | RB_UIE_TRANSFER;
+    R8_USB_CTRL = RB_UC_DEV_PU_EN | RB_UC_INT_BUSY | RB_UC_DMA_EN;
+    usbfs_endp_init( );
+    R8_UDEV_CTRL = RB_UD_PD_DIS | RB_UD_PORT_EN;
+    NVIC_EnableIRQ( USBFS_IRQn );`;
+  return `    USBFSH->BASE_CTRL = USBFS_UC_RESET_SIE | USBFS_UC_CLR_ALL;
+    Delay_Us( 10 );
+    USBFSH->BASE_CTRL = 0x00;
+    USBFSD->INT_EN = USBFS_UIE_SUSPEND | USBFS_UIE_BUS_RST | USBFS_UIE_TRANSFER;
+    USBFSD->BASE_CTRL = USBFS_UC_DEV_PU_EN | USBFS_UC_INT_BUSY | USBFS_UC_DMA_EN;
+    usbfs_endp_init( );
+    USBFSD->UDEV_CTRL = USBFS_UD_PD_DIS | USBFS_UD_PORT_EN;
+    NVIC_EnableIRQ( USBFS_IRQn );`;
+}
+
+function mod_usbcdc_header(c, ctx){
+  const rx = mod_usbcdc_ident(c.rxfn, 'usb_cdc_on_receive'), ctrl = mod_usbcdc_ctrl(c, ctx), hs = ctrl === 'usbhs';
+  return `/* USB CDC virtual COM port - generated by WCH Configurator for ${ctx.id} (${hs ? 'USBHS' : 'USBFS'} controller)
+ * Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources
+ */
+#ifndef USB_CDC_H
+#define USB_CDC_H
+
+#include <stdint.h>
+
+void     usb_cdc_init(void);                                 /* clock, endpoints, pull-up: the host enumerates the port */
+uint16_t usb_cdc_write(const uint8_t *data, uint16_t len);   /* blocks until queued; returns bytes sent (stops after 50 ms without the host reading) */
+void     usb_cdc_print(const char *s);
+uint8_t  usb_cdc_configured(void);                           /* 1 = enumerated by the host */
+uint8_t  usb_cdc_connected(void);                            /* 1 = enumerated and DTR set (a terminal has the port open) */
+
+/* ---- callbacks: weak defaults in usb_cdc.c, define them anywhere in your code to override.
+ *      They run inside the USB interrupt: keep them short (copy the data, set a flag, handle it in the main loop). */
+void ${rx}(const uint8_t *data, uint16_t len);
+void usb_cdc_on_line_coding(uint32_t baud, uint8_t stop_bits, uint8_t parity, uint8_t data_bits);   /* stop_bits 0/1/2 = 1/1.5/2, parity 0..4 = N/O/E/M/S */
+void usb_cdc_on_control_line(uint8_t dtr, uint8_t rts);
+
+#endif
+`;
+}
+
+/* shared tail: line coding, weak callbacks, write/print */
+function mod_usbcdc_common(rx, P){
+  return `/* ---------------- CDC state ---------------- */
+/* line coding: dwDTERate (LE), bCharFormat, bParityType, bDataBits - default 115200 8N1 */
+static uint8_t cdc_line_coding[ 7 ] = { 0x00, 0xC2, 0x01, 0x00, 0x00, 0x00, 0x08 };
+static volatile uint8_t cdc_line_state;   /* bit0 DTR, bit1 RTS */
+
+__attribute__((weak)) void ${rx}( const uint8_t *data, uint16_t len )
+{
+    (void)data;
+    (void)len;
+}
+__attribute__((weak)) void usb_cdc_on_line_coding( uint32_t baud, uint8_t stop_bits, uint8_t parity, uint8_t data_bits )
+{
+    (void)baud;
+    (void)stop_bits;
+    (void)parity;
+    (void)data_bits;
+}
+__attribute__((weak)) void usb_cdc_on_control_line( uint8_t dtr, uint8_t rts )
+{
+    (void)dtr;
+    (void)rts;
+}
+
+static void cdc_line_coding_set( const uint8_t *buf )
+{
+    memcpy( cdc_line_coding, buf, 7 );
+    usb_cdc_on_line_coding( (uint32_t)buf[ 0 ] | ( (uint32_t)buf[ 1 ] << 8 ) | ( (uint32_t)buf[ 2 ] << 16 ) | ( (uint32_t)buf[ 3 ] << 24 ),
+                            buf[ 4 ], buf[ 5 ], buf[ 6 ] );
+}
+`;
+}
+function mod_usbcdc_writeFns(P, pack){
+  return `/* ---------------- application API ---------------- */
+uint8_t usb_cdc_configured( void )
+{
+    return ${P}_DevEnumStatus ? 1 : 0;
+}
+
+uint8_t usb_cdc_connected( void )
+{
+    return ( ${P}_DevEnumStatus && ( cdc_line_state & 0x01 ) ) ? 1 : 0;
+}
+
+uint16_t usb_cdc_write( const uint8_t *data, uint16_t len )
+{
+    uint16_t sent = 0, n;
+    uint16_t pack;
+
+    if( ${P}_DevEnumStatus == 0 )
+    {
+        return 0;
+    }
+    pack = ${pack};
+    while( len )
+    {
+        n = ( len > pack ) ? pack : len;
+        if( cdc_send_packet( data, n ) )
+        {
+            break;
+        }
+        data += n;
+        len -= n;
+        sent += n;
+        if( ( len == 0 ) && ( n == pack ) )
+        {
+            /* a full last packet: a zero-length packet ends the transfer on the host side */
+            cdc_send_packet( data, 0 );
+        }
+    }
+    return sent;
+}
+
+void usb_cdc_print( const char *s )
+{
+    usb_cdc_write( (const uint8_t *)s, (uint16_t)strlen( s ) );
+}
+`;
+}
+
+/* ---------------- USBFS (CH32V103 / V20x / V30x / X035 / L103) ---------------- */
+function mod_usbcdc_fsSource(c, ctx){
+  const ch = mod_usbcdc_chip(ctx), d = mod_usbcdc_desc(c, ctx), r = mod_usbcdc_regs(ch.dia);
+  const rx = mod_usbcdc_ident(c.rxfn, 'usb_cdc_on_receive');
+  /* register write helpers: on "comb" dialects TX and RX handshake bits share one register, so writes are read-modify-write */
+  const setT = (n, v) => r.comb ? `${r.T(n)} = ( ${r.T(n)} & ~( ${r.T_TOG} | ${r.T_MASK} ) ) | ${v};` : `${r.T(n)} = ${v};`;
+  const setR = (n, v) => r.comb ? `${r.R(n)} = ( ${r.R(n)} & ~( ${r.R_TOG} | ${r.R_MASK} ) ) | ${v};` : `${r.R(n)} = ${v};`;
+  const setTR = (n, tv, rv, ind) => r.comb ? `${r.T(n)} = ${tv} | ${rv};` : `${r.T(n)} = ${tv};\n${ind}${r.R(n)} = ${rv};`;
+  const resT = (n, v) => `${r.T(n)} = ( ${r.T(n)} & ~${r.T_MASK} ) | ${v};`;
+  const resR = (n, v) => `${r.R(n)} = ( ${r.R(n)} & ~${r.R_MASK} ) | ${v};`;
+  const extra = ch.dia === 'ctrlh' ? `
+/* AFIO_CTLR USB pull-up fields, values from the EVT ch32x035_usbfs_device.h */
+#define USBCDC_UDP_PUE_MASK          0x0000000C
+#define USBCDC_UDP_PUE_10K           0x00000008
+#define USBCDC_UDP_PUE_1K5           0x0000000C
+#define USBCDC_UDM_PUE_MASK          0x00000003
+` : '';
+  const halt = (what) => {
+    /* what: 'clear' | 'set' | 'get' */
+    const cases = [[`DEF_UEP_IN | DEF_UEP1`, 'T', 1], [`DEF_UEP_OUT | DEF_UEP2`, 'R', 2], [`DEF_UEP_IN | DEF_UEP3`, 'T', 3]];
+    return cases.map(([k, dir, n]) => {
+      let s;
+      if(what === 'clear') s = dir === 'T' ? setT(n, r.T_NAK) : setR(n, r.R_ACK);
+      else if(what === 'set') s = dir === 'T' ? resT(n, r.T_STALL) : resR(n, r.R_STALL);
+      else s = dir === 'T'
+        ? `if( ( ${r.T(n)} & ${r.T_MASK} ) == ${r.T_STALL} )\n                                        {\n                                            USBFS_EP0_Buf[ 0 ] = 0x01;\n                                        }`
+        : `if( ( ${r.R(n)} & ${r.R_MASK} ) == ${r.R_STALL} )\n                                        {\n                                            USBFS_EP0_Buf[ 0 ] = 0x01;\n                                        }`;
+      return `                                    case ( ${k} ):
+                                        ${s}
+                                        break;
+`;
+    }).join('\n');
+  };
+  const IND3 = '                    ';
+  return `/* USB CDC virtual COM port - generated by WCH Configurator for ${ctx.id}
+ * Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources
+ * USB stack: EVT example EXAM/USB/USBFS/DEVICE/SimulateCDC (${ch.usbh.replace('_usb.h', '')}_usbfs_device.c / usb_desc.c),
+ * without its USART bridge. Endpoints: EP0 control 64, EP1 IN interrupt (notification), EP2 OUT bulk 64, EP3 IN bulk 64.
+ * Pins: ${ch.pins.usbfs[0]} = D-, ${ch.pins.usbfs[1]} = D+ (no GPIO set-up needed${ch.dia === 'ctrlh' ? ' besides the one below' : ''}).
+ */
+#include "debug.h"
+#include "${ch.usbh}"
+#include "usb_cdc.h"
+#include <string.h>
+${extra}
+#define DEF_UEP_IN                   0x80
+#define DEF_UEP_OUT                  0x00
+#define DEF_UEP0                     0x00
+#define DEF_UEP1                     0x01
+#define DEF_UEP2                     0x02
+#define DEF_UEP3                     0x03
+#define DEF_USBD_UEP0_SIZE           64
+#define DEF_USBD_FS_PACK_SIZE        64
+
+/* ---------------- descriptors (usb_desc.c) ---------------- */
+/* VID ${d.vid.toString(16).toUpperCase().padStart(4, '0')}, PID ${d.pid.toString(16).toUpperCase().padStart(4, '0')}, USB 1.10, class 02 (CDC) */
+static ${mod_usbcdc_arr('MyDevDescr', d.dev)}
+static ${mod_usbcdc_arr('MyCfgDescr', d.cfgFs)}
+static ${mod_usbcdc_arr('MyLangDescr', d.lang)}
+static ${mod_usbcdc_arr('MyManuInfo', d.manu)}
+static ${mod_usbcdc_arr('MyProdInfo', d.prod)}
+${d.serial ? 'static ' + mod_usbcdc_arr('MySerNumInfo', d.serial) : ''}
+/* ---------------- device state ---------------- */
+static const uint8_t     *pUSBFS_Descr;
+static volatile uint8_t  USBFS_SetupReqCode;
+static volatile uint8_t  USBFS_SetupReqType;
+static volatile uint16_t USBFS_SetupReqValue;
+static volatile uint16_t USBFS_SetupReqIndex;
+static volatile uint16_t USBFS_SetupReqLen;
+static volatile uint8_t  USBFS_DevConfig;
+static volatile uint8_t  USBFS_DevAddr;
+static volatile uint8_t  USBFS_DevSleepStatus;
+static volatile uint8_t  USBFS_DevEnumStatus;
+static volatile uint8_t  USBFS_Endp_Busy[ 4 ];
+
+/* endpoint buffers (USB DMA) */
+static __attribute__((aligned(4))) uint8_t USBFS_EP0_Buf[ DEF_USBD_UEP0_SIZE ];
+static __attribute__((aligned(4))) uint8_t USBFS_EP1_Buf[ DEF_USBD_FS_PACK_SIZE ];
+static __attribute__((aligned(4))) uint8_t USBFS_EP2_Buf[ DEF_USBD_FS_PACK_SIZE ];
+static __attribute__((aligned(4))) uint8_t USBFS_EP3_Buf[ DEF_USBD_FS_PACK_SIZE ];
+
+#define pUSBFS_SetupReqPak           ((PUSB_SETUP_REQ)USBFS_EP0_Buf)
+
+void USBFS_IRQHandler( void ) __attribute__((interrupt("WCH-Interrupt-fast")));
+
+${mod_usbcdc_common(rx, 'USBFS')}
+/* ---------------- endpoints (USBFS_Device_Endp_Init) ---------------- */
+static void usbfs_endp_init( void )
+{
+    uint8_t i;
+
+    ${r.MOD41} = ${r.EP1_TX_EN};
+    ${r.MOD23} = ${r.EP2_RX_EN} | ${r.EP3_TX_EN};
+
+    ${r.DMA(0, 'USBFS_EP0_Buf')}
+    ${r.DMA(1, 'USBFS_EP1_Buf')}
+    ${r.DMA(2, 'USBFS_EP2_Buf')}
+    ${r.DMA(3, 'USBFS_EP3_Buf')}
+
+    ${r.TL(1)} = 0;
+    ${r.TL(3)} = 0;
+
+    ${setTR(0, r.T_NAK, r.R_ACK, '    ')}
+    ${setTR(1, r.T_NAK, r.R_ACK, '    ')}
+    ${setTR(2, r.T_NAK, r.R_ACK, '    ')}
+    ${setTR(3, r.T_NAK, r.R_ACK, '    ')}
+
+    for( i = 0; i < 4; i++ )
+    {
+        USBFS_Endp_Busy[ i ] = 0;
+    }
+}
+
+/* ---------------- init (USBFS_RCC_Init + USBFS_Device_Init) ---------------- */
+void usb_cdc_init( void )
+{
+${mod_usbcdc_fsRcc(ch, ctx)}
+
+${mod_usbcdc_fsStart(ch, r)}
+}
+
+/* one bulk IN packet on EP3; waits up to ~50 ms for the previous one */
+static uint8_t cdc_send_packet( const uint8_t *buf, uint16_t len )
+{
+    uint32_t t = 0;
+
+    while( USBFS_Endp_Busy[ DEF_UEP3 ] )
+    {
+        if( ( USBFS_DevEnumStatus == 0 ) || ( ++t > 50000 ) )
+        {
+            return 1;
+        }
+        Delay_Us( 1 );
+    }
+    if( len )
+    {
+        memcpy( USBFS_EP3_Buf, buf, len );
+    }
+    USBFS_Endp_Busy[ DEF_UEP3 ] = 1;
+    ${r.TL(3)} = len;
+    ${resT(3, r.T_ACK)}
+    return 0;
+}
+
+${mod_usbcdc_writeFns('USBFS', 'DEF_USBD_FS_PACK_SIZE')}
+/* ---------------- interrupt (USBFS_IRQHandler) ---------------- */
+void USBFS_IRQHandler( void )
+{
+    uint8_t  intflag, intst, errflag;
+    uint16_t len;
+
+    intflag = ${r.INT_FG};
+    intst   = ${r.INT_ST};
+
+    if( intflag & ${r.UIF_TRANSFER} )
+    {
+        switch( intst & ${r.TOKEN_MASK} )
+        {
+            /* data-in stage processing */
+            case ${r.TOKEN_IN}:
+                switch( intst & ( ${r.TOKEN_MASK} | ${r.ENDP_MASK} ) )
+                {
+                    /* end-point 0 data in interrupt */
+                    case ${r.TOKEN_IN} | DEF_UEP0:
+                        if( USBFS_SetupReqLen == 0 )
+                        {
+                            ${setR(0, `${r.R_TOG} | ${r.R_ACK}`)}
+                        }
+                        if( ( USBFS_SetupReqType & USB_REQ_TYP_MASK ) == USB_REQ_TYP_STANDARD )
+                        {
+                            switch( USBFS_SetupReqCode )
+                            {
+                                case USB_GET_DESCRIPTOR:
+                                    len = USBFS_SetupReqLen >= DEF_USBD_UEP0_SIZE ? DEF_USBD_UEP0_SIZE : USBFS_SetupReqLen;
+                                    memcpy( USBFS_EP0_Buf, pUSBFS_Descr, len );
+                                    USBFS_SetupReqLen -= len;
+                                    pUSBFS_Descr += len;
+                                    ${r.TL(0)} = len;
+                                    ${r.T(0)} ^= ${r.T_TOG};
+                                    break;
+
+                                case USB_SET_ADDRESS:
+                                    ${r.ADDR} = ( ${r.ADDR} & ${r.UDA_GP} ) | USBFS_DevAddr;
+                                    break;
+
+                                default:
+                                    break;
+                            }
+                        }
+                        break;
+
+                    /* end-point 1 data in interrupt (notification) */
+                    case ${r.TOKEN_IN} | DEF_UEP1:
+                        ${r.T(1)} ^= ${r.T_TOG};
+                        ${resT(1, r.T_NAK)}
+                        USBFS_Endp_Busy[ DEF_UEP1 ] = 0;
+                        break;
+
+                    /* end-point 3 data in interrupt (bulk IN done) */
+                    case ${r.TOKEN_IN} | DEF_UEP3:
+                        ${r.T(3)} ^= ${r.T_TOG};
+                        ${resT(3, r.T_NAK)}
+                        USBFS_Endp_Busy[ DEF_UEP3 ] = 0;
+                        break;
+
+                    default:
+                        break;
+                }
+                break;
+
+            /* data-out stage processing */
+            case ${r.TOKEN_OUT}:
+                switch( intst & ( ${r.TOKEN_MASK} | ${r.ENDP_MASK} ) )
+                {
+                    /* end-point 0 data out interrupt */
+                    case ${r.TOKEN_OUT} | DEF_UEP0:
+                        len = ${r.RXLEN};
+                        if( intst & ${r.TOG_OK} )
+                        {
+                            if( ( USBFS_SetupReqType & USB_REQ_TYP_MASK ) != USB_REQ_TYP_STANDARD )
+                            {
+                                USBFS_SetupReqLen = 0;
+                                if( ( USBFS_SetupReqCode == CDC_SET_LINE_CODING ) && ( len >= 7 ) )
+                                {
+                                    cdc_line_coding_set( USBFS_EP0_Buf );
+                                }
+                            }
+                            if( USBFS_SetupReqLen == 0 )
+                            {
+                                ${r.TL(0)} = 0;
+                                ${setT(0, `${r.T_TOG} | ${r.T_ACK}`)}
+                            }
+                        }
+                        break;
+
+                    /* end-point 2 data out interrupt (bulk OUT) */
+                    case ${r.TOKEN_OUT} | DEF_UEP2:
+                        if( intst & ${r.TOG_OK} )
+                        {
+                            ${r.R(2)} ^= ${r.R_TOG};
+                            len = ${r.RXLEN};
+                            ${rx}( USBFS_EP2_Buf, len );
+                        }
+                        break;
+
+                    default:
+                        break;
+                }
+                break;
+
+            /* Setup stage processing */
+            case ${r.TOKEN_SETUP}:
+                ${setTR(0, `${r.T_TOG} | ${r.T_NAK}`, `${r.R_TOG} | ${r.R_NAK}`, '                ')}
+                /* Store All Setup Values */
+                USBFS_SetupReqType  = pUSBFS_SetupReqPak->bRequestType;
+                USBFS_SetupReqCode  = pUSBFS_SetupReqPak->bRequest;
+                USBFS_SetupReqLen   = pUSBFS_SetupReqPak->wLength;
+                USBFS_SetupReqValue = pUSBFS_SetupReqPak->wValue;
+                USBFS_SetupReqIndex = pUSBFS_SetupReqPak->wIndex;
+                len = 0;
+                errflag = 0;
+                if( ( USBFS_SetupReqType & USB_REQ_TYP_MASK ) != USB_REQ_TYP_STANDARD )
+                {
+                    /* usb non-standard request processing */
+                    if( USBFS_SetupReqType & USB_REQ_TYP_CLASS )
+                    {
+                        /* CDC class requests */
+                        switch( USBFS_SetupReqCode )
+                        {
+                            case CDC_GET_LINE_CODING:
+                                pUSBFS_Descr = cdc_line_coding;
+                                len = 7;
+                                if( USBFS_SetupReqLen > len )
+                                {
+                                    USBFS_SetupReqLen = len;
+                                }
+                                memcpy( USBFS_EP0_Buf, pUSBFS_Descr, USBFS_SetupReqLen );
+                                pUSBFS_Descr += USBFS_SetupReqLen;
+                                break;
+
+                            case CDC_SET_LINE_CODING:
+                                break;
+
+                            case CDC_SET_LINE_CTLSTE:
+                                cdc_line_state = (uint8_t)( USBFS_SetupReqValue & 0x03 );
+                                usb_cdc_on_control_line( cdc_line_state & 0x01, ( cdc_line_state >> 1 ) & 0x01 );
+                                break;
+
+                            case CDC_SEND_BREAK:
+                                break;
+
+                            default:
+                                errflag = 0xFF;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        errflag = 0xFF;
+                    }
+                }
+                else
+                {
+                    /* usb standard request processing */
+                    switch( USBFS_SetupReqCode )
+                    {
+                        /* get device/configuration/string descriptors */
+                        case USB_GET_DESCRIPTOR:
+                            switch( (uint8_t)( USBFS_SetupReqValue >> 8 ) )
+                            {
+                                case USB_DESCR_TYP_DEVICE:
+                                    pUSBFS_Descr = MyDevDescr;
+                                    len = sizeof( MyDevDescr );
+                                    break;
+
+                                case USB_DESCR_TYP_CONFIG:
+                                    pUSBFS_Descr = MyCfgDescr;
+                                    len = sizeof( MyCfgDescr );
+                                    break;
+
+                                case USB_DESCR_TYP_STRING:
+                                    switch( (uint8_t)( USBFS_SetupReqValue & 0xFF ) )
+                                    {
+                                        case DEF_STRING_DESC_LANG:
+                                            pUSBFS_Descr = MyLangDescr;
+                                            len = sizeof( MyLangDescr );
+                                            break;
+
+                                        case DEF_STRING_DESC_MANU:
+                                            pUSBFS_Descr = MyManuInfo;
+                                            len = sizeof( MyManuInfo );
+                                            break;
+
+                                        case DEF_STRING_DESC_PROD:
+                                            pUSBFS_Descr = MyProdInfo;
+                                            len = sizeof( MyProdInfo );
+                                            break;
+${d.serial ? `
+                                        case DEF_STRING_DESC_SERN:
+                                            pUSBFS_Descr = MySerNumInfo;
+                                            len = sizeof( MySerNumInfo );
+                                            break;
+` : ''}
+                                        default:
+                                            errflag = 0xFF;
+                                            break;
+                                    }
+                                    break;
+
+                                default:
+                                    errflag = 0xFF;
+                                    break;
+                            }
+
+                            /* Copy Descriptors to Endp0 DMA buffer */
+                            if( USBFS_SetupReqLen > len )
+                            {
+                                USBFS_SetupReqLen = len;
+                            }
+                            len = ( USBFS_SetupReqLen >= DEF_USBD_UEP0_SIZE ) ? DEF_USBD_UEP0_SIZE : USBFS_SetupReqLen;
+                            if( errflag == 0 )
+                            {
+                                memcpy( USBFS_EP0_Buf, pUSBFS_Descr, len );
+                                pUSBFS_Descr += len;
+                            }
+                            break;
+
+                        /* Set usb address */
+                        case USB_SET_ADDRESS:
+                            USBFS_DevAddr = (uint8_t)( USBFS_SetupReqValue & 0xFF );
+                            break;
+
+                        /* Get usb configuration now set */
+                        case USB_GET_CONFIGURATION:
+                            USBFS_EP0_Buf[ 0 ] = USBFS_DevConfig;
+                            if( USBFS_SetupReqLen > 1 )
+                            {
+                                USBFS_SetupReqLen = 1;
+                            }
+                            break;
+
+                        /* Set usb configuration to use */
+                        case USB_SET_CONFIGURATION:
+                            USBFS_DevConfig = (uint8_t)( USBFS_SetupReqValue & 0xFF );
+                            USBFS_DevEnumStatus = USBFS_DevConfig ? 0x01 : 0x00;
+                            break;
+
+                        /* Clear or disable one usb feature */
+                        case USB_CLEAR_FEATURE:
+                            if( ( USBFS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_DEVICE )
+                            {
+                                if( (uint8_t)( USBFS_SetupReqValue & 0xFF ) == USB_REQ_FEAT_REMOTE_WAKEUP )
+                                {
+                                    USBFS_DevSleepStatus &= ~0x01;
+                                }
+                                else
+                                {
+                                    errflag = 0xFF;
+                                }
+                            }
+                            else if( ( USBFS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_ENDP )
+                            {
+                                if( (uint8_t)( USBFS_SetupReqValue & 0xFF ) == USB_REQ_FEAT_ENDP_HALT )
+                                {
+                                    switch( (uint8_t)( USBFS_SetupReqIndex & 0xFF ) )
+                                    {
+${halt('clear')}
+                                    default:
+                                        errflag = 0xFF;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    errflag = 0xFF;
+                                }
+                            }
+                            else
+                            {
+                                errflag = 0xFF;
+                            }
+                            break;
+
+                        /* set or enable one usb feature */
+                        case USB_SET_FEATURE:
+                            if( ( USBFS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_ENDP )
+                            {
+                                if( (uint8_t)( USBFS_SetupReqValue & 0xFF ) == USB_REQ_FEAT_ENDP_HALT )
+                                {
+                                    switch( (uint8_t)( USBFS_SetupReqIndex & 0xFF ) )
+                                    {
+${halt('set')}
+                                    default:
+                                        errflag = 0xFF;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    errflag = 0xFF;
+                                }
+                            }
+                            else
+                            {
+                                /* remote wake-up is not enabled in the configuration descriptor */
+                                errflag = 0xFF;
+                            }
+                            break;
+
+                        case USB_GET_INTERFACE:
+                            USBFS_EP0_Buf[ 0 ] = 0x00;
+                            if( USBFS_SetupReqLen > 1 )
+                            {
+                                USBFS_SetupReqLen = 1;
+                            }
+                            break;
+
+                        case USB_SET_INTERFACE:
+                            break;
+
+                        /* host get status of specified device/interface/end-points */
+                        case USB_GET_STATUS:
+                            USBFS_EP0_Buf[ 0 ] = 0x00;
+                            USBFS_EP0_Buf[ 1 ] = 0x00;
+                            if( ( USBFS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_ENDP )
+                            {
+                                switch( (uint8_t)( USBFS_SetupReqIndex & 0xFF ) )
+                                {
+${halt('get')}
+                                    default:
+                                        errflag = 0xFF;
+                                        break;
+                                }
+                            }
+                            if( USBFS_SetupReqLen > 2 )
+                            {
+                                USBFS_SetupReqLen = 2;
+                            }
+                            break;
+
+                        default:
+                            errflag = 0xFF;
+                            break;
+                    }
+                }
+
+                /* errflag = 0xFF means a request not support or some errors occurred, else correct */
+                if( errflag == 0xFF )
+                {
+                    /* if one request not support, return stall */
+                    ${setTR(0, `${r.T_TOG} | ${r.T_STALL}`, `${r.R_TOG} | ${r.R_STALL}`, IND3)}
+                }
+                else
+                {
+                    /* end-point 0 data Tx/Rx */
+                    if( USBFS_SetupReqType & DEF_UEP_IN )
+                    {
+                        len = ( USBFS_SetupReqLen > DEF_USBD_UEP0_SIZE ) ? DEF_USBD_UEP0_SIZE : USBFS_SetupReqLen;
+                        USBFS_SetupReqLen -= len;
+                        ${r.TL(0)} = len;
+                        ${setT(0, `${r.T_TOG} | ${r.T_ACK}`)}
+                    }
+                    else
+                    {
+                        if( USBFS_SetupReqLen == 0 )
+                        {
+                            ${r.TL(0)} = 0;
+                            ${setT(0, `${r.T_TOG} | ${r.T_ACK}`)}
+                        }
+                        else
+                        {
+                            ${setR(0, `${r.R_TOG} | ${r.R_ACK}`)}
+                        }
+                    }
+                }
+                break;
+
+            default:
+                break;
+        }
+        ${r.INT_FG} = ${r.UIF_TRANSFER};
+    }
+    else if( intflag & ${r.UIF_BUS_RST} )
+    {
+        /* usb reset interrupt processing */
+        USBFS_DevConfig = 0;
+        USBFS_DevAddr = 0;
+        USBFS_DevSleepStatus = 0;
+        USBFS_DevEnumStatus = 0;
+        cdc_line_state = 0;
+        ${r.ADDR} = 0;
+        usbfs_endp_init( );
+        ${r.INT_FG} = ${r.UIF_BUS_RST};
+    }
+    else if( intflag & ${r.UIF_SUSPEND} )
+    {
+        ${r.INT_FG} = ${r.UIF_SUSPEND};
+        Delay_Us( 10 );
+        /* usb suspend interrupt processing */
+        if( ${r.MIS} & ${r.UMS_SUSPEND} )
+        {
+            USBFS_DevSleepStatus |= 0x02;
+        }
+        else
+        {
+            USBFS_DevSleepStatus &= ~0x02;
+        }
+    }
+    else
+    {
+        /* other interrupts */
+        ${r.INT_FG} = intflag;
+    }
+}
+`;
+}
+
+/* ---------------- USBHS (CH32V307) ---------------- */
+function mod_usbcdc_hsSource(c, ctx){
+  const d = mod_usbcdc_desc(c, ctx), rx = mod_usbcdc_ident(c.rxfn, 'usb_cdc_on_receive');
+  const hse = mod_usbcdc_hse(ctx), ref = mod_usbcdc_phyRef(hse) || {div:2, ref:4};
+  return `/* USB CDC virtual COM port - generated by WCH Configurator for ${ctx.id}
+ * Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources
+ * USB stack: EVT example EXAM/USB/USBHS/DEVICE/SimulateCDC (ch32v30x_usbhs_device.c / usb_desc.c),
+ * without its USART bridge. Endpoints: EP0 control 64, EP3 IN interrupt (notification), EP2 OUT/IN bulk
+ * (512 bytes at high speed, 64 at full speed). Pins: PB6 = D-, PB7 = D+ (dedicated USBHS PHY).
+ */
+#include "debug.h"
+#include "ch32v30x_usb.h"
+#include "usb_cdc.h"
+#include <string.h>
+
+#define DEF_UEP_IN                   0x80
+#define DEF_UEP_OUT                  0x00
+#define DEF_UEP0                     0x00
+#define DEF_UEP2                     0x02
+#define DEF_UEP3                     0x03
+#define DEF_USBD_UEP0_SIZE           64
+#define DEF_USBD_HS_PACK_SIZE        512
+#define DEF_USBD_FS_PACK_SIZE        64
+#define DEF_USB_EP3_SIZE             64
+
+/* USB SPEED TYPE (ch32v30x_usbhs_device.h) */
+#define USBHS_SPEED_TYPE_MASK        ((uint8_t)(0x03))
+#define USBHS_SPEED_FULL             ((uint8_t)(0x00))
+#define USBHS_SPEED_HIGH             ((uint8_t)(0x01))
+
+/* ---------------- descriptors (usb_desc.c) ---------------- */
+/* VID ${d.vid.toString(16).toUpperCase().padStart(4, '0')}, PID ${d.pid.toString(16).toUpperCase().padStart(4, '0')}, USB 2.00, class 02 (CDC) */
+static ${mod_usbcdc_arr('MyDevDescr', d.dev)}
+/* configuration, full speed (bulk 64) */
+static ${mod_usbcdc_arr('MyCfgDescr_FS', d.cfgFs)}
+/* configuration, high speed (bulk 512) */
+static ${mod_usbcdc_arr('MyCfgDescr_HS', d.cfgHs)}
+/* device qualifier */
+static ${mod_usbcdc_arr('MyQuaDesc', d.qual)}
+static ${mod_usbcdc_arr('MyLangDescr', d.lang)}
+static ${mod_usbcdc_arr('MyManuInfo', d.manu)}
+static ${mod_usbcdc_arr('MyProdInfo', d.prod)}
+${d.serial ? 'static ' + mod_usbcdc_arr('MySerNumInfo', d.serial) : ''}
+/* other-speed configuration: the other speed's configuration with descriptor type 0x07, built at run time */
+static uint8_t TAB_USB_OSC_DESC[ ${Math.max(d.cfgFs.length, d.cfgHs.length)} ];
+
+/* ---------------- device state ---------------- */
+static const uint8_t     *pUSBHS_Descr;
+static volatile uint8_t  USBHS_SetupReqCode;
+static volatile uint8_t  USBHS_SetupReqType;
+static volatile uint16_t USBHS_SetupReqValue;
+static volatile uint16_t USBHS_SetupReqIndex;
+static volatile uint16_t USBHS_SetupReqLen;
+static volatile uint8_t  USBHS_DevConfig;
+static volatile uint8_t  USBHS_DevAddr;
+static volatile uint16_t USBHS_DevMaxPackLen = DEF_USBD_FS_PACK_SIZE;
+static volatile uint8_t  USBHS_DevSpeed;
+static volatile uint8_t  USBHS_DevSleepStatus;
+static volatile uint8_t  USBHS_DevEnumStatus;
+static volatile uint8_t  USBHS_Endp_Busy[ 4 ];
+
+/* endpoint buffers (USB DMA) */
+static __attribute__((aligned(4))) uint8_t USBHS_EP0_Buf[ DEF_USBD_UEP0_SIZE ];
+static __attribute__((aligned(4))) uint8_t USBHS_EP2_Tx_Buf[ DEF_USBD_HS_PACK_SIZE ];
+static __attribute__((aligned(4))) uint8_t USBHS_EP2_Rx_Buf[ DEF_USBD_HS_PACK_SIZE ];
+static __attribute__((aligned(4))) uint8_t USBHS_EP3_Tx_Buf[ DEF_USB_EP3_SIZE ];
+
+#define pUSBHS_SetupReqPak           ((PUSB_SETUP_REQ)USBHS_EP0_Buf)
+
+void USBHS_IRQHandler( void ) __attribute__((interrupt("WCH-Interrupt-fast")));
+
+${mod_usbcdc_common(rx, 'USBHS')}
+/* ---------------- endpoints (USBHS_Device_Endp_Init) ---------------- */
+static void usbhs_endp_init( void )
+{
+    uint8_t i;
+
+    USBHSD->ENDP_CONFIG = USBHS_UEP3_T_EN | USBHS_UEP2_T_EN | USBHS_UEP2_R_EN;
+
+    USBHSD->UEP0_MAX_LEN = DEF_USBD_UEP0_SIZE;
+    USBHSD->UEP2_MAX_LEN = DEF_USBD_HS_PACK_SIZE;
+    USBHSD->UEP3_MAX_LEN = DEF_USB_EP3_SIZE;
+
+    USBHSD->UEP0_DMA    = (uint32_t)USBHS_EP0_Buf;
+    USBHSD->UEP2_RX_DMA = (uint32_t)USBHS_EP2_Rx_Buf;
+    USBHSD->UEP2_TX_DMA = (uint32_t)USBHS_EP2_Tx_Buf;
+    USBHSD->UEP3_TX_DMA = (uint32_t)USBHS_EP3_Tx_Buf;
+
+    USBHSD->UEP0_TX_LEN  = 0;
+    USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_RES_NAK;
+    USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_RES_ACK;
+
+    USBHSD->UEP2_TX_LEN  = 0;
+    USBHSD->UEP2_TX_CTRL = USBHS_UEP_T_RES_NAK;
+    USBHSD->UEP2_RX_CTRL = USBHS_UEP_R_RES_ACK;
+
+    USBHSD->UEP3_TX_LEN  = 0;
+    USBHSD->UEP3_TX_CTRL = USBHS_UEP_T_RES_NAK;
+
+    for( i = 0; i < 4; i++ )
+    {
+        USBHS_Endp_Busy[ i ] = 0;
+    }
+}
+
+/* ---------------- init (USBHS_RCC_Init + USBHS_Device_Init) ---------------- */
+void usb_cdc_init( void )
+{
+    /* USBHS PHY PLL: HSE ${fmtHz(hse)} / ${ref.div} = ${ref.ref} MHz reference */
+    RCC_USBCLK48MConfig( RCC_USBCLK48MCLKSource_USBPHY );
+    RCC_USBHSPLLCLKConfig( RCC_HSBHSPLLCLKSource_HSE );
+    RCC_USBHSConfig( RCC_USBPLL_Div${ref.div} );
+    RCC_USBHSPLLCKREFCLKConfig( RCC_USBHSPLLCKREFCLK_${ref.ref}M );
+    RCC_USBHSPHYPLLALIVEcmd( ENABLE );
+    RCC_AHBPeriphClockCmd( RCC_AHBPeriph_USBHS, ENABLE );
+
+    USBHSD->CONTROL = USBHS_UC_CLR_ALL | USBHS_UC_RESET_SIE;
+    Delay_Us( 10 );
+    USBHSD->CONTROL &= ~USBHS_UC_RESET_SIE;
+    USBHSD->HOST_CTRL = USBHS_UH_PHY_SUSPENDM;
+    USBHSD->CONTROL = USBHS_UC_DMA_EN | USBHS_UC_INT_BUSY | USBHS_UC_SPEED_HIGH;
+    USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND;
+    usbhs_endp_init( );
+    USBHSD->CONTROL |= USBHS_UC_DEV_PU_EN;
+    NVIC_EnableIRQ( USBHS_IRQn );
+}
+
+/* one bulk IN packet on EP2; waits up to ~50 ms for the previous one */
+static uint8_t cdc_send_packet( const uint8_t *buf, uint16_t len )
+{
+    uint32_t t = 0;
+
+    while( USBHS_Endp_Busy[ DEF_UEP2 ] )
+    {
+        if( ( USBHS_DevEnumStatus == 0 ) || ( ++t > 50000 ) )
+        {
+            return 1;
+        }
+        Delay_Us( 1 );
+    }
+    if( len )
+    {
+        memcpy( USBHS_EP2_Tx_Buf, buf, len );
+    }
+    USBHS_Endp_Busy[ DEF_UEP2 ] = 1;
+    USBHSD->UEP2_TX_LEN = len;
+    USBHSD->UEP2_TX_CTRL = ( USBHSD->UEP2_TX_CTRL & ~USBHS_UEP_T_RES_MASK ) | USBHS_UEP_T_RES_ACK;
+    return 0;
+}
+
+${mod_usbcdc_writeFns('USBHS', 'USBHS_DevMaxPackLen')}
+/* ---------------- interrupt (USBHS_IRQHandler) ---------------- */
+void USBHS_IRQHandler( void )
+{
+    uint8_t  intflag, intst, errflag;
+    uint16_t len;
+
+    intflag = USBHSD->INT_FG;
+    intst   = USBHSD->INT_ST;
+
+    if( intflag & USBHS_UIF_TRANSFER )
+    {
+        switch( intst & USBHS_UIS_TOKEN_MASK )
+        {
+            /* data-in stage processing */
+            case USBHS_UIS_TOKEN_IN:
+                switch( intst & ( USBHS_UIS_TOKEN_MASK | USBHS_UIS_ENDP_MASK ) )
+                {
+                    /* end-point 0 data in interrupt */
+                    case USBHS_UIS_TOKEN_IN | DEF_UEP0:
+                        if( USBHS_SetupReqLen == 0 )
+                        {
+                            USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_TOG_DATA1 | USBHS_UEP_R_RES_ACK;
+                        }
+                        if( ( USBHS_SetupReqType & USB_REQ_TYP_MASK ) == USB_REQ_TYP_STANDARD )
+                        {
+                            switch( USBHS_SetupReqCode )
+                            {
+                                case USB_GET_DESCRIPTOR:
+                                    len = USBHS_SetupReqLen >= DEF_USBD_UEP0_SIZE ? DEF_USBD_UEP0_SIZE : USBHS_SetupReqLen;
+                                    memcpy( USBHS_EP0_Buf, pUSBHS_Descr, len );
+                                    USBHS_SetupReqLen -= len;
+                                    pUSBHS_Descr += len;
+                                    USBHSD->UEP0_TX_LEN = len;
+                                    USBHSD->UEP0_TX_CTRL ^= USBHS_UEP_T_TOG_DATA1;
+                                    break;
+
+                                case USB_SET_ADDRESS:
+                                    USBHSD->DEV_AD = USBHS_DevAddr;
+                                    break;
+
+                                default:
+                                    USBHSD->UEP0_TX_LEN = 0;
+                                    break;
+                            }
+                        }
+                        break;
+
+                    /* end-point 2 data in interrupt (bulk IN done) */
+                    case USBHS_UIS_TOKEN_IN | DEF_UEP2:
+                        USBHSD->UEP2_TX_CTRL = ( USBHSD->UEP2_TX_CTRL & ~USBHS_UEP_T_RES_MASK ) | USBHS_UEP_T_RES_NAK;
+                        USBHSD->UEP2_TX_CTRL ^= USBHS_UEP_T_TOG_DATA1;
+                        USBHS_Endp_Busy[ DEF_UEP2 ] = 0;
+                        break;
+
+                    /* end-point 3 data in interrupt (notification) */
+                    case USBHS_UIS_TOKEN_IN | DEF_UEP3:
+                        USBHSD->UEP3_TX_CTRL = ( USBHSD->UEP3_TX_CTRL & ~USBHS_UEP_T_RES_MASK ) | USBHS_UEP_T_RES_NAK;
+                        USBHSD->UEP3_TX_CTRL ^= USBHS_UEP_T_TOG_DATA1;
+                        USBHS_Endp_Busy[ DEF_UEP3 ] = 0;
+                        break;
+
+                    default:
+                        break;
+                }
+                break;
+
+            /* data-out stage processing */
+            case USBHS_UIS_TOKEN_OUT:
+                switch( intst & ( USBHS_UIS_TOKEN_MASK | USBHS_UIS_ENDP_MASK ) )
+                {
+                    /* end-point 0 data out interrupt */
+                    case USBHS_UIS_TOKEN_OUT | DEF_UEP0:
+                        len = USBHSH->RX_LEN;
+                        if( intst & USBHS_UIS_TOG_OK )
+                        {
+                            if( ( USBHS_SetupReqType & USB_REQ_TYP_MASK ) != USB_REQ_TYP_STANDARD )
+                            {
+                                USBHS_SetupReqLen = 0;
+                                if( ( USBHS_SetupReqCode == CDC_SET_LINE_CODING ) && ( len >= 7 ) )
+                                {
+                                    cdc_line_coding_set( USBHS_EP0_Buf );
+                                }
+                            }
+                            if( USBHS_SetupReqLen == 0 )
+                            {
+                                USBHSD->UEP0_TX_LEN  = 0;
+                                USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_ACK;
+                            }
+                        }
+                        break;
+
+                    /* end-point 2 data out interrupt (bulk OUT) */
+                    case USBHS_UIS_TOKEN_OUT | DEF_UEP2:
+                        if( intst & USBHS_UIS_TOG_OK )
+                        {
+                            USBHSD->UEP2_RX_CTRL ^= USBHS_UEP_R_TOG_DATA1;
+                            len = USBHSD->RX_LEN;
+                            ${rx}( USBHS_EP2_Rx_Buf, len );
+                        }
+                        break;
+
+                    default:
+                        break;
+                }
+                break;
+
+            default:
+                break;
+        }
+        USBHSD->INT_FG = USBHS_UIF_TRANSFER;
+    }
+    else if( intflag & USBHS_UIF_SETUP_ACT )
+    {
+        USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_NAK;
+        USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_TOG_DATA1 | USBHS_UEP_R_RES_NAK;
+        /* Store All Setup Values */
+        USBHS_SetupReqType  = pUSBHS_SetupReqPak->bRequestType;
+        USBHS_SetupReqCode  = pUSBHS_SetupReqPak->bRequest;
+        USBHS_SetupReqLen   = pUSBHS_SetupReqPak->wLength;
+        USBHS_SetupReqValue = pUSBHS_SetupReqPak->wValue;
+        USBHS_SetupReqIndex = pUSBHS_SetupReqPak->wIndex;
+        len = 0;
+        errflag = 0;
+        if( ( USBHS_SetupReqType & USB_REQ_TYP_MASK ) != USB_REQ_TYP_STANDARD )
+        {
+            if( USBHS_SetupReqType & USB_REQ_TYP_CLASS )
+            {
+                /* CDC class requests */
+                switch( USBHS_SetupReqCode )
+                {
+                    case CDC_GET_LINE_CODING:
+                        pUSBHS_Descr = cdc_line_coding;
+                        len = 7;
+                        if( USBHS_SetupReqLen > len )
+                        {
+                            USBHS_SetupReqLen = len;
+                        }
+                        memcpy( USBHS_EP0_Buf, pUSBHS_Descr, USBHS_SetupReqLen );
+                        pUSBHS_Descr += USBHS_SetupReqLen;
+                        break;
+
+                    case CDC_SET_LINE_CODING:
+                        break;
+
+                    case CDC_SET_LINE_CTLSTE:
+                        cdc_line_state = (uint8_t)( USBHS_SetupReqValue & 0x03 );
+                        usb_cdc_on_control_line( cdc_line_state & 0x01, ( cdc_line_state >> 1 ) & 0x01 );
+                        break;
+
+                    case CDC_SEND_BREAK:
+                        break;
+
+                    default:
+                        errflag = 0xFF;
+                        break;
+                }
+            }
+            else
+            {
+                errflag = 0xFF;
+            }
+        }
+        else
+        {
+            /* usb standard request processing */
+            switch( USBHS_SetupReqCode )
+            {
+                case USB_GET_DESCRIPTOR:
+                    switch( (uint8_t)( USBHS_SetupReqValue >> 8 ) )
+                    {
+                        case USB_DESCR_TYP_DEVICE:
+                            pUSBHS_Descr = MyDevDescr;
+                            len = sizeof( MyDevDescr );
+                            break;
+
+                        case USB_DESCR_TYP_CONFIG:
+                            /* Query current usb speed */
+                            if( ( USBHSD->SPEED_TYPE & USBHS_SPEED_TYPE_MASK ) == USBHS_SPEED_HIGH )
+                            {
+                                USBHS_DevSpeed = USBHS_SPEED_HIGH;
+                                USBHS_DevMaxPackLen = DEF_USBD_HS_PACK_SIZE;
+                                pUSBHS_Descr = MyCfgDescr_HS;
+                                len = sizeof( MyCfgDescr_HS );
+                            }
+                            else
+                            {
+                                USBHS_DevSpeed = USBHS_SPEED_FULL;
+                                USBHS_DevMaxPackLen = DEF_USBD_FS_PACK_SIZE;
+                                pUSBHS_Descr = MyCfgDescr_FS;
+                                len = sizeof( MyCfgDescr_FS );
+                            }
+                            break;
+
+                        case USB_DESCR_TYP_STRING:
+                            switch( (uint8_t)( USBHS_SetupReqValue & 0xFF ) )
+                            {
+                                case DEF_STRING_DESC_LANG:
+                                    pUSBHS_Descr = MyLangDescr;
+                                    len = sizeof( MyLangDescr );
+                                    break;
+
+                                case DEF_STRING_DESC_MANU:
+                                    pUSBHS_Descr = MyManuInfo;
+                                    len = sizeof( MyManuInfo );
+                                    break;
+
+                                case DEF_STRING_DESC_PROD:
+                                    pUSBHS_Descr = MyProdInfo;
+                                    len = sizeof( MyProdInfo );
+                                    break;
+${d.serial ? `
+                                case DEF_STRING_DESC_SERN:
+                                    pUSBHS_Descr = MySerNumInfo;
+                                    len = sizeof( MySerNumInfo );
+                                    break;
+` : ''}
+                                default:
+                                    errflag = 0xFF;
+                                    break;
+                            }
+                            break;
+
+                        /* device qualifier */
+                        case USB_DESCR_TYP_QUALIF:
+                            pUSBHS_Descr = MyQuaDesc;
+                            len = sizeof( MyQuaDesc );
+                            break;
+
+                        /* other-speed configuration */
+                        case USB_DESCR_TYP_SPEED:
+                            if( USBHS_DevSpeed == USBHS_SPEED_HIGH )
+                            {
+                                memcpy( TAB_USB_OSC_DESC, MyCfgDescr_FS, sizeof( MyCfgDescr_FS ) );
+                                len = sizeof( MyCfgDescr_FS );
+                            }
+                            else
+                            {
+                                memcpy( TAB_USB_OSC_DESC, MyCfgDescr_HS, sizeof( MyCfgDescr_HS ) );
+                                len = sizeof( MyCfgDescr_HS );
+                            }
+                            TAB_USB_OSC_DESC[ 1 ] = USB_DESCR_TYP_SPEED;
+                            pUSBHS_Descr = TAB_USB_OSC_DESC;
+                            break;
+
+                        default:
+                            /* USB 2.00 device: no BOS descriptor */
+                            errflag = 0xFF;
+                            break;
+                    }
+
+                    /* Copy Descriptors to Endp0 DMA buffer */
+                    if( USBHS_SetupReqLen > len )
+                    {
+                        USBHS_SetupReqLen = len;
+                    }
+                    len = ( USBHS_SetupReqLen >= DEF_USBD_UEP0_SIZE ) ? DEF_USBD_UEP0_SIZE : USBHS_SetupReqLen;
+                    if( errflag == 0 )
+                    {
+                        memcpy( USBHS_EP0_Buf, pUSBHS_Descr, len );
+                        pUSBHS_Descr += len;
+                    }
+                    break;
+
+                case USB_SET_ADDRESS:
+                    USBHS_DevAddr = (uint8_t)( USBHS_SetupReqValue & 0xFF );
+                    break;
+
+                case USB_GET_CONFIGURATION:
+                    USBHS_EP0_Buf[ 0 ] = USBHS_DevConfig;
+                    if( USBHS_SetupReqLen > 1 )
+                    {
+                        USBHS_SetupReqLen = 1;
+                    }
+                    break;
+
+                case USB_SET_CONFIGURATION:
+                    USBHS_DevConfig = (uint8_t)( USBHS_SetupReqValue & 0xFF );
+                    USBHS_DevEnumStatus = USBHS_DevConfig ? 0x01 : 0x00;
+                    break;
+
+                case USB_CLEAR_FEATURE:
+                    if( ( USBHS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_DEVICE )
+                    {
+                        if( (uint8_t)( USBHS_SetupReqValue & 0xFF ) == USB_REQ_FEAT_REMOTE_WAKEUP )
+                        {
+                            USBHS_DevSleepStatus &= ~0x01;
+                        }
+                        else
+                        {
+                            errflag = 0xFF;
+                        }
+                    }
+                    else if( ( USBHS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_ENDP )
+                    {
+                        if( (uint8_t)( USBHS_SetupReqValue & 0xFF ) == USB_REQ_FEAT_ENDP_HALT )
+                        {
+                            switch( (uint8_t)( USBHS_SetupReqIndex & 0xFF ) )
+                            {
+                                case ( DEF_UEP2 | DEF_UEP_IN ):
+                                    USBHSD->UEP2_TX_CTRL = USBHS_UEP_T_RES_NAK;
+                                    break;
+
+                                case ( DEF_UEP2 | DEF_UEP_OUT ):
+                                    USBHSD->UEP2_RX_CTRL = USBHS_UEP_R_RES_ACK;
+                                    break;
+
+                                case ( DEF_UEP3 | DEF_UEP_IN ):
+                                    USBHSD->UEP3_TX_CTRL = USBHS_UEP_T_RES_NAK;
+                                    break;
+
+                                default:
+                                    errflag = 0xFF;
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            errflag = 0xFF;
+                        }
+                    }
+                    else
+                    {
+                        errflag = 0xFF;
+                    }
+                    break;
+
+                case USB_SET_FEATURE:
+                    if( ( USBHS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_ENDP )
+                    {
+                        if( (uint8_t)( USBHS_SetupReqValue & 0xFF ) == USB_REQ_FEAT_ENDP_HALT )
+                        {
+                            switch( (uint8_t)( USBHS_SetupReqIndex & 0xFF ) )
+                            {
+                                case ( DEF_UEP2 | DEF_UEP_IN ):
+                                    USBHSD->UEP2_TX_CTRL = ( USBHSD->UEP2_TX_CTRL & ~USBHS_UEP_T_RES_MASK ) | USBHS_UEP_T_RES_STALL;
+                                    break;
+
+                                case ( DEF_UEP2 | DEF_UEP_OUT ):
+                                    USBHSD->UEP2_RX_CTRL = ( USBHSD->UEP2_RX_CTRL & ~USBHS_UEP_R_RES_MASK ) | USBHS_UEP_R_RES_STALL;
+                                    break;
+
+                                case ( DEF_UEP3 | DEF_UEP_IN ):
+                                    USBHSD->UEP3_TX_CTRL = ( USBHSD->UEP3_TX_CTRL & ~USBHS_UEP_T_RES_MASK ) | USBHS_UEP_T_RES_STALL;
+                                    break;
+
+                                default:
+                                    errflag = 0xFF;
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            errflag = 0xFF;
+                        }
+                    }
+                    else if( ( ( USBHS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_DEVICE ) && ( (uint8_t)( USBHS_SetupReqValue & 0xFF ) == 0x02 ) )
+                    {
+                        /* TEST_MODE: accepted, the EVT test-pattern generator is not included */
+                    }
+                    else
+                    {
+                        errflag = 0xFF;
+                    }
+                    break;
+
+                case USB_GET_INTERFACE:
+                    USBHS_EP0_Buf[ 0 ] = 0x00;
+                    if( USBHS_SetupReqLen > 1 )
+                    {
+                        USBHS_SetupReqLen = 1;
+                    }
+                    break;
+
+                case USB_SET_INTERFACE:
+                    break;
+
+                case USB_GET_STATUS:
+                    USBHS_EP0_Buf[ 0 ] = 0x00;
+                    USBHS_EP0_Buf[ 1 ] = 0x00;
+                    if( ( USBHS_SetupReqType & USB_REQ_RECIP_MASK ) == USB_REQ_RECIP_ENDP )
+                    {
+                        switch( (uint8_t)( USBHS_SetupReqIndex & 0xFF ) )
+                        {
+                            case ( DEF_UEP2 | DEF_UEP_IN ):
+                                if( ( USBHSD->UEP2_TX_CTRL & USBHS_UEP_T_RES_MASK ) == USBHS_UEP_T_RES_STALL )
+                                {
+                                    USBHS_EP0_Buf[ 0 ] = 0x01;
+                                }
+                                break;
+
+                            case ( DEF_UEP2 | DEF_UEP_OUT ):
+                                if( ( USBHSD->UEP2_RX_CTRL & USBHS_UEP_R_RES_MASK ) == USBHS_UEP_R_RES_STALL )
+                                {
+                                    USBHS_EP0_Buf[ 0 ] = 0x01;
+                                }
+                                break;
+
+                            case ( DEF_UEP3 | DEF_UEP_IN ):
+                                if( ( USBHSD->UEP3_TX_CTRL & USBHS_UEP_T_RES_MASK ) == USBHS_UEP_T_RES_STALL )
+                                {
+                                    USBHS_EP0_Buf[ 0 ] = 0x01;
+                                }
+                                break;
+
+                            default:
+                                errflag = 0xFF;
+                                break;
+                        }
+                    }
+                    if( USBHS_SetupReqLen > 2 )
+                    {
+                        USBHS_SetupReqLen = 2;
+                    }
+                    break;
+
+                default:
+                    errflag = 0xFF;
+                    break;
+            }
+        }
+
+        /* errflag = 0xFF means a request not support or some errors occurred, else correct */
+        if( errflag == 0xFF )
+        {
+            USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_STALL;
+            USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_TOG_DATA1 | USBHS_UEP_R_RES_STALL;
+        }
+        else
+        {
+            if( USBHS_SetupReqType & DEF_UEP_IN )
+            {
+                len = ( USBHS_SetupReqLen > DEF_USBD_UEP0_SIZE ) ? DEF_USBD_UEP0_SIZE : USBHS_SetupReqLen;
+                USBHS_SetupReqLen -= len;
+                USBHSD->UEP0_TX_LEN = len;
+                USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_ACK;
+            }
+            else
+            {
+                if( USBHS_SetupReqLen == 0 )
+                {
+                    USBHSD->UEP0_TX_LEN = 0;
+                    USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_ACK;
+                }
+                else
+                {
+                    USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_TOG_DATA1 | USBHS_UEP_R_RES_ACK;
+                }
+            }
+        }
+        USBHSD->INT_FG = USBHS_UIF_SETUP_ACT;
+    }
+    else if( intflag & USBHS_UIF_BUS_RST )
+    {
+        /* usb reset interrupt processing */
+        USBHS_DevConfig = 0;
+        USBHS_DevAddr = 0;
+        USBHS_DevSleepStatus = 0;
+        USBHS_DevEnumStatus = 0;
+        USBHS_DevMaxPackLen = DEF_USBD_FS_PACK_SIZE;
+        cdc_line_state = 0;
+        USBHSD->DEV_AD = 0;
+        usbhs_endp_init( );
+        USBHSD->INT_FG = USBHS_UIF_BUS_RST;
+    }
+    else if( intflag & USBHS_UIF_SUSPEND )
+    {
+        USBHSD->INT_FG = USBHS_UIF_SUSPEND;
+        Delay_Us( 10 );
+        if( USBHSD->MIS_ST & USBHS_UMS_SUSPEND )
+        {
+            USBHS_DevSleepStatus |= 0x02;
+        }
+        else
+        {
+            USBHS_DevSleepStatus &= ~0x02;
+        }
+    }
+    else
+    {
+        /* other interrupts */
+        USBHSD->INT_FG = intflag;
+    }
+}
+`;
+}
+
+PERIPH_MODULES.push({
+  tab: 'usbcdc',
+  title: 'USB device - CDC virtual COM (CH32)',
+  label: 'USB CDC',
+  cat: 'Wireless / USB',
+  color: '#5b9bd5',
+  supports(ctx){ return ctx.style === 'stdperiph' && !!mod_usbcdc_chips[ctx.id]; },
+  form(ctx){
+    const ch = mod_usbcdc_chip(ctx);
+    const pinTxt = k => `${ch.pins[k][0]} (D-) / ${ch.pins[k][1]} (D+)`;
+    const ctrlSel = ch.ctrls.length > 1
+      ? `<div class="field"><label>Controller</label>
+          <select id="f_ctrl">${ch.ctrls.map(k => `<option value="${k}">${mod_usbcdc_ctrlName[k]} - ${pinTxt(k)}</option>`).join('')}</select>
+          <div class="hint">USBFS follows EVT USB/USBFS/DEVICE/SimulateCDC, USBHS follows USB/USBHS/DEVICE/SimulateCDC. USBHS falls back to full speed on a full-speed host.</div></div>`
+      : `<input type="hidden" id="f_ctrl" value="${ch.ctrls[0]}">
+        <div class="hint">Controller: ${mod_usbcdc_ctrlName[ch.ctrls[0]]} on ${pinTxt(ch.ctrls[0])} (EVT USB/USBFS/DEVICE/SimulateCDC).${ctx.id === 'CH32V203' ? ' The CH32V203 USBD controller (PA11/PA12) is not generated here.' : ''}</div>`;
+    return `${ctrlSel}
+      <div class="row2">
+        <div class="field"><label>VID (hex)</label><input id="f_vid" value="1A86" maxlength="6"></div>
+        <div class="field"><label>PID (hex)</label><input id="f_pid" value="FE0C" maxlength="6"></div>
+      </div>
+      <div class="hint" style="margin:-8px 0 12px">1A86:FE0C is the WCH VID/PID of the EVT example; use your own for a product.</div>
+      <div class="row2">
+        <div class="field"><label>Manufacturer</label><input id="f_manu" value="WCH"></div>
+        <div class="field"><label>Product</label><input id="f_prod" value="USB Serial"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Serial number</label><input id="f_serial" value="0123456789"></div>
+        <div class="field"><label>Max power (mA)</label><input id="f_maxpow" type="number" min="2" max="500" value="100"></div>
+      </div>
+      <div class="field"><label>Data-received callback</label><input id="f_rxfn" value="usb_cdc_on_receive">
+        <div class="hint"><code>void usb_cdc_on_receive(const uint8_t *data, uint16_t len)</code> runs in the USB interrupt; a weak default is in <code>src/usb_cdc.c</code>, define your own to override it (same for <code>usb_cdc_on_line_coding()</code> / <code>usb_cdc_on_control_line()</code>). Send with <code>usb_cdc_write()</code> / <code>usb_cdc_print()</code>.</div></div>
+      <div class="hint">The USB clock must be 48 MHz: <code>usb_cdc_init()</code> sets the USB prescaler from SYSCLK like the EVT example${ch.fixed48 ? ' (CH32X035: fixed 48 MHz HSI)' : ch.phy ? ' (CH32V307: 48 MHz from the USBHS PHY PLL, needs the HSE crystal)' : ''}.</div>`;
+  },
+  read(get, ctx){
+    return {ctrl:get('ctrl') || mod_usbcdc_chip(ctx).ctrls[0], vid:(get('vid') || '1A86').trim().replace(/^0x/i, '').toUpperCase(),
+      pid:(get('pid') || 'FE0C').trim().replace(/^0x/i, '').toUpperCase(), manu:get('manu') || '', prod:get('prod') || '',
+      serial:get('serial') || '', maxpow:get('maxpow') || '100', rxfn:(get('rxfn') || '').trim() || 'usb_cdc_on_receive'};
+  },
+  label(c, ctx){
+    const k = mod_usbcdc_ctrl(c, ctx), ch = mod_usbcdc_chip(ctx);
+    const p = ch ? ch.pins[k] : null;
+    return `USB CDC · ${k === 'usbhs' ? 'USBHS' : 'USBFS'} · ${c.vid}:${c.pid}${p ? ` · ${p[0]}/${p[1]}` : ''}`;
+  },
+  gen(c, ctx){
+    const k = mod_usbcdc_ctrl(c, ctx);
+    return `    usb_cdc_init();     /* USB CDC virtual COM port on ${k === 'usbhs' ? 'USBHS' : 'USBFS'} - API in src/usb_cdc.h */`;
+  },
+  pins(c, ctx){
+    const ch = mod_usbcdc_chip(ctx); if(!ch) return [];
+    const p = ch.pins[mod_usbcdc_ctrl(c, ctx)];
+    return [{gpio:p[0], role:p[2] + '_DM', af:'OTHER:' + p[2] + '_DM'}, {gpio:p[1], role:p[2] + '_DP', af:'OTHER:' + p[2] + '_DP'}];
+  },
+  includes(cs, ctx){ return ['#include "usb_cdc.h"']; },
+  files(cs, ctx){
+    const c = cs[0], ch = mod_usbcdc_chip(ctx);
+    if(!ch) return {};
+    return {
+      'src/usb_cdc.h': mod_usbcdc_header(c, ctx),
+      'src/usb_cdc.c': mod_usbcdc_ctrl(c, ctx) === 'usbhs' ? mod_usbcdc_hsSource(c, ctx) : mod_usbcdc_fsSource(c, ctx),
+    };
+  },
+  problems(cs, ctx){
+    const out = [], ch = mod_usbcdc_chip(ctx);
+    if(!ch) return out;
+    if(cs.length > 1) out.push({lvl:'err', cfg:cs[1].id, msg:'USB CDC: only one USB CDC configuration is supported (it owns the USB controller)'});
+    const c = cs[0], k = mod_usbcdc_ctrl(c, ctx), clk = ctx.clk || {};
+    const hexOk = s => /^(0x)?[0-9a-f]{1,4}$/i.test(String(s || '').trim());
+    if(!hexOk(c.vid) || !hexOk(c.pid)) out.push({lvl:'err', cfg:c.id, msg:'USB CDC: VID and PID must be hex numbers 0000-FFFF'});
+    if(!/^[A-Za-z_]\w*$/.test(String(c.rxfn || '').trim())) out.push({lvl:'err', cfg:c.id, msg:`USB CDC: "${c.rxfn}" is not a valid C function name`});
+    ['manu', 'prod', 'serial'].forEach(f => { if(String(c[f] || '').length > 126) out.push({lvl:'warn', cfg:c.id, msg:'USB CDC: string descriptors are cut to 126 characters'}); });
+    if(+c.maxpow > 500) out.push({lvl:'warn', cfg:c.id, msg:'USB CDC: max power above 500 mA is not allowed for a USB 2.0 device (capped at 500)'});
+    /* USB pins on this package (pin table) */
+    if(typeof pinFns === 'function' && typeof fnInfo === 'function' && pinFns()){
+      const p = ch.pins[k];
+      if(!fnInfo(p[0]).af.concat(fnInfo(p[1]).af).some(a => /USB|OTG|UDM|UDP/.test(a)) && typeof bondedGpios === 'function' && bondedGpios() && bondedGpios().has(p[0]))
+        out.push({lvl:'warn', cfg:c.id, msg:`USB CDC: the ${currentPkg().name} pin table lists no ${p[2]} function on ${p[0]}/${p[1]} - check that this package has the ${p[2]} controller`});
+    }
+    /* 48 MHz USB clock */
+    const phy = k === 'usbhs' || ch.phy;
+    if(phy){
+      const hse = mod_usbcdc_hse(ctx), r = mod_usbcdc_phyRef(hse);
+      if(!r) out.push({lvl:'err', cfg:c.id, msg:`USB CDC: the USBHS PHY PLL needs HSE / n = 3, 4, 5 or 8 MHz (n = 1..8); HSE ${fmtHz(hse)} does not fit`});
+      else if(!clk.known) out.push({lvl:'info', cfg:c.id, msg:`USB CDC: no clock set in the Clock view, the EVT default is assumed (HSE 8 MHz, SYSCLK 96 MHz); the 48 MHz USB clock comes from the USBHS PHY PLL (HSE / ${r.div} = ${r.ref} MHz reference) as in the EVT example - the HSE crystal must be fitted`});
+    } else if(ch.fixed48){
+      if(clk.known && clk.hsi && Math.abs(clk.hsi - 48e6) > 1) out.push({lvl:'err', cfg:c.id, msg:`USB CDC: USBFS needs the 48 MHz HSI (HSI is ${fmtHz(clk.hsi)})`});
+    } else {
+      const sysOk = Object.keys(ch.presc).map(Number);
+      const hasUsbDef = typeof clockDef === 'function' && clockDef() && clockDef().usb;
+      if(!clk.known){
+        const div = ch.sysDef / 48e6;
+        out.push({lvl:'info', cfg:c.id, msg:`USB CDC: no clock set in the Clock view, the EVT default is assumed (${ch.evtClk}: SYSCLK ${fmtHz(ch.sysDef)}); usb_cdc_init() sets USB clock = PLLCLK / ${div} = 48 MHz as in the EVT example`});
+      } else if(clk.usbclk && Math.abs(clk.usbclk - 48e6) > 48e6 * 0.0025){
+        if(!hasUsbDef) out.push({lvl:'err', cfg:c.id, msg:`USB CDC: the USB clock must be 48 MHz, the clock view gives ${fmtHz(clk.usbclk)}`});
+      } else if(!sysOk.some(f => Math.abs(f - clk.sysclk) < 1)){
+        out.push({lvl:hasUsbDef && clk.usbclk ? 'warn' : 'err', cfg:c.id, msg:`USB CDC: the USB clock must be 48 MHz; usb_cdc_init() derives it from SYSCLK = ${sysOk.map(f => fmtHz(f)).join(' / ')} (PLL), but SYSCLK is ${fmtHz(clk.sysclk)}${hasUsbDef && clk.usbclk ? ' - the USB prescaler from the clock view is kept' : ''}`});
+      }
+    }
+    return out;
+  },
+});
 /* MODULES END */
 
 /* CLOCK DEFS BEGIN */
 const CLOCK_DEFS_BLE = [{"kind":"ble","chips":["CH570"],"hse":32000000,"pll":600000000,"hsi":null,"lsi":32000,"lse":null,"lsApi":null,"options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"LSI","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_PLL_100MHz","hz":100000000,"src":"PLL","path":"PLL 600M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_75MHz","hz":75000000,"src":"PLL","path":"PLL 600M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 600M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_50MHz","hz":50000000,"src":"PLL","path":"PLL 600M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 600M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 600M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_25MHz","hz":25000000,"src":"PLL","path":"PLL 600M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 600M /25","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 600M /30","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_HSE_PLL_100MHz","ls":"LSI"},"freqSysDefault":100000000,"hasSysclkMacro":false,"src":"CH570 datasheet clock chapter + CH57x_clk.h (ch570 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH572"],"hse":32000000,"pll":600000000,"hsi":null,"lsi":32000,"lse":null,"lsApi":null,"options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"LSI","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_PLL_100MHz","hz":100000000,"src":"PLL","path":"PLL 600M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_75MHz","hz":75000000,"src":"PLL","path":"PLL 600M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 600M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_50MHz","hz":50000000,"src":"PLL","path":"PLL 600M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 600M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 600M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_25MHz","hz":25000000,"src":"PLL","path":"PLL 600M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 600M /25","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 600M /30","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_HSE_PLL_100MHz","ls":"LSI"},"freqSysDefault":100000000,"hasSysclkMacro":false,"src":"CH572 datasheet clock chapter + CH57x_clk.h (ch570 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH582"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_PLL_80MHz","hz":80000000,"src":"PLL","path":"PLL 480M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 480M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_36_9MHz","hz":36923076,"src":"PLL","path":"PLL 480M /13","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 480M /16","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 480M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_15MHz","hz":15000000,"src":"PLL","path":"PLL 480M /32","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH582 datasheet clock chapter + CH58x_clk.h (ch583 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH583"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_PLL_80MHz","hz":80000000,"src":"PLL","path":"PLL 480M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 480M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_36_9MHz","hz":36923076,"src":"PLL","path":"PLL 480M /13","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 480M /16","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 480M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_15MHz","hz":15000000,"src":"PLL","path":"PLL 480M /32","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH583 datasheet clock chapter + CH58x_clk.h (ch583 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH585"],"hse":32000000,"pll":624000000,"hsi":16000000,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_32KHz","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSI_16MHz","hz":16000000,"src":"HSI","path":"HSI direct","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_8MHz","hz":8000000,"src":"HSI","path":"HSI/2","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_5_3MHz","hz":5333333,"src":"HSI","path":"HSI/3","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_4MHz","hz":4000000,"src":"HSI","path":"HSI/4","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_2MHz","hz":2000000,"src":"HSI","path":"HSI/8","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_1MHz","hz":1000000,"src":"HSI","path":"HSI/16","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_32MHz","hz":32000000,"src":"HSE","path":"HSE direct","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_PLL_78MHz","hz":78000000,"src":"PLL","path":"PLL(HSI) 312M /4","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_62_4MHz","hz":62400000,"src":"PLL","path":"PLL(HSI) 312M /5","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_52MHz","hz":52000000,"src":"PLL","path":"PLL(HSI) 312M /6","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_39MHz","hz":39000000,"src":"PLL","path":"PLL(HSI) 312M /8","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_26MHz","hz":26000000,"src":"PLL","path":"PLL(HSI) 312M /12","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL(HSI) 312M /13","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_19_5MHz","hz":19500000,"src":"PLL","path":"PLL(HSI) 312M /16","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_13MHz","hz":13000000,"src":"PLL","path":"PLL(HSI) 312M /24","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSE_PLL_78MHz","hz":78000000,"src":"PLL","path":"PLL(HSE) 312M /4","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_62_4MHz","hz":62400000,"src":"PLL","path":"PLL(HSE) 312M /5","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_52MHz","hz":52000000,"src":"PLL","path":"PLL(HSE) 312M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_39MHz","hz":39000000,"src":"PLL","path":"PLL(HSE) 312M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_26MHz","hz":26000000,"src":"PLL","path":"PLL(HSE) 312M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL(HSE) 312M /13","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_19_5MHz","hz":19500000,"src":"PLL","path":"PLL(HSE) 312M /16","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_13MHz","hz":13000000,"src":"PLL","path":"PLL(HSE) 312M /24","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_HSE_PLL_62_4MHz","ls":"LSI"},"freqSysDefault":62400000,"hasSysclkMacro":true,"src":"CH585 datasheet clock chapter + CH58x_clk.h (ch585 EVT) SYS_CLKTypeDef / SYSCLK_FREQ default"},{"kind":"ble","chips":["CH591"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH591 datasheet clock chapter + CH59x_clk.h (ch592 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH592"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH592 datasheet clock chapter + CH59x_clk.h (ch592 EVT) SYS_CLKTypeDef / FREQ_SYS default"}];
-/* CLOCK_DEFS_STD */
+/* CH32 (StdPeriph) clock trees. Enum/macro names verified in the official EVT headers (ch32xxx_rcc.h, ch32xxx.h,
+ * ch32xxx_flash.h) and the register sequences in each EVT's system_ch32xxx.c SetSysClockTo*() functions.
+ * Extra fields used by clockCodeStd(): ctl (code flavour), flash (wait states by HCLK, from system_*.c),
+ * prefetch, hseDef (header HSE_VALUE), needDefine, pllIn[].e / hsiPre / prediv, usb.api. */
+const CLOCK_DEFS_STD = (() => {
+  const mul = (list, fmt) => list.map(n => ({n, e: fmt(n)}));
+  const AHB_F1 = [1, 2, 4, 8, 16, 64, 128, 256, 512].map(n => ({n, e: 'RCC_SYSCLK_Div' + n}));
+  const AHB_V0 = [1, 2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256].map(n => ({n, e: 'RCC_SYSCLK_Div' + n}));
+  const APB = [1, 2, 4, 8, 16].map(n => ({n, e: 'RCC_HCLK_Div' + n}));
+  const ADC_F1 = [2, 4, 6, 8].map(n => ({n, e: 'RCC_PCLK2_Div' + n}));
+  const ADC_V0 = [2, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 128].map(n => ({n, e: 'RCC_PCLK2_Div' + n}));
+  const PLL_F1 = [
+    {id:'HSI/2', label:'HSI / 2', src:'HSI', div:2, e:'RCC_PLLSource_HSI_Div2', hsiPre:false},
+    {id:'HSI', label:'HSI (not divided)', src:'HSI', div:1, e:'RCC_PLLSource_HSI_Div2', hsiPre:true},
+    {id:'HSE', label:'HSE', src:'HSE', div:1, e:'RCC_PLLSource_HSE_Div1'},
+    {id:'HSE/2', label:'HSE / 2', src:'HSE', div:2, e:'RCC_PLLSource_HSE_Div2'},
+  ];
+  const MUL_2_18 = mul([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18], n => 'RCC_PLLMul_' + n);
+  return [
+    {kind:'std', ctl:'v003', chips:['CH32V003'],
+     src:'CH32V003 EVT: system_ch32v00x.c SetSysClockTo_*(), ch32v00x_rcc.h, ch32v00x.h, ch32v00x_flash.h; limits from the CH32V003 datasheet (CH32V003DS0)',
+     hsi:24000000, hse:{min:4000000, max:25000000}, hseDef:24000000, lsi:128000, lse:null, rtc:false,
+     pllIn:[{id:'HSI', label:'HSI x2', src:'HSI', div:1, e:'RCC_PLLSource_HSI_MUL2'},
+            {id:'HSE', label:'HSE x2', src:'HSE', div:1, e:'RCC_PLLSource_HSE_MUL2'}],
+     pllMul:[{n:2, e:null}], sysMux:['HSI', 'HSE', 'PLL'],
+     ahb:AHB_V0, apb1:null, apb2:null, timerX2:false,
+     adc:{from:'hclk', divs:ADC_V0, max:24000000, api:'RCC_ADCCLKConfig'}, usb:null,
+     sysMax:48000000, hclkMax:48000000, pclk1Max:48000000, pclk2Max:48000000, pllOutMax:48000000,
+     flash:[{max:24000000, e:'FLASH_Latency_0'}, {max:Infinity, e:'FLASH_Latency_1'}],
+     def:{hse:24000000, pllIn:'HSE', mul:2, sys:'PLL', ahb:1, apb1:1, apb2:1, adc:8, usb:null}},
+
+    {kind:'std', ctl:'f1', chips:['CH32V103'],
+     src:'CH32V103DS0 (Fig. 1-3 clock tree p.6, Table 3-11 HSE 4-16 MHz p.25, Table 3-15 PLL p.26, Table 3-27 ADC 14 MHz p.31) + CH32V103 EVT system_ch32v10x.c, ch32v10x_rcc.h, ch32v10x_flash.h',
+     hsi:8000000, hse:{min:4000000, max:16000000}, hseDef:8000000, lsi:40000, lse:32768, rtc:true,
+     pllIn:PLL_F1, pllMul:mul([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], n => 'RCC_PLLMul_' + n),
+     sysMux:['HSI', 'HSE', 'PLL'], ahb:AHB_F1, apb1:APB, apb2:APB, timerX2:true,
+     adc:{from:'pclk2', divs:ADC_F1, max:14000000, api:'RCC_ADCCLKConfig'},
+     usb:{from:'pll', name:'USBHD', api:'RCC_USBCLKConfig', divs:[{n:1, e:'RCC_USBCLKSource_PLLCLK_Div1'}, {n:1.5, e:'RCC_USBCLKSource_PLLCLK_1Div5'}]},
+     sysMax:80000000, hclkMax:80000000, pclk1Max:80000000, pclk2Max:80000000, pllOutMax:80000000, pllInMin:4000000,
+     flash:[{max:24000000, e:'FLASH_Latency_0'}, {max:48000000, e:'FLASH_Latency_1'}, {max:Infinity, e:'FLASH_Latency_2'}], prefetch:true,
+     def:{hse:8000000, pllIn:'HSE', mul:9, sys:'PLL', ahb:1, apb1:2, apb2:1, adc:8, usb:1.5}},
+
+    {kind:'std', ctl:'f1', chips:['CH32V203', 'CH32F203'],
+     src:'CH32V20x_30xDS0 (Fig. 2-3 clock tree p.10, HSE 3-25 MHz p.42-43, Table 4-16 PLL 18-144 MHz p.45, ADC 14 MHz p.62) + CH32FV2x_V3xRM 3.5.2 RCC_CFGR0 (p.26-27) + EVT system_ch32v20x.c / system_ch32f20x.c, ch32v20x_rcc.h / ch32f20x_rcc.h. Tree of CH32V20x_D6 / CH32F20x_D6 (the header default; V203RB/V208 use a 32 MHz HSE /4 and are not covered)',
+     hsi:8000000, hse:{min:3000000, max:25000000}, hseDef:8000000, lsi:40000, lse:32768, rtc:true,
+     pllIn:PLL_F1, pllMul:MUL_2_18, sysMux:['HSI', 'HSE', 'PLL'], ahb:AHB_F1, apb1:APB, apb2:APB, timerX2:true,
+     adc:{from:'pclk2', divs:ADC_F1, max:14000000, api:'RCC_ADCCLKConfig'},
+     usb:{from:'pll', name:'USBD / USBFS', api:'RCC_USBCLKConfig', divs:[1, 2, 3].map(n => ({n, e:'RCC_USBCLKSource_PLLCLK_Div' + n}))},
+     sysMax:144000000, hclkMax:144000000, pclk1Max:144000000, pclk2Max:144000000, pllOutMax:144000000, pllInMin:3000000,
+     flash:null,
+     def:{hse:8000000, pllIn:'HSE', mul:12, sys:'PLL', ahb:1, apb1:2, apb2:1, adc:8, usb:2}},
+
+    {kind:'std', ctl:'f1', chips:['CH32V303'], needDefine:'CH32V30x_D8',
+     src:'CH32V20x_30xDS0 (Fig. 2-3 p.10, HSE 3-25 MHz p.42-43, Table 4-16 p.45, ADC 14 MHz p.62) + CH32FV2x_V3xRM 3.5.2 (PLLMUL table for CH32V303) + EVT system_ch32v30x.c / ch32v30x_rcc.h, CH32V30x_D8 branch',
+     hsi:8000000, hse:{min:3000000, max:25000000}, hseDef:8000000, lsi:40000, lse:32768, rtc:true,
+     pllIn:PLL_F1, pllMul:MUL_2_18, sysMux:['HSI', 'HSE', 'PLL'], ahb:AHB_F1, apb1:APB, apb2:APB, timerX2:true,
+     adc:{from:'pclk2', divs:ADC_F1, max:14000000, api:'RCC_ADCCLKConfig'},
+     usb:{from:'pll', name:'USBFS', api:'RCC_USBFSCLKConfig', divs:[1, 2, 3].map(n => ({n, e:'RCC_USBFSCLKSource_PLLCLK_Div' + n}))},
+     sysMax:144000000, hclkMax:144000000, pclk1Max:144000000, pclk2Max:144000000, pllOutMax:144000000, pllInMin:3000000,
+     flash:null,
+     def:{hse:8000000, pllIn:'HSE', mul:12, sys:'PLL', ahb:1, apb1:2, apb2:1, adc:8, usb:2}},
+
+    {kind:'std', ctl:'d8c', chips:['CH32V307'],
+     src:'CH32V20x_30xDS0 (Fig. 2-3 p.10, HSE 3-25 MHz p.42-43, Table 4-16 p.45, ADC 14 MHz p.62) + CH32FV2x_V3xRM 3.5.2 (PLLMUL table for CH32V305/307) + EVT system_ch32v30x.c / ch32v30x_rcc.h, CH32V30x_D8C branch (PLL2/PLL3 and the USBHS PHY PLL are not shown)',
+     hsi:8000000, hse:{min:3000000, max:25000000}, hseDef:8000000, lsi:40000, lse:32768, rtc:true,
+     pllIn:[
+       {id:'HSI/2', label:'HSI / 2', src:'HSI', div:2, e:'RCC_PLLSource_HSI_Div2', hsiPre:false},
+       {id:'HSI', label:'HSI (not divided)', src:'HSI', div:1, e:'RCC_PLLSource_HSI_Div2', hsiPre:true},
+     ].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(n => ({id: n === 1 ? 'HSE' : 'HSE/' + n, label: n === 1 ? 'HSE (PREDIV1 /1)' : 'HSE / ' + n + ' (PREDIV1)',
+       src:'HSE', div:n, e:'RCC_PLLSource_PREDIV1', prediv:'RCC_PREDIV1_Div' + n}))),
+     pllMul:mul([3, 4, 5, 6, 6.5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 18], n => 'RCC_PLLMul_' + String(n).replace('.', '_') + '_EXTEN'),
+     sysMux:['HSI', 'HSE', 'PLL'], ahb:AHB_F1, apb1:APB, apb2:APB, timerX2:true,
+     adc:{from:'pclk2', divs:ADC_F1, max:14000000, api:'RCC_ADCCLKConfig'},
+     usb:{from:'pll', name:'USBFS / OTG_FS', api:'RCC_USBFSCLKConfig', divs:[1, 2, 3].map(n => ({n, e:'RCC_USBFSCLKSource_PLLCLK_Div' + n}))},
+     sysMax:144000000, hclkMax:144000000, pclk1Max:144000000, pclk2Max:144000000, pllOutMax:144000000, pllInMin:3000000,
+     flash:null,
+     def:{hse:8000000, pllIn:'HSE', mul:12, sys:'PLL', ahb:1, apb1:2, apb2:1, adc:8, usb:2}},
+
+    {kind:'std', ctl:'hpre', chips:['CH32X035'],
+     src:'CH32X035 EVT: system_ch32x035.c SetSysClockTo*_HSI() (48 MHz HSI only, no HSE, no PLL), ch32x035_rcc.h, ch32x035.h; the ADC prescaler is in ADC1->CTLR3 (ADC_CLKConfig) and USBFS/USBPD use the 48 MHz HSI',
+     hsi:48000000, hse:{min:0, max:0}, hseDef:null, lsi:40000, lse:null, rtc:false,
+     pllIn:[{id:'HSI', label:'none (no PLL)', src:'HSI', div:1, e:null}], pllMul:[{n:1, e:null}], sysMux:['HSI'],
+     ahb:AHB_V0, apb1:null, apb2:null, timerX2:false, adc:null, usb:null,
+     sysMax:48000000, hclkMax:48000000, pclk1Max:48000000, pclk2Max:48000000, pllOutMax:48000000,
+     flash:[{max:12000000, e:'FLASH_Latency_0'}, {max:24000000, e:'FLASH_Latency_1'}, {max:Infinity, e:'FLASH_Latency_2'}],
+     def:{hse:0, pllIn:'HSI', mul:1, sys:'HSI', ahb:1, apb1:1, apb2:1, adc:null, usb:null}},
+
+    {kind:'std', ctl:'f1', chips:['CH32L103'],
+     src:'CH32L103 EVT: system_ch32l103.c SetSysClockTo*(), ch32l103_rcc.h, ch32l103.h, ch32l103_flash.h, RCC/LSI_Calibration (LSI 40 kHz), USBFS_RCC_Init (PLL 48/72/96 MHz); HSE range and ADC limit from the CH32L103 datasheet (CH32L103DS0)',
+     hsi:8000000, hse:{min:4000000, max:25000000}, hseDef:8000000, lsi:40000, lse:32768, rtc:true,
+     pllIn:PLL_F1, pllMul:MUL_2_18, sysMux:['HSI', 'HSE', 'PLL'], ahb:AHB_F1, apb1:APB, apb2:APB, timerX2:true,
+     adc:{from:'pclk2', divs:ADC_F1, max:14000000, api:'RCC_ADCCLKConfig'},
+     usb:{from:'pll', name:'USBFS', api:'RCC_USBCLKConfig', divs:[{n:1, e:'RCC_USBCLKSource_PLLCLK_Div1'}, {n:1.5, e:'RCC_USBCLKSource_PLLCLK_Div1_5'}, {n:2, e:'RCC_USBCLKSource_PLLCLK_Div2'}]},
+     sysMax:96000000, hclkMax:96000000, pclk1Max:96000000, pclk2Max:96000000, pllOutMax:96000000,
+     flash:[{max:25000000, e:'FLASH_Latency_0'}, {max:56000000, e:'FLASH_Latency_1'}, {max:Infinity, e:'FLASH_Latency_2'}],
+     def:{hse:8000000, pllIn:'HSI', mul:12, sys:'PLL', ahb:1, apb1:2, apb2:1, adc:8, usb:2}},
+  ];
+})();
+
+/* StdPeriph run-time clock switch (body of SystemClock_Config). Runs after SystemInit() has set the EVT default:
+ * start the HSE first (keep the EVT clock if it fails), move SYSCLK to HSI, re-program flash wait states,
+ * prescalers and the PLL as the EVT's SetSysClockTo*() functions do, then switch over. */
+function clockCodeStd(c, d, f){
+  const L = [];
+  const p = s => L.push('    ' + s);
+  const by = (list, v) => (list || []).find(x => String(x.n) === String(v)) || (list || [])[0];
+  const pin = d.pllIn.find(x => x.id === c.pllIn) || d.pllIn[0];
+  const m = by(d.pllMul, c.mul);
+  const sysPLL = c.sys === 'PLL' && d.sysMux.includes('PLL');
+  const useHSE = c.sys === 'HSE' || (sysPLL && pin.src === 'HSE');
+  const ahb = by(d.ahb, c.ahb), apb1 = d.apb1 ? by(d.apb1, c.apb1) : null, apb2 = d.apb2 ? by(d.apb2, c.apb2) : null;
+  const lat = d.flash ? d.flash.find(x => f.hclk <= x.max + 1) : null;
+  const path = c.sys === 'HSI' ? `HSI ${fmtHz(d.hsi)}` : c.sys === 'HSE' ? `HSE ${fmtHz(+c.hse)}`
+    : `PLL = ${pin.src === 'HSI' ? 'HSI' : 'HSE ' + fmtHz(+c.hse)}${pin.div > 1 ? ' /' + pin.div : ''} x${m.n}`;
+  p(`/* SYSCLK ${fmtHz(f.sysclk)} (${path}), HCLK ${fmtHz(f.hclk)} */`);
+
+  if(d.ctl === 'hpre'){
+    /* CH32X035: SYSCLK is always the 48 MHz HSI, only the AHB prescaler changes (system_ch32x035.c sequence) */
+    p('FLASH_SetLatency(FLASH_Latency_2);            /* max wait states while the prescaler changes */');
+    p(`RCC_HCLKConfig(${ahb.e});`);
+    p(`FLASH_SetLatency(${lat.e});`);
+    return L.join('\n');
+  }
+
+  if(d.needDefine){
+    L.push(`#if !defined(${d.needDefine})`);
+    L.push(`#error "${d.chips.join('/')}: add ${d.needDefine} to the compile definitions (the EVT header defaults to another chip variant)"`);
+    L.push('#endif');
+  }
+  if(useHSE){
+    if(d.hseDef !== null && d.hseDef !== undefined)
+      p(`_Static_assert(HSE_VALUE == ${+c.hse}, "HSE_VALUE must match the ${fmtHz(+c.hse)} crystal: define HSE_VALUE=${+c.hse} for the project");`);
+    if(d.ctl === 'v003'){
+      p('RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);');
+      p('AFIO->PCFR1 |= AFIO_PCFR1_PA12_REMAP;           /* PA1/PA2 -> OSC_IN/OSC_OUT, as in SetSysClockTo_*_HSE() */');
+    }
+    p('RCC_HSEConfig(RCC_HSE_ON);');
+    p('if(RCC_WaitForHSEStartUp() != READY)           /* times out after HSE_STARTUP_TIMEOUT */');
+    p('{');
+    p('    return;                                   /* no crystal: keep the clock SystemInit() selected */');
+    p('}');
+  }
+  p('RCC_HSICmd(ENABLE);');
+  p('while(RCC_GetFlagStatus(RCC_FLAG_HSIRDY) == RESET);');
+  p('RCC_SYSCLKConfig(RCC_SYSCLKSource_HSI);         /* run from HSI while the tree is re-programmed */');
+  p('while(RCC_GetSYSCLKSource() != 0x00);');
+  p('RCC_PLLCmd(DISABLE);');
+  if(lat){
+    if(d.prefetch) p('FLASH_PrefetchBufferCmd(FLASH_PrefetchBuffer_Enable);');
+    p(`FLASH_SetLatency(${lat.e});`);
+  }
+  p(`RCC_HCLKConfig(${ahb.e});`);
+  if(apb2) p(`RCC_PCLK2Config(${apb2.e});`);
+  if(apb1) p(`RCC_PCLK1Config(${apb1.e});`);
+  if(sysPLL){
+    if(d.ctl === 'v003'){
+      if(pin.src === 'HSI'){
+        p('if(*(uint8_t *)CFG0_PLL_TRIM != 0xFF)          /* factory HSI trim for the PLL, as SetSysClockTo_48MHZ_HSI() */');
+        p('{');
+        p('    RCC_AdjustHSICalibrationValue(*(uint8_t *)CFG0_PLL_TRIM & 0x1F);');
+        p('}');
+      }
+      p(`RCC_PLLConfig(${pin.e});`);
+    } else {
+      if(pin.hsiPre === true) p('EXTEN->EXTEN_CTR |= EXTEN_PLL_HSI_PRE;           /* PLL input = HSI, not HSI/2 */');
+      if(pin.hsiPre === false) p('EXTEN->EXTEN_CTR &= ~EXTEN_PLL_HSI_PRE;          /* PLL input = HSI/2 */');
+      if(pin.prediv) p(`RCC_PREDIV1Config(RCC_PREDIV1_Source_HSE, ${pin.prediv});`);
+      p(`RCC_PLLConfig(${pin.e}, ${m.e});`);
+    }
+    p('RCC_PLLCmd(ENABLE);');
+    p('while(RCC_GetFlagStatus(RCC_FLAG_PLLRDY) == RESET);');
+    p('RCC_SYSCLKConfig(RCC_SYSCLKSource_PLLCLK);');
+    p('while(RCC_GetSYSCLKSource() != 0x08);');
+  } else if(c.sys === 'HSE'){
+    p('RCC_SYSCLKConfig(RCC_SYSCLKSource_HSE);');
+    p('while(RCC_GetSYSCLKSource() != 0x04);');
+  }
+  if(!useHSE){
+    p('RCC_HSEConfig(RCC_HSE_OFF);                     /* crystal not used by this clock tree */');
+    if(d.ctl === 'v003'){
+      p('RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);');
+      p('AFIO->PCFR1 &= ~AFIO_PCFR1_PA12_REMAP;          /* PA1/PA2 back to GPIO */');
+    }
+  }
+  if(d.usb && sysPLL && c.usb !== null && c.usb !== undefined) p(`${d.usb.api}(${by(d.usb.divs, c.usb).e});   /* ${d.usb.name} clock ${fmtHz(f.usbclk)} */`);
+  if(d.adc && /^RCC_/.test(d.adc.api)) p(`${d.adc.api}(${by(d.adc.divs, c.adc).e});   /* ADC clock ${fmtHz(f.adcclk)} */`);
+  return L.join('\n');
+}
 const CLOCK_DEFS = CLOCK_DEFS_BLE.concat(typeof CLOCK_DEFS_STD !== "undefined" ? CLOCK_DEFS_STD : []);
 /* CLOCK DEFS END */
 
@@ -3615,7 +5415,8 @@ function clockProblems(){
   if(d.pllInMin && c.sys === 'PLL' && f.pllIn < d.pllInMin) out.push({lvl:'err', clock:true, msg:`Clock: PLL input ${fmtHz(f.pllIn)} is below the minimum ${fmtHz(d.pllInMin)}`});
   const usesAdc = state.configs.some(x => x.type === 'adc');
   if(d.adc && d.adc.max && f.adcclk > d.adc.max + 1) out.push({lvl: usesAdc ? 'err' : 'warn', clock:true, msg:`Clock: ADC clock ${fmtHz(f.adcclk)} exceeds the maximum ${fmtHz(d.adc.max)} — raise the ADC prescaler`});
-  const needUsb = state.configs.some(x => /^usb/.test(x.type));
+  /* CH32V307: both USB controllers take 48 MHz from the USBHS PHY PLL, not from the RCC USB prescaler (the USB module checks it) */
+  const needUsb = state.configs.some(x => /^usb/.test(x.type)) && currentVariant().id !== 'CH32V307';
   if(d.usb && needUsb && Math.abs(f.usbclk - 48e6) > 48e6 * 0.0025) out.push({lvl:'err', clock:true, msg:`Clock: USB needs exactly 48 MHz, the USB clock is ${f.usbclk ? fmtHz(f.usbclk) : 'off'} — use a PLL output of 48, 96 or 144 MHz`});
   return out;
 }
@@ -3641,6 +5442,15 @@ function clockCodeBle(c, d, f){
 /* compile definitions the exported project needs for the chosen clock */
 function clockCompileDefs(){
   const d = clockDef();
+  if(d && d.kind === 'std'){
+    let out = d.needDefine ? ' ' + d.needDefine : '';
+    if(state.clock){
+      const c = clockCfg(), pin = (d.pllIn || []).find(x => x.id === c.pllIn);
+      const usesHse = c.sys === 'HSE' || (c.sys === 'PLL' && pin && pin.src === 'HSE');
+      if(usesHse && d.hse && d.hse.max) out += ` HSE_VALUE=${Math.round(+c.hse)}`;
+    }
+    return out;
+  }
   if(!d || !state.clock || d.kind !== 'ble') return '';
   const o = d.options.find(x => x.e === clockCfg().sys) || d.options[0];
   return ` FREQ_SYS=${o.hz}` + (d.hasSysclkMacro ? ` SYSCLK_FREQ=${o.e}` : '');
@@ -3722,7 +5532,7 @@ function renderClockView(){
     const pin = d.pllIn.find(x => x.id === c.pllIn) || d.pllIn[0];
     const sysPLL = c.sys === 'PLL';
     html += node(10, 20, 150, 'src' + (c.sys === 'HSI' || (sysPLL && pin.src === 'HSI') ? ' on' : ''), 'HSI (internal RC)', `<div class="f">${fmtHz(d.hsi)}</div>`);
-    html += node(10, 110, 150, 'src' + (c.sys === 'HSE' || (sysPLL && pin.src === 'HSE') ? ' on' : '') + (bad('HSE') ? ' bad' : ''), 'HSE (crystal)', `<input type="number" data-ck="hse" value="${+c.hse / 1e6}" step="0.001" min="${d.hse.min / 1e6}" max="${d.hse.max / 1e6}"><div class="m">MHz, ${fmtHz(d.hse.min)}–${fmtHz(d.hse.max)}</div>`);
+    if(d.hse && d.hse.max) html += node(10, 110, 150, 'src' + (c.sys === 'HSE' || (sysPLL && pin.src === 'HSE') ? ' on' : '') + (bad('HSE') ? ' bad' : ''), 'HSE (crystal)', `<input type="number" data-ck="hse" value="${+c.hse / 1e6}" step="0.001" min="${d.hse.min / 1e6}" max="${d.hse.max / 1e6}"><div class="m">MHz, ${fmtHz(d.hse.min)}–${fmtHz(d.hse.max)}</div>`);
     html += node(10, 220, 150, 'src', 'LSI', `<div class="f">${fmtHz(d.lsi)}</div><div class="m">IWDG${d.rtc ? ' / RTC' : ''}</div>`);
     if(d.rtc) html += node(10, 300, 150, 'src', 'LSE', `<div class="f">${fmtHz(d.lse)}</div><div class="m">RTC crystal</div>`);
     html += node(200, 60, 150, 'mux' + (sysPLL ? ' on' : ''), 'PLL source', `<select data-ck="pllIn">${d.pllIn.map(x => `<option value="${x.id}" ${x.id === pin.id ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select><div class="m">${fmtHz(f.pllIn)}</div>`);
@@ -4663,187 +6473,196 @@ function applyDatasheetDefaults(){
 const _renderFormOrig = renderForm;
 renderForm = function(){ _renderFormOrig(); applyDatasheetDefaults(); if(state.tab === 'gpio' && !state.editId) renderGpioPanel(); };
 
-
-/* ---------- CubeMX-style pages, theme, category search ---------- */
-state.page = 'pinout';
-state.catMode = 'cat';
-state.catFilter = '';
-function setPage(pg){
-  state.page = pg;
-  document.querySelector('.ide').dataset.page = pg;
-  document.querySelectorAll('#mainTabs .mtab').forEach(b => b.classList.toggle('active', b.dataset.page === pg));
-  if(pg === 'clock') state.mainView = 'clock';
-  else if(state.mainView === 'clock') state.mainView = 'pinout';
-  document.querySelectorAll('.vtab[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === state.mainView));
-  if(pg !== 'pinout') closePinMenu();
-  renderAll();
-}
-$('mainTabs').addEventListener('click', e => { const b = e.target.closest('.mtab'); if(b) setPage(b.dataset.page); });
-function applyTheme(t){
-  document.documentElement.dataset.theme = t;
-  try{ localStorage.setItem('wchcfg-theme', t); }catch(e){}
-}
-(function(){
-  let t = 'light';
-  try{ t = localStorage.getItem('wchcfg-theme') || 'light'; }catch(e){}
-  applyTheme(t);
-  $('themeBtn').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
-})();
-document.querySelectorAll('[data-catmode]').forEach(b => b.addEventListener('click', () => {
-  state.catMode = b.dataset.catmode;
-  document.querySelectorAll('[data-catmode]').forEach(x => x.classList.toggle('active', x === b));
-  renderCats();
-}));
-$('catSearch').addEventListener('input', e => { state.catFilter = e.target.value.trim().toLowerCase(); renderCats(); });
-/* categories: grouped (CubeMX "Categories") or one sorted list ("A->Z"), filtered by the search box */
-const _renderCatsOrig = renderCats;
-renderCats = function(){
-  _renderCatsOrig();
-  const q = state.catFilter;
-  const tree = $('catTree');
-  if(state.catMode === 'az'){
-    const items = [...tree.querySelectorAll('.cat-item')].sort((a, b) => a.textContent.localeCompare(b.textContent));
-    tree.innerHTML = '<div class="cat-group"></div>';
-    items.forEach(it => tree.firstChild.appendChild(it));
-  }
-  if(q){
-    tree.querySelectorAll('.cat-item').forEach(it => { it.hidden = !it.textContent.toLowerCase().includes(q); });
-    tree.querySelectorAll('.cat-group').forEach(g => { g.hidden = ![...g.querySelectorAll('.cat-item')].some(i => !i.hidden); });
-  }
-};
-/* project manager summary + problems badge on the main tab */
-function renderProjectHead(){
-  const v = currentVariant(), pk = currentPkg(), f = clockFreqs();
-  $('pmChip').textContent = v.id;
-  $('pmPkg').textContent = pk ? pk.name + (pk.code ? ' · ' + pk.code : '') : '-';
-  $('pmLib').textContent = FAMILIES[state.family].style === 'stdperiph' ? 'WCH StdPeriph EVT' : 'WCH CH5xx SDK (EVT)';
-  $('pmClk').textContent = (state.clock ? 'custom · ' : 'EVT default · ') + 'SYSCLK ' + fmtHz(f.sysclk);
-  const n = +($('probBadge').textContent || 0);
-  const b2 = $('probBadge2'); b2.textContent = n; b2.hidden = !n;
-  $('mtInfo').textContent = `${v.id}${pk ? ' · ' + pk.name : ''} · ${state.configs.length} item${state.configs.length === 1 ? '' : 's'}`;
-}
-
-/* ---------- CubeMX-style GPIO panel: table of every GPIO pin + settings of the selected one ---------- */
-state.gpioSel = null;
-state.gpioFilter = '';
-const GPIO_STD_MODES = [['in', 'Input mode'], ['out_pp', 'Output Push Pull'], ['out_od', 'Output Open Drain'], ['analog', 'Analog mode'], ['af_pp', 'Alternate Function Push Pull'], ['af_od', 'Alternate Function Open Drain']];
-const GPIO_BLE_MODES = [['in', 'Input mode'], ['out_pp', 'Output Push Pull']];
-const GPIO_PULLS = [['none', 'No pull-up and no pull-down'], ['up', 'Pull-up'], ['down', 'Pull-down']];
-const GPIO_SPEEDS = [['2MHz', 'Low (2 MHz)'], ['10MHz', 'Medium (10 MHz)'], ['50MHz', 'High (50 MHz)']];
-const EXTI_TRIG_STD = [['rising', 'External Interrupt Mode with Rising edge trigger detection'], ['falling', 'External Interrupt Mode with Falling edge trigger detection'], ['both', 'External Interrupt Mode with Rising/Falling edge trigger detection']];
-const EXTI_TRIG_BLE = [['rising', 'External Interrupt Mode with Rising edge trigger detection'], ['falling', 'External Interrupt Mode with Falling edge trigger detection'], ['lowlevel', 'External Interrupt Mode, low level'], ['highlevel', 'External Interrupt Mode, high level']];
-function gpioStd(c){ return FAMILIES[c.family].style === 'stdperiph'; }
-/* SDK mode code <-> CubeMX columns (mode / pull / drive) */
-function gpioSplit(c){
-  const m = c.type === 'exti' ? c.pull : c.mode;
-  if(gpioStd(c)){
-    const t = {AIN:['analog','none'], IN_FLOATING:['in','none'], IPU:['in','up'], IPD:['in','down'], Out_PP:['out_pp','none'], Out_OD:['out_od','none'], AF_PP:['af_pp','none'], AF_OD:['af_od','none']}[m] || ['in','none'];
-    return {mode:t[0], pull:t[1], drive:''};
-  }
-  if(m === 'IN_PU') return {mode:'in', pull:'up', drive:''};
-  if(m === 'IN_PD') return {mode:'in', pull:'down', drive:''};
-  if(m === 'Out_PP_20mA') return {mode:'out_pp', pull:'none', drive:'20mA'};
-  if(m === 'Out_PP_5mA') return {mode:'out_pp', pull:'none', drive:'5mA'};
-  return {mode:'in', pull:'none', drive:''};
-}
-function gpioJoin(std, mode, pull, drive){
-  if(std) return mode === 'in' ? ({none:'IN_FLOATING', up:'IPU', down:'IPD'}[pull]) : ({out_pp:'Out_PP', out_od:'Out_OD', analog:'AIN', af_pp:'AF_PP', af_od:'AF_OD'}[mode]);
-  if(mode === 'out_pp') return drive === '20mA' ? 'Out_PP_20mA' : 'Out_PP_5mA';
-  return {none:'IN_Floating', up:'IN_PU', down:'IN_PD'}[pull];
-}
-function gpioRows(){
-  return state.configs.filter(c => c.type === 'gpio' || c.type === 'exti')
-    .map(c => ({c, g:`P${c.port}${c.pin}`}))
-    .sort((a, b) => a.g[1] === b.g[1] ? (+a.g.slice(2)) - (+b.g.slice(2)) : a.g.localeCompare(b.g));
-}
-function gpioRowText(c){
-  const std = gpioStd(c), sp = gpioSplit(c);
-  const pullL = (GPIO_PULLS.find(x => x[0] === sp.pull) || ['', ''])[1];
-  if(c.type === 'exti'){
-    const t = (std ? EXTI_TRIG_STD : EXTI_TRIG_BLE).find(x => x[0] === c.trig);
-    return {signal:'GPIO_EXTI' + c.pin, level:'n/a', mode:t ? t[1] : 'External Interrupt', pull:pullL, speed:'n/a'};
-  }
-  const out = /^out|^af/.test(sp.mode);
-  const modeL = ((std ? GPIO_STD_MODES : GPIO_BLE_MODES).find(x => x[0] === sp.mode) || ['', c.mode])[1];
-  const sig = sp.mode === 'analog' ? 'GPIO_Analog' : out ? 'GPIO_Output' : 'GPIO_Input';
-  const speed = !out ? 'n/a' : std ? ((GPIO_SPEEDS.find(x => x[0] === c.speed) || ['', c.speed || 'n/a'])[1]) : (sp.drive || '5mA') + ' drive';
-  return {signal:sig, level:/^out/.test(sp.mode) ? (c.level === 'high' ? 'High' : 'Low') : 'n/a', mode:modeL, pull:out ? 'n/a' : pullL, speed};
-}
-function gpioUpdate(c, patch){
-  Object.assign(c, patch);
-  relabel(c);
-  renderAll(); renderGpioPanel();
-}
-function renderGpioPanel(){
-  if(state.tab !== 'gpio') return;
-  const rows = gpioRows(), q = state.gpioFilter;
-  if(state.gpioSel && !rows.some(r => r.c.id === state.gpioSel)) state.gpioSel = null;
-  const shown = rows.filter(r => !q || (r.g + ' ' + (state.labels[r.g] || '') + ' ' + gpioRowText(r.c).signal).toLowerCase().includes(q));
-  let h = `<div class="gp-tabs"><button class="gp-tab active">GPIO</button></div>
-  <div class="gp-search"><input type="search" id="gpFilter" placeholder="Search signals" value="${esc(state.gpioFilter)}"><span class="hint" style="margin:0">${rows.length} pin${rows.length === 1 ? '' : 's'}</span></div>`;
-  if(!rows.length){
-    h += `<div class="gp-empty">No GPIO pins yet. Click a pin on the chip and choose <b>GPIO_Output</b>, <b>GPIO_Input</b>, <b>GPIO_Analog</b> or <b>GPIO_EXTI</b>, or add one below.</div>`;
-  } else {
-    h += `<div class="gp-wrap"><table class="gp"><thead><tr><th>Pin Name</th><th>Signal on Pin</th><th>GPIO output level</th><th>GPIO mode</th><th>GPIO Pull-up/Pull-down</th><th>${shown.length && !gpioStd(shown[0].c) ? 'Drive' : 'Maximum output speed'}</th><th>User Label</th></tr></thead><tbody>` +
-      shown.map(({c, g}) => { const t = gpioRowText(c); return `<tr data-gsel="${c.id}" class="${state.gpioSel === c.id ? 'sel' : ''}"><td>${g}</td><td>${t.signal}</td><td>${t.level}</td><td>${esc(t.mode)}</td><td>${t.pull}</td><td>${t.speed}</td><td>${esc(state.labels[g] || '')}</td></tr>`; }).join('') +
-      `</tbody></table></div>`;
-  }
-  const sel = rows.find(r => r.c.id === state.gpioSel);
-  if(sel){
-    const c = sel.c, std = gpioStd(c), sp = gpioSplit(c), o = (list, v) => list.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
-    h += `<div class="gp-cfg"><div class="gp-cfg-title">${sel.g} Configuration :</div>`;
-    if(c.type === 'exti'){
-      h += `<div class="field"><label>GPIO mode</label><select data-gp="trig">${o(std ? EXTI_TRIG_STD : EXTI_TRIG_BLE, c.trig)}</select></div>
-        <div class="field"><label>GPIO Pull-up/Pull-down</label><select data-gp="pull">${o(GPIO_PULLS, sp.pull)}</select></div>`;
-      if(std) h += `<div class="row2"><div class="field"><label>Preemption priority</label><input type="number" min="0" max="3" data-gp="pp" value="${esc(c.pp || 1)}"></div><div class="field"><label>Sub priority</label><input type="number" min="0" max="3" data-gp="sp" value="${esc(c.sp || 1)}"></div></div>`;
-    } else {
-      const out = /^out/.test(sp.mode), outAny = /^out|^af/.test(sp.mode);
-      h += `<div class="field"><label>GPIO output level</label><select data-gp="level" ${out ? '' : 'disabled'}>${o([['low', 'Low'], ['high', 'High']], c.level === 'high' ? 'high' : 'low')}</select></div>
-        <div class="field"><label>GPIO mode</label><select data-gp="mode">${o(std ? GPIO_STD_MODES : GPIO_BLE_MODES, sp.mode)}</select></div>
-        <div class="field"><label>GPIO Pull-up/Pull-down</label><select data-gp="pull" ${sp.mode === 'in' ? '' : 'disabled'}>${o(GPIO_PULLS, sp.pull)}</select></div>`;
-      h += std ? `<div class="field"><label>Maximum output speed</label><select data-gp="speed" ${outAny ? '' : 'disabled'}>${o(GPIO_SPEEDS, c.speed || '50MHz')}</select></div>`
-               : `<div class="field"><label>Output drive</label><select data-gp="drive" ${out ? '' : 'disabled'}>${o([['5mA', '5 mA'], ['20mA', '20 mA']], sp.drive || '5mA')}</select></div>`;
-    }
-    h += `<div class="field"><label>User Label</label><input type="text" maxlength="24" data-gp="label" value="${esc(state.labels[sel.g] || '')}" placeholder="${sel.g}"></div>
-      <div class="btn-row" style="padding:0 0 10px"><button class="btn btn-ghost" data-gp-del="${c.id}" style="width:auto">Reset pin (remove)</button></div></div>`;
-  } else if(rows.length){
-    h += `<div class="gp-empty">Select a pin in the table to see and change its configuration.</div>`;
-  }
-  /* add a pin without the chip view */
-  const v = currentVariant(), fam = FAMILIES[state.family], std = fam.style === 'stdperiph';
-  const pins = Array.from({length: formPinCount()}, (_, i) => i);
-  h += `<div class="gp-add"><div class="field"><label>Add pin</label><select id="gpAddPort">${v.ports.map(p => `<option>${p}</option>`).join('')}</select></div>
-    <div class="field"><label>&nbsp;</label><select id="gpAddPin">${pins.map(p => `<option>${p}</option>`).join('')}</select></div>
-    <div class="field"><label>&nbsp;</label><select id="gpAddFn"><option value="out">GPIO_Output</option><option value="in">GPIO_Input</option>${std ? '<option value="analog">GPIO_Analog</option>' : ''}<option value="exti">GPIO_EXTI</option></select></div>
-    <button class="icon-btn" id="gpAddBtn">Add</button></div>`;
-  formArea.innerHTML = h;
-  $('addBtn').style.display = 'none';
-  $('gpFilter').addEventListener('input', e => { state.gpioFilter = e.target.value.trim().toLowerCase(); renderGpioPanel(); const f = $('gpFilter'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); });
-  formArea.querySelectorAll('[data-gsel]').forEach(tr => tr.addEventListener('click', () => { state.gpioSel = +tr.dataset.gsel; renderGpioPanel(); }));
-  formArea.querySelectorAll('[data-gp]').forEach(el => el.addEventListener('change', () => {
-    const c = sel.c, k = el.dataset.gp, std2 = gpioStd(c), sp2 = gpioSplit(c);
-    if(k === 'label'){ setLabel(sel.g, el.value); renderGpioPanel(); return; }
-    if(c.type === 'exti'){
-      if(k === 'trig') return gpioUpdate(c, {trig: el.value});
-      if(k === 'pull') return gpioUpdate(c, {pull: gpioJoin(std2, 'in', el.value, '')});
-      return gpioUpdate(c, {[k]: el.value});
-    }
-    if(k === 'level') return gpioUpdate(c, {level: el.value});
-    if(k === 'speed') return gpioUpdate(c, {speed: el.value});
-    const mode = k === 'mode' ? el.value : sp2.mode, pull = k === 'pull' ? el.value : sp2.pull, drive = k === 'drive' ? el.value : (sp2.drive || '5mA');
-    gpioUpdate(c, {mode: gpioJoin(std2, mode, pull, drive), speed: c.speed || '50MHz'});
-  }));
-  const del = formArea.querySelector('[data-gp-del]');
-  if(del) del.addEventListener('click', () => { state.configs = state.configs.filter(x => x.id !== +del.dataset.gpDel); state.gpioSel = null; renderAll(); renderGpioPanel(); });
-  $('gpAddBtn').addEventListener('click', () => {
-    const port = $('gpAddPort').value, pin = $('gpAddPin').value, fn = $('gpAddFn').value;
-    if(state.configs.some(x => (x.type === 'gpio' || x.type === 'exti') && x.port === port && String(x.pin) === String(pin))){ state.gpioSel = state.configs.find(x => x.port === port && String(x.pin) === String(pin) && (x.type === 'gpio' || x.type === 'exti')).id; renderGpioPanel(); return; }
-    const c = fn === 'exti' ? newCfg('exti', {port, pin, trig:'falling', pp:'1', sp:'1', pull: std ? 'IPU' : 'IN_PU'})
-      : newCfg('gpio', {port, pin, mode: fn === 'out' ? (std ? 'Out_PP' : 'Out_PP_5mA') : fn === 'analog' ? 'AIN' : (std ? 'IN_FLOATING' : 'IN_Floating'), speed:'50MHz', level:'low'});
-    state.gpioSel = c.id;
-    renderAll(); renderGpioPanel();
-  });
-}
+
+/* ---------- CubeMX-style pages, theme, category search ---------- */
+state.page = 'pinout';
+state.catMode = 'cat';
+state.catFilter = '';
+function setPage(pg){
+  state.page = pg;
+  document.querySelector('.ide').dataset.page = pg;
+  document.querySelectorAll('#mainTabs .mtab').forEach(b => b.classList.toggle('active', b.dataset.page === pg));
+  if(pg === 'clock') state.mainView = 'clock';
+  else if(state.mainView === 'clock') state.mainView = 'pinout';
+  document.querySelectorAll('.vtab[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === state.mainView));
+  if(pg !== 'pinout') closePinMenu();
+  renderAll();
+}
+$('mainTabs').addEventListener('click', e => { const b = e.target.closest('.mtab'); if(b) setPage(b.dataset.page); });
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  try{ localStorage.setItem('wchcfg-theme', t); }catch(e){}
+}
+(function(){
+  let t = 'light';
+  try{ t = localStorage.getItem('wchcfg-theme') || 'light'; }catch(e){}
+  applyTheme(t);
+  $('themeBtn').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+})();
+document.querySelectorAll('[data-catmode]').forEach(b => b.addEventListener('click', () => {
+  state.catMode = b.dataset.catmode;
+  document.querySelectorAll('[data-catmode]').forEach(x => x.classList.toggle('active', x === b));
+  renderCats();
+}));
+$('catSearch').addEventListener('input', e => { state.catFilter = e.target.value.trim().toLowerCase(); renderCats(); });
+/* categories: grouped (CubeMX "Categories") or one sorted list ("A->Z"), filtered by the search box */
+const _renderCatsOrig = renderCats;
+renderCats = function(){
+  _renderCatsOrig();
+  const q = state.catFilter;
+  const tree = $('catTree');
+  if(state.catMode === 'az'){
+    const items = [...tree.querySelectorAll('.cat-item')].sort((a, b) => a.textContent.localeCompare(b.textContent));
+    tree.innerHTML = '<div class="cat-group"></div>';
+    items.forEach(it => tree.firstChild.appendChild(it));
+  }
+  if(q){
+    tree.querySelectorAll('.cat-item').forEach(it => { it.hidden = !it.textContent.toLowerCase().includes(q); });
+    tree.querySelectorAll('.cat-group').forEach(g => { g.hidden = ![...g.querySelectorAll('.cat-item')].some(i => !i.hidden); });
+  }
+};
+/* project manager summary + problems badge on the main tab */
+function renderProjectHead(){
+  const v = currentVariant(), pk = currentPkg(), f = clockFreqs();
+  $('pmChip').textContent = v.id;
+  $('pmPkg').textContent = pk ? pk.name + (pk.code ? ' · ' + pk.code : '') : '-';
+  $('pmLib').textContent = FAMILIES[state.family].style === 'stdperiph' ? 'WCH StdPeriph EVT' : 'WCH CH5xx SDK (EVT)';
+  $('pmClk').textContent = (state.clock ? 'custom · ' : 'EVT default · ') + 'SYSCLK ' + fmtHz(f.sysclk);
+  const n = +($('probBadge').textContent || 0);
+  const b2 = $('probBadge2'); b2.textContent = n; b2.hidden = !n;
+  $('mtInfo').textContent = `${v.id}${pk ? ' · ' + pk.name : ''} · ${state.configs.length} item${state.configs.length === 1 ? '' : 's'}`;
+}
+
+/* ---------- CubeMX-style GPIO panel: table of every GPIO pin + settings of the selected one ---------- */
+state.gpioSel = null;
+state.gpioFilter = '';
+const GPIO_STD_MODES = [['in', 'Input mode'], ['out_pp', 'Output Push Pull'], ['out_od', 'Output Open Drain'], ['analog', 'Analog mode'], ['af_pp', 'Alternate Function Push Pull'], ['af_od', 'Alternate Function Open Drain']];
+const GPIO_BLE_MODES = [['in', 'Input mode'], ['out_pp', 'Output Push Pull']];
+const GPIO_PULLS = [['none', 'No pull-up and no pull-down'], ['up', 'Pull-up'], ['down', 'Pull-down']];
+const GPIO_SPEEDS = [['2MHz', 'Low (2 MHz)'], ['10MHz', 'Medium (10 MHz)'], ['50MHz', 'High (50 MHz)']];
+const EXTI_TRIG_STD = [['rising', 'External Interrupt Mode with Rising edge trigger detection'], ['falling', 'External Interrupt Mode with Falling edge trigger detection'], ['both', 'External Interrupt Mode with Rising/Falling edge trigger detection']];
+const EXTI_TRIG_BLE = [['rising', 'External Interrupt Mode with Rising edge trigger detection'], ['falling', 'External Interrupt Mode with Falling edge trigger detection'], ['lowlevel', 'External Interrupt Mode, low level'], ['highlevel', 'External Interrupt Mode, high level']];
+function gpioStd(c){ return FAMILIES[c.family].style === 'stdperiph'; }
+/* SDK mode code <-> CubeMX columns (mode / pull / drive) */
+function gpioSplit(c){
+  const m = c.type === 'exti' ? c.pull : c.mode;
+  if(gpioStd(c)){
+    const t = {AIN:['analog','none'], IN_FLOATING:['in','none'], IPU:['in','up'], IPD:['in','down'], Out_PP:['out_pp','none'], Out_OD:['out_od','none'], AF_PP:['af_pp','none'], AF_OD:['af_od','none']}[m] || ['in','none'];
+    return {mode:t[0], pull:t[1], drive:''};
+  }
+  if(m === 'IN_PU') return {mode:'in', pull:'up', drive:''};
+  if(m === 'IN_PD') return {mode:'in', pull:'down', drive:''};
+  if(m === 'Out_PP_20mA') return {mode:'out_pp', pull:'none', drive:'20mA'};
+  if(m === 'Out_PP_5mA') return {mode:'out_pp', pull:'none', drive:'5mA'};
+  return {mode:'in', pull:'none', drive:''};
+}
+function gpioJoin(std, mode, pull, drive){
+  if(std) return mode === 'in' ? ({none:'IN_FLOATING', up:'IPU', down:'IPD'}[pull]) : ({out_pp:'Out_PP', out_od:'Out_OD', analog:'AIN', af_pp:'AF_PP', af_od:'AF_OD'}[mode]);
+  if(mode === 'out_pp') return drive === '20mA' ? 'Out_PP_20mA' : 'Out_PP_5mA';
+  return {none:'IN_Floating', up:'IN_PU', down:'IN_PD'}[pull];
+}
+function gpioRows(){
+  return state.configs.filter(c => c.type === 'gpio' || c.type === 'exti')
+    .map(c => ({c, g:`P${c.port}${c.pin}`}))
+    .sort((a, b) => a.g[1] === b.g[1] ? (+a.g.slice(2)) - (+b.g.slice(2)) : a.g.localeCompare(b.g));
+}
+function gpioRowText(c){
+  const std = gpioStd(c), sp = gpioSplit(c);
+  const pullL = (GPIO_PULLS.find(x => x[0] === sp.pull) || ['', ''])[1];
+  if(c.type === 'exti'){
+    const t = (std ? EXTI_TRIG_STD : EXTI_TRIG_BLE).find(x => x[0] === c.trig);
+    return {signal:'GPIO_EXTI' + c.pin, level:'n/a', mode:t ? t[1] : 'External Interrupt', pull:pullL, speed:'n/a'};
+  }
+  const out = /^out|^af/.test(sp.mode);
+  const modeL = ((std ? GPIO_STD_MODES : GPIO_BLE_MODES).find(x => x[0] === sp.mode) || ['', c.mode])[1];
+  const sig = sp.mode === 'analog' ? 'GPIO_Analog' : out ? 'GPIO_Output' : 'GPIO_Input';
+  const speed = !out ? 'n/a' : std ? ((GPIO_SPEEDS.find(x => x[0] === c.speed) || ['', c.speed || 'n/a'])[1]) : (sp.drive || '5mA') + ' drive';
+  return {signal:sig, level:/^out/.test(sp.mode) ? (c.level === 'high' ? 'High' : 'Low') : 'n/a', mode:modeL, pull:out ? 'n/a' : pullL, speed};
+}
+function gpioUpdate(c, patch){
+  Object.assign(c, patch);
+  relabel(c);
+  renderAll(); renderGpioPanel();
+}
+function renderGpioPanel(){
+  if(state.tab !== 'gpio') return;
+  const rows = gpioRows(), q = state.gpioFilter;
+  if(state.gpioSel && !rows.some(r => r.c.id === state.gpioSel)) state.gpioSel = null;
+  const shown = rows.filter(r => !q || (r.g + ' ' + (state.labels[r.g] || '') + ' ' + gpioRowText(r.c).signal).toLowerCase().includes(q));
+  let h = `<div class="gp-tabs"><button class="gp-tab active">GPIO</button></div>
+  <div class="gp-search"><input type="search" id="gpFilter" placeholder="Search signals" value="${esc(state.gpioFilter)}"><span class="hint" style="margin:0">${rows.length} pin${rows.length === 1 ? '' : 's'}</span></div>`;
+  if(!rows.length){
+    h += `<div class="gp-empty">No GPIO pins yet. Click a pin on the chip and choose <b>GPIO_Output</b>, <b>GPIO_Input</b>, <b>GPIO_Analog</b> or <b>GPIO_EXTI</b>, or add one below.</div>`;
+  } else {
+    h += `<div class="gp-wrap"><table class="gp"><thead><tr><th>Pin Name</th><th>Signal on Pin</th><th>GPIO output level</th><th>GPIO mode</th><th>GPIO Pull-up/Pull-down</th><th>${shown.length && !gpioStd(shown[0].c) ? 'Drive' : 'Maximum output speed'}</th><th>User Label</th></tr></thead><tbody>` +
+      shown.map(({c, g}) => { const t = gpioRowText(c); return `<tr data-gsel="${c.id}" class="${state.gpioSel === c.id ? 'sel' : ''}"><td>${g}</td><td>${t.signal}</td><td>${t.level}</td><td>${esc(t.mode)}</td><td>${t.pull}</td><td>${t.speed}</td><td>${esc(state.labels[g] || '')}</td></tr>`; }).join('') +
+      `</tbody></table></div>`;
+  }
+  const sel = rows.find(r => r.c.id === state.gpioSel);
+  if(sel){
+    const c = sel.c, std = gpioStd(c), sp = gpioSplit(c), o = (list, v) => list.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    h += `<div class="gp-cfg"><div class="gp-cfg-title">${sel.g} Configuration :</div>`;
+    if(c.type === 'exti'){
+      h += `<div class="field"><label>GPIO mode</label><select data-gp="trig">${o(std ? EXTI_TRIG_STD : EXTI_TRIG_BLE, c.trig)}</select></div>
+        <div class="field"><label>GPIO Pull-up/Pull-down</label><select data-gp="pull">${o(GPIO_PULLS, sp.pull)}</select></div>`;
+      if(std) h += `<div class="row2"><div class="field"><label>Preemption priority</label><input type="number" min="0" max="3" data-gp="pp" value="${esc(c.pp || 1)}"></div><div class="field"><label>Sub priority</label><input type="number" min="0" max="3" data-gp="sp" value="${esc(c.sp || 1)}"></div></div>`;
+    } else {
+      const out = /^out/.test(sp.mode), outAny = /^out|^af/.test(sp.mode);
+      h += `<div class="field"><label>GPIO output level</label><select data-gp="level" ${out ? '' : 'disabled'}>${o([['low', 'Low'], ['high', 'High']], c.level === 'high' ? 'high' : 'low')}</select></div>
+        <div class="field"><label>GPIO mode</label><select data-gp="mode">${o(std ? GPIO_STD_MODES : GPIO_BLE_MODES, sp.mode)}</select></div>
+        <div class="field"><label>GPIO Pull-up/Pull-down</label><select data-gp="pull" ${sp.mode === 'in' ? '' : 'disabled'}>${o(GPIO_PULLS, sp.pull)}</select></div>`;
+      h += std ? `<div class="field"><label>Maximum output speed</label><select data-gp="speed" ${outAny ? '' : 'disabled'}>${o(GPIO_SPEEDS, c.speed || '50MHz')}</select></div>`
+               : `<div class="field"><label>Output drive</label><select data-gp="drive" ${out ? '' : 'disabled'}>${o([['5mA', '5 mA'], ['20mA', '20 mA']], sp.drive || '5mA')}</select></div>`;
+    }
+    h += `<div class="field"><label>User Label</label><input type="text" maxlength="24" data-gp="label" value="${esc(state.labels[sel.g] || '')}" placeholder="${sel.g}"></div>
+      <div class="btn-row" style="padding:0 0 10px"><button class="btn btn-ghost" data-gp-del="${c.id}" style="width:auto">Reset pin (remove)</button></div></div>`;
+  } else if(rows.length){
+    h += `<div class="gp-empty">Select a pin in the table to see and change its configuration.</div>`;
+  }
+  /* add a pin without the chip view */
+  const v = currentVariant(), fam = FAMILIES[state.family], std = fam.style === 'stdperiph';
+  const pins = Array.from({length: formPinCount()}, (_, i) => i);
+  h += `<div class="gp-add"><div class="field"><label>Add pin</label><select id="gpAddPort">${v.ports.map(p => `<option>${p}</option>`).join('')}</select></div>
+    <div class="field"><label>&nbsp;</label><select id="gpAddPin">${pins.map(p => `<option>${p}</option>`).join('')}</select></div>
+    <div class="field"><label>&nbsp;</label><select id="gpAddFn"><option value="out">GPIO_Output</option><option value="in">GPIO_Input</option>${std ? '<option value="analog">GPIO_Analog</option>' : ''}<option value="exti">GPIO_EXTI</option></select></div>
+    <button class="icon-btn" id="gpAddBtn">Add</button></div>`;
+  formArea.innerHTML = h;
+  $('addBtn').style.display = 'none';
+  $('gpFilter').addEventListener('input', e => { state.gpioFilter = e.target.value.trim().toLowerCase(); renderGpioPanel(); const f = $('gpFilter'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); });
+  formArea.querySelectorAll('[data-gsel]').forEach(tr => tr.addEventListener('click', () => { state.gpioSel = +tr.dataset.gsel; renderGpioPanel(); }));
+  formArea.querySelectorAll('[data-gp]').forEach(el => el.addEventListener('change', () => {
+    const c = sel.c, k = el.dataset.gp, std2 = gpioStd(c), sp2 = gpioSplit(c);
+    if(k === 'label'){ setLabel(sel.g, el.value); renderGpioPanel(); return; }
+    if(c.type === 'exti'){
+      if(k === 'trig') return gpioUpdate(c, {trig: el.value});
+      if(k === 'pull') return gpioUpdate(c, {pull: gpioJoin(std2, 'in', el.value, '')});
+      return gpioUpdate(c, {[k]: el.value});
+    }
+    if(k === 'level') return gpioUpdate(c, {level: el.value});
+    if(k === 'speed') return gpioUpdate(c, {speed: el.value});
+    const mode = k === 'mode' ? el.value : sp2.mode, pull = k === 'pull' ? el.value : sp2.pull, drive = k === 'drive' ? el.value : (sp2.drive || '5mA');
+    gpioUpdate(c, {mode: gpioJoin(std2, mode, pull, drive), speed: c.speed || '50MHz'});
+  }));
+  const del = formArea.querySelector('[data-gp-del]');
+  if(del) del.addEventListener('click', () => { state.configs = state.configs.filter(x => x.id !== +del.dataset.gpDel); state.gpioSel = null; renderAll(); renderGpioPanel(); });
+  $('gpAddBtn').addEventListener('click', () => {
+    const port = $('gpAddPort').value, pin = $('gpAddPin').value, fn = $('gpAddFn').value;
+    if(state.configs.some(x => (x.type === 'gpio' || x.type === 'exti') && x.port === port && String(x.pin) === String(pin))){ state.gpioSel = state.configs.find(x => x.port === port && String(x.pin) === String(pin) && (x.type === 'gpio' || x.type === 'exti')).id; renderGpioPanel(); return; }
+    const c = fn === 'exti' ? newCfg('exti', {port, pin, trig:'falling', pp:'1', sp:'1', pull: std ? 'IPU' : 'IN_PU'})
+      : newCfg('gpio', {port, pin, mode: fn === 'out' ? (std ? 'Out_PP' : 'Out_PP_5mA') : fn === 'analog' ? 'AIN' : (std ? 'IN_FLOATING' : 'IN_Floating'), speed:'50MHz', level:'low'});
+    state.gpioSel = c.id;
+    renderAll(); renderGpioPanel();
+  });
+}
+/* CH32L103's SDK names the bus clock gates RCC_PB1/PB2/HB... (no "A"); translate the generic names in every generated source */
+const _generateFilesNoL103 = generateFiles;
+generateFiles = function(){
+  const f = _generateFilesNoL103();
+  if(currentVariant().id === 'CH32L103')
+    for(const k of Object.keys(f)) if(/\.(c|h)$/.test(k))
+      f[k] = f[k].replace(/\bRCC_APB([12])Periph/g, 'RCC_PB$1Periph').replace(/\bRCC_AHBPeriph/g, 'RCC_HBPeriph');
+  return f;
+};
 /* ---------- main render ---------- */
 function renderAll(keepMenu){
   const v = currentVariant();
