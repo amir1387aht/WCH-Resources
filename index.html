@@ -3976,7 +3976,10 @@ $('addBtn').addEventListener('click', () => {
     relabel(cfg); if(tab === 'timer') cfg.label = keepLabel;
     state.configs.push(cfg);
   }
+  /* keep what the user picked in the form (port, pin, mode...) instead of resetting it to the defaults */
+  const keep = [...document.querySelectorAll('#formArea select, #formArea input')].map(e => [e.id, e.type === 'checkbox' ? e.checked : e.value]);
   renderForm();
+  keep.forEach(([fid, val]) => { const e = fid && document.getElementById(fid); if(!e) return; if(e.type === 'checkbox') e.checked = val; else if(e.tagName !== 'SELECT' || [...e.options].some(o => o.value === val)) e.value = val; e.dispatchEvent(new Event('change')); });
   renderAll();
 });
 
