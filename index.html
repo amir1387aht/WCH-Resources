@@ -194,6 +194,28 @@
   .ptable tr:hover td{background:var(--panel-2); cursor:pointer;}
   .ptable td.sig{color:var(--text);}
   .ptable td .af{color:var(--text-faint); font-size:10.5px;}
+  /* ---------- clock configuration view ---------- */
+  .clock-wrap{position:absolute; inset:0; overflow:auto; background:#11161b; cursor:default; padding:14px;}
+  .ck-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-family:var(--mono); font-size:11.5px; color:var(--text-dim);}
+  .ck-head b{color:var(--text); font-family:var(--disp); font-size:14px;}
+  .ck-head .sp{flex:1;}
+  .ck-canvas{position:relative; transform-origin:0 0;}
+  .ck-canvas svg.wires{position:absolute; inset:0; overflow:visible; pointer-events:none;}
+  .ck-canvas svg.wires path{fill:none; stroke:#3a4652; stroke-width:2;}
+  .ck-canvas svg.wires path.on{stroke:var(--teal); stroke-width:2.5;}
+  .ck-node{position:absolute; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-family:var(--mono); font-size:11px; color:var(--text-dim); box-shadow:0 2px 10px rgba(0,0,0,0.25);}
+  .ck-node.on{border-color:var(--teal-dim);}
+  .ck-node.bad{border-color:var(--red); box-shadow:0 0 0 1px rgba(255,95,86,0.4);}
+  .ck-node .t{font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); margin-bottom:3px;}
+  .ck-node .f{font-size:13px; color:var(--text); font-weight:600;}
+  .ck-node.bad .f{color:var(--red);}
+  .ck-node .m{font-size:9.5px; color:var(--text-faint); margin-top:2px;}
+  .ck-node select, .ck-node input{font-size:11.5px; padding:3px 5px; width:100%; margin-top:2px;}
+  .ck-node.src{background:#1a2420;}
+  .ck-node.mux{border-radius:14px; text-align:center;}
+  .ck-node.out{background:#1d2129; min-width:120px;}
+  .ck-legend{margin-top:10px; font-family:var(--mono); font-size:10.5px; color:var(--text-faint); line-height:1.6;}
+  .ck-legend b{color:var(--text-dim);}
   /* ---------- right: code / problems ---------- */
   .right .toolbar{display:flex; align-items:center; gap:6px; padding:7px 10px; border-bottom:1px solid var(--line); background:var(--panel-2); flex-wrap:wrap; flex:none;}
   .right .actions{display:flex; gap:6px; flex-wrap:wrap; padding:7px 10px; border-bottom:1px solid var(--line); flex:none; align-items:center;}
@@ -289,6 +311,7 @@
     <div class="toolbar">
       <button class="vtab active" data-view="pinout">Pinout view</button>
       <button class="vtab" data-view="table">Pin table</button>
+      <button class="vtab" data-view="clock">Clock Configuration</button>
       <span class="sp"></span>
       <input type="search" id="pinSearch" placeholder="Find pin / signal" aria-label="Find pin or signal">
       <button class="icon-btn sq" id="zoomOut" title="Zoom out">−</button>
@@ -300,6 +323,7 @@
     <div class="stage" id="stage">
       <svg id="chipSvg" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Chip pinout"></svg>
       <div class="ptable-wrap" id="pinTableWrap" hidden></div>
+      <div class="clock-wrap" id="clockWrap" hidden></div>
       <div class="stage-msg" id="stageMsg" hidden></div>
       <div class="pin-menu" id="pinMenu" hidden></div>
     </div>
@@ -478,7 +502,8 @@ function opts(arr, mapFn){ return arr.map(mapFn).join(''); }
 /* BLE / USB live in the "Wireless / USB" category group, shown only for parts that have them */
 function syncBuTabs(){
   const caps = chipCaps(currentVariant());
-  if((state.tab === 'ble' && !caps.ble) || (state.tab === 'usb' && !caps.usb)){
+  const m = typeof modFor === 'function' ? modFor(state.tab) : null;
+  if((state.tab === 'ble' && !caps.ble) || (state.tab === 'usb' && !caps.usb) || (m && !modSupported(m))){
     state.tab = 'gpio';
     if(typeof syncFormHead === 'function') syncFormHead();
     if(typeof renderCats === 'function') renderCats();
@@ -492,6 +517,13 @@ function renderForm(){
   if(bu){
     formArea.innerHTML = state.tab === 'ble' ? renderBleForm() : renderUsbForm();
     bindBuForm();
+    return;
+  }
+  const mod = typeof modFor === 'function' ? modFor(state.tab) : null;
+  if(mod){
+    const ctx = periphCtx();
+    formArea.innerHTML = mod.form(ctx);
+    if(mod.bind) mod.bind(ctx);
     return;
   }
   const fam = FAMILIES[state.family];
@@ -555,7 +587,7 @@ function renderForm(){
         <select id="f_cs">${opts(pins,p=>`<option ${p==4?'selected':''} value="${p}">${p}</option>`)}</select>
       </div>
       ${fam.style==='stdperiph' ? `
-      <div class="field"><label>Baud rate prescaler (f<sub>PCLK</sub> / N)</label>
+      <div class="field"><label>Baud rate prescaler (f<sub>PCLK</sub> / N)${typeof clockFreqs === 'function' && clockFreqs().known ? ` · PCLK1 ${fmtHz(clockFreqs().pclk1)} / PCLK2 ${fmtHz(clockFreqs().pclk2)}` : ''}</label>
         <select id="f_baud">
           ${[2,4,8,16,32,64,128,256].map(n=>`<option value="${n}" ${n==8?'selected':''}>÷${n}</option>`).join('')}
         </select>
@@ -632,7 +664,7 @@ function renderForm(){
           <div class="field"><label>Prescaler (PSC)</label><input type="number" id="f_psc" value="7199"></div>
           <div class="field"><label>Auto-reload (ARR / Period)</label><input type="number" id="f_arr" value="9999"></div>
         </div>
-        <div class="hint">With a 72 MHz timer clock, PSC=7199 → 10 kHz tick; ARR=9999 → 1 Hz update. Adjust for your SystemCoreClock.</div>
+        <div class="hint">${timerHint()}</div>
         <div class="row2">
           <div class="field"><label>PWM channel (used only if Mode = PWM)</label>
             <select id="f_ch"><option value="1">Channel 1</option><option value="2">Channel 2</option><option value="3">Channel 3</option><option value="4">Channel 4</option></select>
@@ -1113,9 +1145,24 @@ function adcSampleTime(st){
   }
   return 'ADC_SampleTime_' + st.replace(/^(\d+)_5$/, '$1Cycles5');
 }
+/* ADC clock line: the prescaler chosen in the clock view, or the original fixed /8 when the EVT default clock is kept */
+function adcClockLine(){
+  const d = typeof clockDef === 'function' ? clockDef() : null;
+  if(d && state.clock && d.adc && d.adc.api){
+    const e = (d.adc.divs.find(x => String(x.n) === String(clockCfg().adc)) || d.adc.divs[0]).e;
+    return `    ${d.adc.api}(${e});   /* ADC clock = ${fmtHz(clockFreqs().adcclk)} (max ${fmtHz(d.adc.max)}), set in the clock view */`;
+  }
+  return '    RCC_ADCCLKConfig(RCC_PCLK2_Div8);   /* ADC clock must stay <= 14MHz; adjust divider for your APB2 speed */';
+}
+function timerHint(){
+  const f = typeof clockFreqs === 'function' ? clockFreqs() : null;
+  if(!f || !f.known) return 'With a 72 MHz timer clock, PSC=7199 → 10 kHz tick; ARR=9999 → 1 Hz update. Adjust for your SystemCoreClock.';
+  const t1 = f.tim1clk, t2 = f.tim2clk;
+  return `Timer clock (Clock Configuration view): ${fmtHz(t2)} for APB1 timers${t1 !== t2 ? ', ' + fmtHz(t1) + ' for APB2 timers (TIM1/TIM8…)' : ''}. Tick = clock / (PSC+1), update = tick / (ARR+1); e.g. PSC=${Math.round(t2 / 1e4) - 1} → 10 kHz tick.`;
+}
 function genStdperiphADC(c){
   return `    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIO${c.port} | RCC_APB2Periph_${c.inst}, ENABLE);
-    RCC_ADCCLKConfig(RCC_PCLK2_Div8);   /* ADC clock must stay <= 14MHz; adjust divider for your APB2 speed */
+${adcClockLine()}
 
     GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_${c.pin};
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
@@ -1219,6 +1266,8 @@ function genWchbleEXTI(c){
 }
 
 function genFor(c){
+  const mod = modFor(c.type);
+  if(mod) return mod.gen(c, periphCtx());
   const fam = FAMILIES[c.family];
   const style = fam.style;
   if(c.type==='gpio') return style==='stdperiph'? genStdperiphGPIO(c): genWchbleGPIO(c);
@@ -1245,6 +1294,44 @@ function needsWchbleEncoderHelpers(){
 
 function firstWchbleEncoderConfig(){
   return state.configs.find(c => c.type==='timer' && c.wmode==='encoder');
+}
+
+/* StdPeriph: SystemClock_Config() built from the clock view (nothing when the EVT default is kept) */
+function clockFnBlock(style){
+  if(style !== 'stdperiph') return '';
+  const body = clockSetupCode();
+  if(!body) return '';
+  const f = clockFreqs();
+  return `
+/* ---- clock tree (Clock Configuration view) ----
+ * SYSCLK ${fmtHz(f.sysclk)}, HCLK ${fmtHz(f.hclk)}, PCLK1 ${fmtHz(f.pclk1)}, PCLK2 ${fmtHz(f.pclk2)}${f.adcclk ? ', ADC ' + fmtHz(f.adcclk) : ''}${f.usbclk ? ', USB ' + fmtHz(f.usbclk) : ''}
+ * SystemInit() (system_*.c) has already set the EVT default clock; this re-configures it at run time. */
+static void SystemClock_Config(void)
+{
+${body}
+}
+`;
+}
+/* CH5xx: SetSysClock() with the choice from the clock view, else the original default block */
+function bleClockBlock(v, fallback){
+  const code = clockSetupCode();
+  return code || fallback;
+}
+
+/* code pieces contributed by peripheral modules for the configs in use */
+function modCodeParts(){
+  const out = {decls: [], includes: [], helpers: '', files: {}};
+  if(typeof PERIPH_MODULES === 'undefined') return out;
+  const ctx = periphCtx();
+  for(const m of PERIPH_MODULES){
+    const cs = state.configs.filter(c => c.type === m.tab);
+    if(!cs.length) continue;
+    if(m.decls) out.decls.push(...m.decls(cs, ctx));
+    if(m.includes) m.includes(cs, ctx).forEach(i => { if(!out.includes.includes(i)) out.includes.push(i); });
+    if(m.helpers){ const h = m.helpers(cs, ctx); if(h) out.helpers += `\n/* ---- ${m.title} ---- */\n${h}\n`; }
+    if(m.files) Object.assign(out.files, m.files(cs, ctx));
+  }
+  return out;
 }
 
 /* CubeMX-style user labels: #define <LABEL>_Pin / <LABEL>_GPIO_Port */
@@ -1300,6 +1387,15 @@ function generateCode(){
     includes = `#include "${header}"`;
     structDecls = '';
   }
+
+  /* peripheral modules: extra declarations (de-duplicated by variable name), includes and file-scope helpers */
+  const modParts = modCodeParts();
+  if(modParts.decls.length){
+    const have = new Set((structDecls.match(/\w+\s*=\s*\{0\}/g) || []).map(x => x.split(/[\s=]/)[0]));
+    const extra = modParts.decls.filter(d => { const n = (d.match(/(\w+)\s*(=|;)/) || [])[1]; if(!n || have.has(n)) return false; have.add(n); return true; });
+    structDecls = [structDecls, ...extra].filter(Boolean).join('\n    ');
+  }
+  if(modParts.includes.length) includes += '\n' + modParts.includes.join('\n');
 
   const body = state.configs.length
     ? state.configs.map(c => `    /* ---- ${c.label} ---- */\n` + genFor(c)).join('\n\n')
@@ -1454,26 +1550,25 @@ ${helpers}
  */
 
 ${includes}
-${labelDefines(style)}${bitbangBlock}
+${labelDefines(style)}${bitbangBlock}${modParts.helpers}
 void ${fnName}(void)
 {
     ${structDecls ? structDecls + '\n\n' : ''}${body}
 }
-${adcHelpersBlock}
-
+${adcHelpersBlock}${clockFnBlock(style)}
 int main(void)
 {
-${style==='stdperiph' ? `#if defined(NVIC_PriorityGroup_2)            /* which groups exist depends on the EVT's INTSYSCR_INEST setting */
+${style==='stdperiph' ? `${clockSetupCode() ? '    SystemClock_Config();                     /* clock tree from the Clock Configuration view */\n' : ''}#if defined(NVIC_PriorityGroup_2)            /* which groups exist depends on the EVT's INTSYSCR_INEST setting */
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 #elif defined(NVIC_PriorityGroup_1)
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_1);
 #endif
     SystemCoreClockUpdate();
-    Delay_Init();` : `#ifdef SYSCLK_FREQ
+    Delay_Init();` : bleClockBlock(v, `#ifdef SYSCLK_FREQ
     SetSysClock(SYSCLK_FREQ);            /* default from CHxx_common.h (CH585: HSE PLL 62.4 MHz) */
 #else
     SetSysClock(${clkDefault(v)});   /* pick the clock config that matches your project */
-#endif`}
+#endif`)}
 
     ${fnName}();
 
@@ -2847,6 +2942,9 @@ void ${u.kbdLedFn}(uint8_t leds)
 
 /* ---------- all generated files ---------- */
 function generateFiles(){
+  return Object.assign(generateFilesBase(), modCodeParts().files);
+}
+function generateFilesBase(){
   const v = currentVariant(), ble = bleEnabled(), usb = usbEnabled();
   const base = generateCode();
   if(!ble && !usb) return {'src/main.c': base};
@@ -2855,11 +2953,11 @@ function generateFiles(){
   let head = cut > 0 ? base.slice(0, cut) : base;
   if(ble) head = head.replace(/#include "CH5[0-9x]+_common\.h"/, '#include "CONFIG.h"\n#include "HAL.h"\n#include "ble_app.h"');
   if(usb) head = head.replace(/(#include "[^"]+"\n)(?![\s\S]*#include)/, `$1#include "usb_app.h"\n`);
-  const clk = `#if defined(SYSCLK_FREQ)
+  const clk = bleClockBlock(v, `#if defined(SYSCLK_FREQ)
     SetSysClock(SYSCLK_FREQ);
 #else
     SetSysClock(${clkDefault(v)});
-#endif`;
+#endif`);
   if(ble){
     files['src/main.c'] = `${head}
 /* RAM for the BLE stack (size set in app_config.h) */
@@ -3074,7 +3172,7 @@ endif()
 add_executable(${D}{PROJECT_NAME} ${D}{APP_SRC} ${D}{USER_SRC} ${D}{DRIVER_SRC} ${D}{WCH_STARTUP})
 set_target_properties(${D}{PROJECT_NAME} PROPERTIES SUFFIX ".elf")
 target_include_directories(${D}{PROJECT_NAME} PRIVATE src ${D}{INC_DIRS})
-target_compile_definitions(${D}{PROJECT_NAME} PRIVATE DEBUG=1)
+target_compile_definitions(${D}{PROJECT_NAME} PRIVATE DEBUG=1${clockCompileDefs()})
 separate_arguments(_cpu UNIX_COMMAND "${D}{WCH_CPU_FLAGS}")
 target_compile_options(${D}{PROJECT_NAME} PRIVATE ${D}{_cpu} -Os -g -fmessage-length=0 -fsigned-char
   -ffunction-sections -fdata-sections -fno-common -Wall
@@ -3303,6 +3401,194 @@ const PIN_FN = {"ch32f103":{"VBAT":{"t":"P","af":[],"rm":[]},"PC13":{"t":"I/O","
 const PINOUTS = {"CH32F103":{"ds":"CH32F103DS0.PDF V1.32","fn":"ch32f103","pkgs":[{"name":"LQFP48","code":"CH32F103C8T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.13-15 (pdf p15-17), Table 2-2 p.15-16, Fig 2-1 p.12 (pdf p14)","pins":["VBAT","PC13","PC14","PC15","PD0","PD1","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_3"]},{"name":"QFN48X7","code":"CH32F103C8U6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.13-15 (pdf p15-17), Table 2-2 p.15-16, Fig 2-1 p.12 (pdf p14, shared LQFP48/QFN48X7 drawing)","pins":["VBAT","PC13","PC14","PC15","PD0","PD1","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_3"]},{"name":"LQFP64M","code":"CH32F103R8T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.13-15 (pdf p15-17), Table 2-2 p.15-16, Fig 2-2 p.12 (pdf p14)","pins":["VBAT","PC13","PC14","PC15","PD0","PD1","NRST","PC0","PC1","PC2","PC3","VSSA","VDDA","PA0","PA1","PA2","PA3","VSS_4","VDD_4","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_1","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_3"]}]},"CH32F203":{"ds":"CH32F20xDS0.PDF V2.3","fn":"ch32f203","pkgs":[{"name":"LQFP48","code":"CH32F203C8T6","shape":"quad","ep":null,"verified":true,"src":"Table 3-2 p.30-33 (pdf p33-36), Fig 3.1.4 p.21 (pdf p24)","pins":["VBAT","PC13","PC14","PC15","PD0","PD1","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_IO_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_IO_3"]},{"name":"QFN48X7","code":"CH32F203C8U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 3-2 p.30-33 (pdf p33-36), Fig 3.1.4 p.21 (pdf p24)","pins":["VBAT","PC13","PC14","PC15","PD0","PD1","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_IO_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_IO_3"]},{"name":"LQFP32","code":"CH32F203K8T6","shape":"quad","ep":null,"verified":true,"src":"Table 3-2 p.30-33 (pdf p33-36), Fig 3.1.4 p.21 (pdf p24)","pins":["VDD_IO_3","PD0","PD1","NRST","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","VSS_1","VDD_IO_1","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","PB8/BOOT0","VSS_3"]}]},"CH32L103":{"ds":"CH32L103DS0.PDF V2.1","fn":"ch32l103","pkgs":[{"name":"TSSOP20","code":"CH32L103F8P6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1-1 p.18-23 (pdf p21-26), Fig p.16 (pdf p19)","pins":["BOOT0/PB8","PD0","PD1","NRST","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB1","VSS","VDD","PA11","PA12","PA13/PB6","PA14/PB7"]},{"name":"QFN20","code":"CH32L103F8U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 2-1-1 p.18-23 (pdf p21-26), Fig p.16 (pdf p19)","pins":["PA0","PA1","PA2","PA3","PA4","PA5","PA7","PB0","PB1/PB10","PB11","PB6/PB13","PB14","PB15","PA8","PA9","PA14/PA12","PA13/PA11","PA10/PB7","VDD","PA6"]},{"name":"QSOP28","code":"CH32L103G8R6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1-1 p.18-23 (pdf p21-26), Fig p.16 (pdf p19)","pins":["PA14/PB5","PB6","PB7","PB3","PB8","VDD","VSS","PD0","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PB0","PA7","PB1/PB10","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA13/PA12"]},{"name":"QFN32","code":"CH32L103K8U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 2-1-1 p.18-23 (pdf p21-26), Fig p.15 (pdf p18)","pins":["VDD","PC14","PC15","PD0","PD1","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0/PB9","PB8"]},{"name":"LQFP48","code":"CH32L103C8T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1-1 p.18-23 (pdf p21-26), Fig p.15 (pdf p18)","pins":["VBAT","PC13","PC14","PC15","PD0","PD1","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS","VDD","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS","VDD","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS","VDD"]}]},"CH32V003":{"ds":"CH32V003DS0.PDF V1.8","fn":"ch32v003","pkgs":[{"name":"TSSOP20","code":"CH32V003F4P6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1 p.11-12 (PDF p.13-14), Fig CH32V003F4P6 p.10 (PDF p.12)","pins":["PD4","PD5","PD6","PD7","PA1","PA2","VSS","PD0","VDD","PC0","PC1","PC2","PC3","PC4","PC5","PC6","PC7","PD1","PD2","PD3"]},{"name":"QFN20","code":"CH32V003F4U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 2-1 p.11-12 (PDF p.13-14), Fig CH32V003F4U6 p.10 (PDF p.12); pin 0 = VSS exposed pad","pins":["PD7","PA1","PA2","VSS","PD0","VDD","PC0","PC1","PC2","PC3","PC4","PC5","PC6","PC7","PD1","PD2","PD3","PD4","PD5","PD6"]},{"name":"SOP16","code":"CH32V003A4M6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1 p.11-12 (PDF p.13-14), Fig CH32V003A4M6 p.10 (PDF p.12)","pins":["PC1","PC2","PC3","PC4","PC6","PC7","PD1","PD4","PD5","PD6","PD7","PA1","PA2","VSS","VDD","PC0"]},{"name":"SOP8","code":"CH32V003J4M6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1 p.11-12 (PDF p.13-14), Fig CH32V003J4M6 p.11 (PDF p.13); several GPIOs bonded to one pin","pins":["PA1/PD6","VSS","PA2","VDD","PC1","PC2","PC4","PD1/PD4/PD5"]}]},"CH32V006":{"ds":"CH32V006DS0.PDF V2.0","fn":"ch32v006","pkgs":[{"name":"QFN32","code":"CH32V006K8U7","shape":"quad","ep":"VSS","verified":true,"src":"Table 2-1-1 p.17-22 (PDF p.19-24), Fig CH32V006K8U7 p.12 (PDF p.14); pin 0 = VSS exposed pad","pins":["PB3","PA5","PA6","PA7","PA0","PA1","PA2","PD0","PA3","PB0","PB1","PB2","PC0","PC1","PC2","PC3","VDD","PC4","PC5","PC6","PC7","PB4","PD1","PD2","PD3","PD4","PD5","PD6","PB5","PB6","PD7","PA4"]},{"name":"QSOP24","code":"CH32V006E8R6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1-1 p.17-22 (PDF p.19-24), Fig CH32V006E8R p.12 (PDF p.14)","pins":["PD1","PC0","PC1","PC2","VSS","VDD","PC5","PC4","PD2","PD3","PD4","PD5","PD6","PD7","PA4","PA5","PA1/PA6","PA0","PA2","PD0","PA3","PB0","PB1","PB3"]},{"name":"QFN20","code":"CH32V006F8U7","shape":"quad","ep":"VSS","verified":true,"src":"Table 2-1-1 p.17-22 (PDF p.19-24), Fig CH32V006F8U7 p.13 (PDF p.15); pin 0 = VSS exposed pad","pins":["PA4/PD7","PA1","PA2","VSS","PD0","VDD","PC0","PC1","PC2","PC3","PC4","PC5","PC6","PC7","PD1","PD2","PD3","PD4","PD5","PD6"]},{"name":"QFN20 (F4U6)","code":"CH32V006F4U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 2-1-2 p.22-25 (PDF p.24-27), Fig CH32V006F4U6 p.13 (PDF p.15); pin 0 = VSS exposed pad","pins":["PD7","PA1","PA2","VSS","PD0","VDD","PC0","PC1","PC2","PC3","PC4","PC5","PC6","PC7","PD1","PD2","PD3","PD4","PD5","PD6"],"fnOver":{"PD4":{"t":"I/O/A","af":["ADC_IN7","TIM2_CH1","TIM2_ETR"],"rm":["TIM1_CH4@3","TIM1_ETR@1","TIM1_ETR@4","TIM1_ETR@5","TIM1_ETR@6","TIM2_CH2@7","USART1_RTS@9","SPI1_SCK@4"]},"PD7":{"t":"I/O","af":["TIM2_CH4","OTHER:RST"],"rm":["TIM2_CH4@1","USART1_CTS@4","USART1_CTS@5"]},"PA1":{"t":"I/O/A","af":["ADC_IN1","TIM1_CH2"],"rm":["OTHER:XI","TIM1_CH2@1","TIM1_CH2@9","TIM2_CH2@5","TIM2_CH2@6","USART1_RX@8","SPI1_SCK@5"]},"PA2":{"t":"I/O/A","af":["ADC_IN0","TIM1_CH2N"],"rm":["OTHER:XO","TIM1_CH3@9","TIM1_CH2N@1","TIM1_CH2N@4","TIM1_CH2N@5","TIM1_CH2N@6","TIM2_CH3@5","TIM2_CH3@6","TIM2_CH3@7","SPI1_MOSI@5","OTHER:ADC_IETR@1"]},"PD0":{"t":"I/O","af":["TIM1_CH1N"],"rm":["TIM1_CH1N@1","TIM1_CH3N@4","TIM1_CH3N@5","TIM1_CH3N@6","USART1_TX@2","I2C1_SDA@1"]},"PC1":{"t":"I/O","af":["I2C1_SDA","SPI1_NSS"],"rm":["TIM1_CH2N@7","TIM1_CH2N@9","TIM1_BKIN@2","TIM1_BKIN@3","TIM2_CH1@1","TIM2_ETR@1","TIM2_CH2@4","TIM2_CH1@3","TIM2_ETR@3","TIM2_CH4@2","USART1_RX@3","SPI1_NSS@5"]},"PC2":{"t":"I/O","af":["TIM1_BKIN","USART1_RTS","I2C1_SCL"],"rm":["TIM1_CH3N@7","TIM1_CH3N@9","TIM2_CH2@2","USART1_RTS@2","TIM1_BKIN@1","TIM1_ETR@3","OTHER:ADC_RETR@1"]},"PC4":{"t":"I/O","af":["ADC_IN2","TIM1_CH4","OTHER:MCO"],"rm":["TIM1_CH1@3","TIM1_CH1@7","TIM1_CH1@8","TIM1_CH4@1","TIM1_CH2N@2","USART1_RX@9","SPI1_NSS@2","SPI1_NSS@6"]},"PC5":{"t":"I/O","af":["TIM1_ETR","SPI1_SCK"],"rm":["TIM1_CH2@7","TIM1_CH2@8","TIM1_CH3@3","TIM1_ETR@2","TIM2_CH1@2","TIM2_ETR@2","USART1_TX@6","I2C1_SCL@2","SPI1_SCK@1"]},"PD1":{"t":"I/O/A","af":["TIM1_CH3N","OTHER:SWIO","OTHER:ADC_IETR"],"rm":["TIM1_CH4@4","TIM1_CH4@5","TIM1_CH3N@1","TIM1_CH3N@2","USART1_TX@4","USART1_RX@2","USART1_RX@5","I2C1_SCL@1","I2C1_SDA@4"]},"PD2":{"t":"I/O/A","af":["ADC_IN3","TIM1_CH1"],"rm":["TIM1_CH1@1","TIM1_CH2N@3","TIM2_CH3@2","USART1_CTS@8","SPI1_SCK@2"]},"PD3":{"t":"I/O/A","af":["ADC_IN4","TIM2_CH2","USART1_CTS","OTHER:ADC_RETR"],"rm":["TIM1_CH4@2","TIM2_CH1@7","TIM2_ETR@7","TIM2_CH2@1","USART1_RTS@8","SPI1_NSS@4","SPI1_MOSI@2"]}}},{"name":"TSSOP20","code":"CH32V006F8P7","shape":"dual","ep":null,"verified":true,"src":"Table 2-1-1 p.17-22 (PDF p.19-24), Fig CH32V006F8P7 p.14 (PDF p.16)","pins":["PD4","PD5","PD6","PA4/PD7","PA1","PA2","VSS","PD0","VDD","PC0","PC1","PC2","PC3","PC4","PC5","PC6","PC7","PD1","PD2","PD3"]},{"name":"QFN12","code":"CH32V006D8U7","shape":"quad","ep":"VSS","verified":true,"src":"Table 2-1-1 p.17-22 (PDF p.19-24), Fig CH32V006D8U7 p.14 (PDF p.16); pin 0 = VSS exposed pad","pins":["PA1","PA2","PD0","VDD","PC0","PC3","PC4","PC6","PC7","PD1","PD4","PA4/PD7"]}]},"CH32V103":{"ds":"CH32V103DS0.PDF V1.2","fn":"ch32v103","pkgs":[{"name":"LQFP64M","code":"CH32V103R8T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.12-14, Sec 2.1 pinout figures p.11 (CH32V103R8T6)","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","PC0","PC1","PC2","PC3","VSSA","VDDA","PA0","PA1","PA2","PA3","VSS_4","VDD_4","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_1","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_3"],"fn":"ch32v103_Table_2_1"},{"name":"LQFP48","code":"CH32V103C8T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.12-14, Sec 2.1 pinout figures p.11 (CH32V103Cx)","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_3"],"fn":"ch32v103_Table_2_1"},{"name":"LQFP48 (CH32V103C6T6)","code":"CH32V103C6T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-2 p.14-16, Sec 2.1 pinout figures p.11 (CH32V103Cx)","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_3"],"fn":"ch32v103_Table_2_2"},{"name":"QFN48X7","code":"CH32V103C8U6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.12-14, Sec 2.1 pinout figures p.11 (CH32V103Cx)","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_3"],"fn":"ch32v103_Table_2_1"}]},"CH32V203":{"ds":"CH32V203DS0.PDF V3.0","fn":"ch32v203","pkgs":[{"name":"TSSOP20 (CH32V203F6P6)","code":"CH32V203F6P6","shape":"dual","ep":null,"verified":true,"src":"Table 3-1-3 p.27-29, Sec 3.1 pinout figures p.20 (CH32V203F6P6)","pins":["BOOT0/PB8","OSC_IN","OSC_OUT","NRST","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB1","VSS","VDD","PA11","PA12","PA13","PA14"],"fn":"ch32v203_Table_3_1_3"},{"name":"TSSOP20 (CH32V203F8P6)","code":"CH32V203F8P6","shape":"dual","ep":null,"verified":true,"src":"Table 3-1-2 p.24-26, Sec 3.1 pinout figures p.20 (CH32V203F8P6)","pins":["PB6/PA13","PB7/PA14","VSS","VDD","NRST","PA0","PA1","PA2","PA3","PA6","PA4","PA5","PA7","PB0","PB13","PB14","PB15","PA8","PA9","PA10"],"fn":"ch32v203_Table_3_1_2"},{"name":"QFN20","code":"CH32V203F8U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 3-1-1 p.21-24, Sec 3.1 pinout figures p.20 (CH32V203F8U6)","pins":["PA0","PA1","PA2","PA3","PA4","PA5","PA7","PB0","PB1","PB10","PB11","PB14","PB15","PA8","PA9","PA13/PA12","PA14/PA11","PA10","VDD","PA6"],"fn":"ch32v203_Table_3_1_1"},{"name":"QFN28","code":"CH32V203G6U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 3-1-3 p.27-29, Sec 3.1 pinout figures p.20 (CH32V203G6U6)","pins":["BOOT0/PB8","OSC_IN","OSC_OUT","NRST","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","VSS","VDD","PA9","PA10/PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7"],"fn":"ch32v203_Table_3_1_3"},{"name":"QSOP28","code":"CH32V203G8R6","shape":"dual","ep":null,"verified":true,"src":"Table 3-1-2 p.24-26, Sec 3.1 pinout figures p.20 (CH32V203G8R6)","pins":["PA14/PB5","PB6","PB7","BOOT0","PB8","VDD","VSS","NRST","PA0","PA1","PA2","PA3","PA6","PB0","PA4","PA5","PA7","PB10","PB11","PB1/PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA13/PA12"],"fn":"ch32v203_Table_3_1_2"},{"name":"LQFP32","code":"CH32V203K8T6","shape":"quad","ep":null,"verified":true,"src":"Table 3-1-1 p.21-24, Sec 3.1 pinout figures p.19 (CH32V203K8T6)","pins":["VDD","OSC_IN","OSC_OUT","NRST","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","VSS","VDD","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0/PB8","VSS"],"fn":"ch32v203_Table_3_1_1"},{"name":"QFN32","code":"CH32V203K8U7","shape":"quad","ep":"VSS","verified":true,"src":"Table 3-1-1 p.21-24, Sec 3.1 pinout figures p.20 (CH32V203K8U7)","pins":["VDD","PC14","PC15","OSC_IN","OSC_OUT","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0/PB9","PB8"],"fn":"ch32v203_Table_3_1_1"},{"name":"LQFP48","code":"CH32V203C6T6 / CH32V203C8T6","shape":"quad","ep":null,"verified":true,"src":"Table 3-1-1 p.21-24, Sec 3.1 pinout figures p.19 (CH32V203CxT6)","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_IO_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_IO_3"],"fn":"ch32v203_Table_3_1_1"},{"name":"QFN48X7","code":"CH32V203C6U6 / CH32V203C8U6","shape":"quad","ep":"VSS","verified":true,"src":"Table 3-1-1 p.21-24, Sec 3.1 pinout figures p.19 (CH32V203CxU6)","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_IO_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_IO_3"],"fn":"ch32v203_Table_3_1_1"},{"name":"LQFP64M (CH32V203RBT6)","code":"CH32V203RBT6","shape":"quad","ep":null,"verified":true,"src":"Table 3-1-4 p.29-32, Sec 3.1 pinout figures p.19 (CH32V203RBT6)","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","PC0","PC1","PC2","PC3","VSSA","VDDA","PA0","PA1","PA2","PA3","VSS_4","VDD_IO_4","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_IO_1","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","NC","NC","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_IO_3"],"fn":"ch32v203_Table_3_1_4"}]},"CH32V307":{"ds":"CH32V20x_30xDS0.PDF V3.9 (CH32V303/305/307/317 Datasheet)","fn":"ch32v30x","pkgs":[{"name":"LQFP100","code":"CH32V307VCT6","shape":"quad","ep":null,"verified":true,"src":"Table 3-1 p.27-38 (PDF pages 29-40), Fig 3.1.1 CH32V307VCT6 p.23","pins":["PE2","PE3","PE4","PE5","PE6","VBAT","PC13","PC14","PC15","VSS_5","VDD_5","OSC_IN","OSC_OUT","NRST","PC0","PC1","PC2","PC3","VSSA","VREF-","VREF+","VDDA","PA0","PA1","PA2","PA3","VSS_4","VDD_4","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PE7","PE8","PE9","PE10","PE11","PE12","PE13","PE14","PE15","PB10","PB11","VSS_1","VIO_1","PB12","PB13","PB14","PB15","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","NC","VSS_2","VDD_2","PA14","PA15","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","PE0","PE1","VSS_3","VIO_3"]},{"name":"LQFP64M","code":"CH32V307RCT6","shape":"quad","ep":null,"verified":true,"src":"Table 3-1 p.27-38 (PDF pages 29-40), Fig 3.1.1 CH32V307RCT6 p.23","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","PC0","PC1","PC2","PC3","VSSA","VDDA","PA0","PA1","PA2","PA3","VSS_4","VDD_4","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PB10","PB11","VSS_1","VIO_1","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VIO_3"]},{"name":"QFN68","code":"CH32V307WCU6","shape":"quad","ep":"VSS","verified":true,"src":"Table 3-1 p.27-38 (PDF pages 29-40), Fig 3.1.1 CH32V307WCU6 p.23","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","PC0","PC1","PC2","PC3","VSSA","VDDA","PA0","PA1","PA2","VIO_4","VSS_1","PA3","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PB10","PB11","VIO_1","VDD_1","PD8","PD9","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","VIO_2","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","PE0","VIO_3","VDD_3"]}]},"CH32V303":{"ds":"CH32V20x_30xDS0.PDF V3.9 (CH32V303/305/307/317 Datasheet)","fn":"ch32v30x","pkgs":[{"name":"LQFP100","code":"CH32V303VCT6","shape":"quad","ep":null,"verified":true,"src":"Table 3-1 p.27-38 (PDF pages 29-40), Fig 3.1.3 CH32V303VCT6 p.25","pins":["PE2","PE3","PE4","PE5","PE6","VBAT","PC13","PC14","PC15","VSS_5","VDD_5","OSC_IN","OSC_OUT","NRST","PC0","PC1","PC2","PC3","VSSA","VREF-","VREF+","VDDA","PA0","PA1","PA2","PA3","VSS_4","VDD_4","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PE7","PE8","PE9","PE10","PE11","PE12","PE13","PE14","PE15","PB10","PB11","VSS_1","VIO_1","PB12","PB13","PB14","PB15","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","NC","VSS_2","VDD_2","PA14","PA15","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","PE0","PE1","VSS_3","VIO_3"]},{"name":"LQFP64M","code":"CH32V303RCT6 / CH32V303RBT6 / CH32V303RCT7","shape":"quad","ep":null,"verified":true,"src":"Table 3-1 p.27-38 (PDF pages 29-40), Fig 3.1.3 CH32V303RxT6/CH32V303RCT7 p.25","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","PC0","PC1","PC2","PC3","VSSA","VDDA","PA0","PA1","PA2","PA3","VSS_4","VDD_4","PA4","PA5","PA6","PA7","PC4","PC5","PB0","PB1","PB2","PB10","PB11","VSS_1","VIO_1","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VIO_3"]},{"name":"LQFP48","code":"CH32V303CBT6","shape":"quad","ep":null,"verified":true,"src":"Table 3-1 p.27-38 (PDF pages 29-40) column \"LQFP48(V303CBT6)\", Fig 3.1.3 CH32V303CBT6 p.25","pins":["VBAT","PC13","PC14","PC15","OSC_IN","OSC_OUT","NRST","VSSA","VDDA","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB2","PB10","PB11","VSS_1","VDD_IO_1","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","VSS_2","VDD_2","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0","PB8","PB9","VSS_3","VDD_IO_3"]}]},"CH32X035":{"ds":"CH32X035DS0.PDF V2.3","fn":"ch32x035","pkgs":[{"name":"LQFP64M","code":"CH32X035R8T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.15-17 (pdf p17-19), Fig p.10 (pdf p12)","pins":["PA15","PA16","PA17","PA18","PA19","PA20","PA21","PC0","PC1","PC2","PC3","PA22","PA23","PA0","PA1","PA2","PA3","PC4","PC5","PA4","PA5","PA6","PA7","PC6","PC7","PB0","PB1","PB2","PB3","PB4","GND","VDD","PB5","PB6","PB7","PB8","PB16","PB17","PB18","PB19","PB9","PB10","PB11","PC16/PC11","PC17/PC10","PC18","PB12","PB13","PC19","PB14","PB20","PB21","PB15","PC14","PC15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","GND","VDD"]},{"name":"LQFP48","code":"CH32X035C8T6","shape":"quad","ep":null,"verified":true,"src":"Table 2-1 p.15-17 (pdf p17-19), Fig p.11 (pdf p13)","pins":["PA15","PA16","PA17","PA18","PA19","PA20","PA21","PA22","PA23","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PC6","PC7","PB0","PB1","PB2","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PB10","PB11","PC16/PC11","PC17/PC10","PC18","PB12","PB13","PC19","PC14","PC15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","GND","VDD"]},{"name":"QFN28","code":"CH32X035G8U6","shape":"quad","ep":"GND","verified":true,"src":"Table 2-1 p.15-17 (pdf p17-19), Fig p.12 (pdf p14)","pins":["PC15","VDD","PC0","PC3","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB3","PB4","PB1/PB5","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PC19","PC18","PC16/PC11","PC17/PC10","PC14"]},{"name":"QSOP28","code":"CH32X035G8R6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1 p.15-17 (pdf p17-19), Fig p.12 (pdf p14)","pins":["PC19","PC16/PC11","PC17/PC10","PA12/PC14","PA13/PC15","VDD","GND","PC3","PA0","PA1","PA2","PA3","PA6","PB0","PA4","PA5","PA7","PB3","PB4","PB1/PB5","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PC18"]},{"name":"QFN20","code":"CH32X035F8U6","shape":"quad","ep":"GND","verified":true,"src":"Table 2-1 p.15-17 (pdf p17-19), Fig p.13 (pdf p15)","pins":["VDD","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB0","PB1","PB3","PB11","PC18","PB12","PC19","PC16","PC17","PC14","PC15"]},{"name":"TSSOP20","code":"CH32X035F7P6","shape":"dual","ep":null,"verified":true,"src":"Table 2-1 p.15-17 (pdf p17-19), Fig p.11 (pdf p13)","pins":["PB12","PC14","PC15","PC3","PC1","PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PB1","GND","VDD","PC16/PC11","PC17/PC10","PC18","PC19"]},{"name":"QFN12","code":"CH32X035D8U6","shape":"quad","ep":"GND","verified":true,"src":"Table 2-1 p.15-17 (pdf p17-19), Fig p.13 (pdf p15)","pins":["VDD","PA2","PA3","PA5","PA6","PA7/PC7","PC16","PC17","PC18","PC19","PC14","PC15"]}]},"CH572":{"ds":"CH572DS1.PDF V1.1","fn":"ch572","pkgs":[{"name":"QFN20","code":"CH572D","shape":"quad","ep":"GND","verified":true,"src":"Table 1-1 CH572 pin definitions p.4-6 (CH572D column), Section 1.1.1 figure p.1","pins":["PA3","XO","XI","NC","ANT","VDD33","VIO33","V5","PA9","PA8","PA0","PA1","PA4","PA5","PA6","PA7","PA10","PA11","NC","PA2"]},{"name":"DFN10X3","code":"CH572Q","shape":"dual","ep":"GND","verified":true,"src":"Table 1-1 CH572 pin definitions p.4-6 (CH572Q column), Section 1.1.1 figure p.2","pins":["VDD33/VIO33","V5","PA0","PA1","PA7","PA2","PA3","XO","XI","ANT"],"absent":["SPI0_MISO","SPI0_MOSI","SPI0_NSS","SPI0_SCK"]},{"name":"TSSOP16","code":"CH572R","shape":"dual","ep":null,"verified":true,"src":"Table 1-1 CH572 pin definitions p.4-6 (CH572R column), Section 1.1.1 figure p.1","pins":["PA9","PA8","PA0","PA1","VDD33/VIO33","PA5","PA6","PA7","PA2","PA3","PA4","XO","XI","NC","GND","ANT"]}]},"CH570":{"ds":"CH572DS1.PDF V1.1","fn":"ch572","pkgs":[{"name":"QFN20","code":"CH570D","shape":"quad","ep":"GND","verified":true,"src":"Table 1-2 CH570 pin definitions p.7-9 (CH570D column), Section 1.1.2 figure p.2","pins":["PA3","XO","XI","NC","ANT","VDD33","VIO33","V5","PA9","PA8","PA0","PA1","PA4","PA5","PA6","PA7","PA10","PA11","NC","PA2"],"absent":["OTHER:BLE"]},{"name":"DFN10X3","code":"CH570Q","shape":"dual","ep":"GND","verified":true,"src":"Table 1-2 CH570 pin definitions p.7-9 (CH570Q column), Section 1.1.2 figure p.3","pins":["VDD33/VIO33","V5","PA0","PA1","PA7","PA2","PA3","XO","XI","ANT"],"absent":["OTHER:BLE","OTHER:CMP_N","OTHER:CMP_P0","OTHER:CMP_P1","PWM1","PWM2","PWM3","PWM4","PWM5","SPI0_MISO","SPI0_MOSI","SPI0_NSS","SPI0_SCK"]},{"name":"SOP8","code":"CH570E","shape":"dual","ep":null,"verified":true,"src":"Table 1-2 CH570 pin definitions p.7-9 (CH570E column), Section 1.1.2 figure p.3","pins":["VDD33/VIO33","PA0","PA1","PA7","XO","XI","GND","ANT"],"absent":["OTHER:BLE","OTHER:CAP_IN1","OTHER:CAP_IN2","OTHER:CMP_N","OTHER:CMP_P0","OTHER:CMP_P1","OTHER:KEYSCAN0","OTHER:KEYSCAN1","OTHER:KEYSCAN2","OTHER:KEYSCAN3","OTHER:KEYSCAN4","OTHER:UDM","OTHER:UDP","PWM1","PWM2","PWM3","PWM4","PWM5","SPI0_MISO","SPI0_MOSI","SPI0_NSS","SPI0_SCK"]}]},"CH573":{"ds":"CH573DS1.PDF V1.12","fn":"ch57x","pkgs":[{"name":"QFN32","code":"CH573X","shape":"quad","ep":"GND","verified":true,"src":"Section 1.2 Pin definitions table p.2-4 (QFN32 column), Figure 1-1 p.1 (CH573X)","pins":["PA10","PB6","PB0","VDCID","VSW","VDD33","VIO33","VIN5","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12","PA11"]},{"name":"QFN28","code":"CH573F","shape":"quad","ep":"GND","verified":true,"src":"Section 1.2 Pin definitions table p.2-4 (QFN28 column), Figure 1-1 p.1 (CH573F)","pins":["PA11","PA10","VDCID","VSW","VIO33/VDD33","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12"]},{"name":"LQFP32","code":"CH573Q","shape":"quad","ep":null,"verified":false,"src":"Figure 1-1 p.1 (CH573Q) only; table has no LQFP32 column","pins":["PA10","PB6","PB0","VDCID/VDCIA","VSW","GND","VIO33/VDD33","VIN5","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","GND","PA4","PA5","PA15","PA14","PA13","PA12","PA11"]}]},"CH571":{"ds":"CH573DS1.PDF V1.12","fn":"ch57x","pkgs":[{"name":"QFN28","code":"CH571F","shape":"quad","ep":"GND","verified":true,"src":"Section 1.2 Pin definitions table p.2-4 (QFN28 column), Figure 1-1 p.1 (CH571F)","pins":["PA11","PA10","VDCID","VSW","VIO33/VDD33","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12"],"absent":["ADC_IN12","ADC_IN13","PWM10","PWM11","PWM4","PWM5","PWM6","PWM7","PWM8","PWM9","UART2_RX","UART2_TX","UART3_RX","UART3_TX"]},{"name":"QFN20","code":"CH571D","shape":"quad","ep":"GND","verified":false,"src":"Figure 1-1 p.1 (CH571D) only; table has no QFN20 column (table note 5: refer to same-named pins)","pins":["PA12","PA11","PA10","VIO33/VDD33","PA8","PA9","PB11","PB10","PB7","PB4","PB23","X32MO","X32MI","VINTA","ANT","PA4","PA5","PA15","PA14","PA13"],"absent":["ADC_IN12","ADC_IN13","PWM10","PWM11","PWM4","PWM5","PWM6","PWM7","PWM8","PWM9","UART2_RX","UART2_TX","UART3_RX","UART3_TX"]},{"name":"ESSOP10","code":"CH571K","shape":"dual","ep":"GND","verified":false,"src":"Figure 1-1 p.1 (CH571K) only; table has no ESSOP10 column","pins":["PA12","VDD33","GND","X32MI","X32MO","ANT","VINTA","PA15","PA14","PA13"],"absent":["ADC_IN12","ADC_IN13","OTHER:UD+","OTHER:UD-","PWM10","PWM11","PWM4","PWM5","PWM6","PWM7","PWM8","PWM9","UART2_RX","UART2_TX","UART3_RX","UART3_TX"]}]},"CH585":{"ds":"CH585DS1.PDF V1.6","fn":"ch585","pkgs":[{"name":"QFN48","code":"CH585M","shape":"quad","ep":"GND","verified":true,"src":"Table 1-1 p.5-9 (PDF p.7-11), Fig. 1.1.1 p.1 (PDF p.3)","pins":["VDCID","VSW","VIO33/VDD33","PA7","PA8","PA9","PB9","PB8","PB17","PB16","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB6","PB5","PB4","PB3","PB2","PB1","PB0","PB23","PB22","PB21","PB20","PB19","PB18","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA6","PA0","PA1","PA2","PA3","PA15","PA14","PA13","PA12","PA11","PA10"]},{"name":"QFN32","code":"CH585F","shape":"quad","ep":"GND","verified":true,"src":"Table 1-1 p.5-9 (PDF p.7-11), Fig. 1.1.1 p.2 (PDF p.4)","pins":["PA10","VDCID","VSW","VIO33/VDD33","PA9/PB9","PB8","PB17","PB16","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB6","PB5","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12","PA11"],"absent":["SPI1_MISO","SPI1_MOSI","SPI1_SCK"]},{"name":"QFN26C3","code":"CH585C","shape":"quad","ep":"GND","verified":true,"src":"Table 1-1 p.5-9 (PDF p.7-11), Fig. 1.1.1 p.2 (PDF p.4)","pins":["PB23","PB22","GND","X32MO","X32MI","VINTA","ANT","VDCIA","PA15","PA14","PA13","PA12","VDCID","VSW","VIO33/VDD33","PA9/PB9","PB8","PB17","PB16","PB15","PB14","PB13","PB12","PB11","PB10","PB4"],"absent":["I2C_SCL","I2C_SDA","SPI1_MISO","SPI1_MOSI","SPI1_SCK"]},{"name":"QFN20","code":"CH585D","shape":"quad","ep":"GND","verified":true,"src":"Table 1-1 p.5-9 (PDF p.7-11), Fig. 1.1.1 p.3 (PDF p.5)","pins":["VDCID","VSW","VIO33/VDD33","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA15","PA14","PA13","PA12"],"absent":["I2C_SCL","I2C_SDA","SPI1_MISO","SPI1_MOSI","SPI1_SCK"]}]},"CH583":{"ds":"CH583DS1.PDF V1.9","fn":"ch58x","pkgs":[{"name":"QFN48","code":"CH583M","shape":"quad","ep":"GND","verified":true,"src":"Section 1.2 Pin definitions table (QFN48 column) p.2-5, Figure 1-1 p.1 (CH583M)","pins":["VDCID","VSW","VIO33/VDD33","PA7","PA8","PA9","PB9","PB8","PB17","PB16","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB6","PB5","PB4","PB3","PB2","PB1","PB0","PB23","PB22","PB21","PB20","PB19","PB18","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA6","PA0","PA1","PA2","PA3","PA15","PA14","PA13","PA12","PA11","PA10"]}]},"CH582":{"ds":"CH583DS1.PDF V1.9","fn":"ch58x","pkgs":[{"name":"QFN48","code":"CH582M","shape":"quad","ep":"GND","verified":true,"src":"Section 1.2 Pin definitions table (QFN48 column) p.2-5, Figure 1-1 p.1 (CH582M)","pins":["VDCID","VSW","VIO33/VDD33","PA7","PA8","PA9","PB9","PB8","PB17","PB16","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB6","PB5","PB4","PB3","PB2","PB1","PB0","PB23","PB22","PB21","PB20","PB19","PB18","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA6","PA0","PA1","PA2","PA3","PA15","PA14","PA13","PA12","PA11","PA10"],"absent":["SPI1_MISO","SPI1_MOSI","SPI1_SCK"]},{"name":"QFN28","code":"CH582F","shape":"quad","ep":"GND","verified":true,"src":"Section 1.2 Pin definitions table (QFN28 column) p.2-5, Figure 1-1 p.1 (CH582F)","pins":["PA11","PA10","VDCID","VSW","VIO33/VDD33","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12"],"absent":["SPI1_MISO","SPI1_MOSI","SPI1_SCK"]}]},"CH592":{"ds":"CH592DS1.PDF V1.9","fn":"ch592","pkgs":[{"name":"QFN32","code":"CH592X","shape":"quad","ep":"GND","verified":true,"src":"Pin table sec.1.2 p.3-7 (PDF p.5-9), Fig. sec.1.1 p.1 (PDF p.3)","pins":["PA10","PB6","PB0","VDCID","VSW","VIO33/VDD33","PA6","PA7","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12","PA11"]},{"name":"QFN28","code":"CH592F/CH592A","shape":"quad","ep":"GND","verified":true,"src":"Pin table sec.1.2 p.3-7 (PDF p.5-9), Fig. sec.1.1 p.1 (PDF p.3)","pins":["PA11","PA10","VDCID","VSW","VIO33/VDD33","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12"]},{"name":"QFN20","code":"CH592D","shape":"quad","ep":"GND","verified":true,"src":"Pin table sec.1.2 p.3-7 (PDF p.5-9), Fig. sec.1.1 p.1 (PDF p.3)","pins":["PA11","PA10","VDCID","VSW","VIO33/VDD33","PB15","PB14","PB13","PB12","PB11","PB10","X32MO","X32MI","VINTA","ANT","VDCIA","PA15","PA14","PA13","PA12"]}]},"CH591":{"ds":"CH592DS1.PDF V1.9","fn":"ch592","pkgs":[{"name":"QFN28","code":"CH591F","shape":"quad","ep":"GND","verified":true,"src":"Pin table sec.1.2 p.3-7 (PDF p.5-9), Fig. sec.1.1 p.2 (PDF p.4)","pins":["PA11","PA10","VDCID","VSW","VIO33/VDD33","PA8","PA9","PB15","PB14","PB13","PB12","PB11","PB10","PB7","PB4","PB23","PB22","X32MO","X32MI","VINTA","ANT","VDCIA","PA4","PA5","PA15","PA14","PA13","PA12"],"absent":["ADC_IN12","ADC_IN13","I2C_SCL","I2C_SDA","UART2_RX","UART2_TX","UART3_RX","UART3_TX"]},{"name":"QFN20","code":"CH591D","shape":"quad","ep":"GND","verified":true,"src":"Pin table sec.1.2 p.3-7 (PDF p.5-9), Fig. sec.1.1 p.2 (PDF p.4)","pins":["PA11","PA10","VDCID","VSW","VIO33/VDD33","PA8","PA9","PB11","PB10","PB7","PB4","X32MO","X32MI","VINTA","ANT","VDCIA","PA15","PA14","PA13","PA12"],"absent":["ADC_IN12","ADC_IN13","I2C_SCL","I2C_SDA","UART2_RX","UART2_TX","UART3_RX","UART3_TX"]},{"name":"TSSOP16","code":"CH591R","shape":"dual","ep":null,"verified":true,"src":"Pin table sec.1.2 p.3-7 (PDF p.5-9), Fig. sec.1.1 p.1 (PDF p.3)","pins":["PA15","PA14","PA13","PA12","VIO33/VDD33","PA8","PA9","PB11","PB10","PB23","PB22","X32MO","X32MI","VINTA","GND","ANT"],"absent":["ADC_IN12","ADC_IN13","I2C_SCL","I2C_SDA","UART2_RX","UART2_TX","UART3_RX","UART3_TX"]}]}};
 /* END PINOUT DATA */
 
+/* ===================== peripheral modules =====================
+ * Each extra peripheral (DMA, watchdogs, RTC, CAN, DAC/OPA/CMP, USB CDC, low power...) registers itself here
+ * with {tab, title, label, cat, color, supports, form, read, label, gen, pins?, decls?, helpers?, includes?, files?}.
+ * The configurator wires them into the left panel, the config list, the chip view and the generated code. */
+const PERIPH_MODULES = [];
+/* MODULES BEGIN */
+/* MODULES END */
+
+/* CLOCK DEFS BEGIN */
+const CLOCK_DEFS_BLE = [{"kind":"ble","chips":["CH570"],"hse":32000000,"pll":600000000,"hsi":null,"lsi":32000,"lse":null,"lsApi":null,"options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"LSI","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_PLL_100MHz","hz":100000000,"src":"PLL","path":"PLL 600M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_75MHz","hz":75000000,"src":"PLL","path":"PLL 600M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 600M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_50MHz","hz":50000000,"src":"PLL","path":"PLL 600M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 600M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 600M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_25MHz","hz":25000000,"src":"PLL","path":"PLL 600M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 600M /25","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 600M /30","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_HSE_PLL_100MHz","ls":"LSI"},"freqSysDefault":100000000,"hasSysclkMacro":false,"src":"CH570 datasheet clock chapter + CH57x_clk.h (ch570 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH572"],"hse":32000000,"pll":600000000,"hsi":null,"lsi":32000,"lse":null,"lsApi":null,"options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"LSI","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_PLL_100MHz","hz":100000000,"src":"PLL","path":"PLL 600M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_75MHz","hz":75000000,"src":"PLL","path":"PLL 600M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 600M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_50MHz","hz":50000000,"src":"PLL","path":"PLL 600M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 600M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 600M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_25MHz","hz":25000000,"src":"PLL","path":"PLL 600M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 600M /25","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 600M /30","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_HSE_PLL_100MHz","ls":"LSI"},"freqSysDefault":100000000,"hasSysclkMacro":false,"src":"CH572 datasheet clock chapter + CH57x_clk.h (ch570 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH582"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_PLL_80MHz","hz":80000000,"src":"PLL","path":"PLL 480M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 480M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_36_9MHz","hz":36923076,"src":"PLL","path":"PLL 480M /13","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 480M /16","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 480M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_15MHz","hz":15000000,"src":"PLL","path":"PLL 480M /32","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH582 datasheet clock chapter + CH58x_clk.h (ch583 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH583"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_1MHz","hz":1000000,"src":"HSE","path":"HSE/32","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_PLL_80MHz","hz":80000000,"src":"PLL","path":"PLL 480M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_40MHz","hz":40000000,"src":"PLL","path":"PLL 480M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_36_9MHz","hz":36923076,"src":"PLL","path":"PLL 480M /13","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_30MHz","hz":30000000,"src":"PLL","path":"PLL 480M /16","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_20MHz","hz":20000000,"src":"PLL","path":"PLL 480M /24","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_15MHz","hz":15000000,"src":"PLL","path":"PLL 480M /32","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH583 datasheet clock chapter + CH58x_clk.h (ch583 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH585"],"hse":32000000,"pll":624000000,"hsi":16000000,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_32KHz","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSI_16MHz","hz":16000000,"src":"HSI","path":"HSI direct","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_8MHz","hz":8000000,"src":"HSI","path":"HSI/2","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_5_3MHz","hz":5333333,"src":"HSI","path":"HSI/3","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_4MHz","hz":4000000,"src":"HSI","path":"HSI/4","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_2MHz","hz":2000000,"src":"HSI","path":"HSI/8","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_1MHz","hz":1000000,"src":"HSI","path":"HSI/16","ble":false,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_32MHz","hz":32000000,"src":"HSE","path":"HSE direct","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSE_2MHz","hz":2000000,"src":"HSE","path":"HSE/16","ble":true,"usb":false,"note":""},{"e":"CLK_SOURCE_HSI_PLL_78MHz","hz":78000000,"src":"PLL","path":"PLL(HSI) 312M /4","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_62_4MHz","hz":62400000,"src":"PLL","path":"PLL(HSI) 312M /5","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_52MHz","hz":52000000,"src":"PLL","path":"PLL(HSI) 312M /6","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_39MHz","hz":39000000,"src":"PLL","path":"PLL(HSI) 312M /8","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_26MHz","hz":26000000,"src":"PLL","path":"PLL(HSI) 312M /12","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL(HSI) 312M /13","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_19_5MHz","hz":19500000,"src":"PLL","path":"PLL(HSI) 312M /16","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSI_PLL_13MHz","hz":13000000,"src":"PLL","path":"PLL(HSI) 312M /24","ble":false,"usb":true,"note":"PLL from the internal 16 MHz RC (no crystal); the official BLE examples use the HSE PLL"},{"e":"CLK_SOURCE_HSE_PLL_78MHz","hz":78000000,"src":"PLL","path":"PLL(HSE) 312M /4","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_62_4MHz","hz":62400000,"src":"PLL","path":"PLL(HSE) 312M /5","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_52MHz","hz":52000000,"src":"PLL","path":"PLL(HSE) 312M /6","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_39MHz","hz":39000000,"src":"PLL","path":"PLL(HSE) 312M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_26MHz","hz":26000000,"src":"PLL","path":"PLL(HSE) 312M /12","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL(HSE) 312M /13","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_19_5MHz","hz":19500000,"src":"PLL","path":"PLL(HSE) 312M /16","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_PLL_13MHz","hz":13000000,"src":"PLL","path":"PLL(HSE) 312M /24","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_HSE_PLL_62_4MHz","ls":"LSI"},"freqSysDefault":62400000,"hasSysclkMacro":true,"src":"CH585 datasheet clock chapter + CH58x_clk.h (ch585 EVT) SYS_CLKTypeDef / SYSCLK_FREQ default"},{"kind":"ble","chips":["CH591"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH591 datasheet clock chapter + CH59x_clk.h (ch592 EVT) SYS_CLKTypeDef / FREQ_SYS default"},{"kind":"ble","chips":["CH592"],"hse":32000000,"pll":480000000,"hsi":null,"lsi":32000,"lse":32768,"lsApi":"LClk32K_Select","options":[{"e":"CLK_SOURCE_LSI","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_LSE","hz":32000,"src":"32K","path":"CK32K","ble":false,"usb":false,"note":"32 kHz clock: very low power, peripherals and BLE stopped"},{"e":"CLK_SOURCE_HSE_16MHz","hz":16000000,"src":"HSE","path":"HSE/2","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_8MHz","hz":8000000,"src":"HSE","path":"HSE/4","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_6_4MHz","hz":6400000,"src":"HSE","path":"HSE/5","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_HSE_4MHz","hz":4000000,"src":"HSE","path":"HSE/8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_60MHz","hz":60000000,"src":"PLL","path":"PLL 480M /8","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_48MHz","hz":48000000,"src":"PLL","path":"PLL 480M /10","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_32MHz","hz":32000000,"src":"PLL","path":"PLL 480M /15","ble":true,"usb":true,"note":""},{"e":"CLK_SOURCE_PLL_24MHz","hz":24000000,"src":"PLL","path":"PLL 480M /20","ble":true,"usb":true,"note":""}],"def":{"sys":"CLK_SOURCE_PLL_60MHz","ls":"LSI"},"freqSysDefault":60000000,"hasSysclkMacro":false,"src":"CH592 datasheet clock chapter + CH59x_clk.h (ch592 EVT) SYS_CLKTypeDef / FREQ_SYS default"}];
+/* CLOCK_DEFS_STD */
+const CLOCK_DEFS = CLOCK_DEFS_BLE.concat(typeof CLOCK_DEFS_STD !== "undefined" ? CLOCK_DEFS_STD : []);
+/* CLOCK DEFS END */
+
+/* =====================================================================
+ * Clock Configuration (CubeMX-style clock tree)
+ * CLOCK_DEFS (data, from the WCH datasheets / reference manuals / EVT system_*.c and *_rcc.h / *_clk.h)
+ * describes each family's tree. state.clock holds the user's choice; null = keep the EVT default
+ * (SystemInit() / SetSysClock(SYSCLK_FREQ)), in which case no clock code is generated.
+ * ===================================================================== */
+state.clock = null;
+
+function clockDef(){
+  const id = currentVariant().id;
+  return CLOCK_DEFS.find(d => d.chips.includes(id)) || null;
+}
+function clockCfg(){
+  const d = clockDef(); if(!d) return null;
+  return Object.assign({}, d.def, state.clock || {});
+}
+const fmtHz = hz => hz >= 1e6 ? (+(hz / 1e6).toFixed(3)) + ' MHz' : hz >= 1e3 ? (+(hz / 1e3).toFixed(3)) + ' kHz' : hz + ' Hz';
+const pick = (list, n) => (list || []).find(x => String(x.n) === String(n)) || (list || [])[0];
+function chipMax(d, key){ const id = currentVariant().id; return (d.maxByChip && d.maxByChip[id] && d.maxByChip[id][key]) || d[key]; }
+
+/* every frequency of the tree for the current choice */
+function clockFreqs(){
+  const d = clockDef(), c = clockCfg();
+  if(!d){
+    const ble = FAMILIES[state.family].style !== 'stdperiph';
+    const f = ble ? 60e6 : 72e6;
+    return {known:false, sysclk:f, hclk:f, pclk1:f, pclk2:f, tim1clk:f, tim2clk:f, adcclk:0, usbclk:0, lsi:ble ? 32000 : 40000, lse:32768};
+  }
+  if(d.kind === 'ble'){
+    const o = d.options.find(x => x.e === c.sys) || d.options[0];
+    return {known:true, sysclk:o.hz, hclk:o.hz, pclk1:o.hz, pclk2:o.hz, tim1clk:o.hz, tim2clk:o.hz, adcclk:0, usbclk:0,
+            lsi:d.lsi, lse:d.lse, src:o.src, lsSrc:c.ls};
+  }
+  const hse = +c.hse;
+  const pin = d.pllIn.find(x => x.id === c.pllIn) || d.pllIn[0];
+  const pllInHz = (pin.src === 'HSI' ? d.hsi : hse) / pin.div;
+  const mul = pick(d.pllMul, c.mul);
+  const pll = pllInHz * mul.n;
+  const sys = c.sys === 'HSI' ? d.hsi : c.sys === 'HSE' ? hse : pll;
+  const ahb = pick(d.ahb, c.ahb).n, hclk = sys / ahb;
+  const a1 = d.apb1 ? pick(d.apb1, c.apb1).n : 1, a2 = d.apb2 ? pick(d.apb2, c.apb2).n : 1;
+  const pclk1 = hclk / a1, pclk2 = hclk / a2;
+  const tim1clk = d.timerX2 && a2 > 1 ? pclk2 * 2 : pclk2, tim2clk = d.timerX2 && a1 > 1 ? pclk1 * 2 : pclk1;
+  let adcclk = 0;
+  if(d.adc){ const base = d.adc.from === 'hclk' ? hclk : pclk2; adcclk = base / pick(d.adc.divs, c.adc).n; }
+  let usbclk = 0;
+  if(d.usb){ const base = d.usb.from === 'sys' ? sys : pll; usbclk = c.sys === 'PLL' || d.usb.from === 'sys' ? base / pick(d.usb.divs, c.usb).n : 0; }
+  return {known:true, hsi:d.hsi, hse, pllIn:pllInHz, pll, sysclk:sys, hclk, pclk1, pclk2, tim1clk, tim2clk, adcclk, usbclk, lsi:d.lsi, lse:d.lse};
+}
+
+/* datasheet limits -> Problems tab */
+function clockProblems(){
+  const d = clockDef(); if(!d) return [];
+  const f = clockFreqs(), c = clockCfg(), out = [];
+  const lim = (val, max, what) => { if(max && val > max + 1) out.push({lvl:'err', clock:true, msg:`Clock: ${what} = ${fmtHz(val)} exceeds the datasheet maximum of ${fmtHz(max)}`}); };
+  if(d.kind === 'ble'){
+    const o = d.options.find(x => x.e === c.sys);
+    if(o && o.note) out.push({lvl:'info', clock:true, msg:`Clock: ${o.e} — ${o.note}`});
+    if(typeof bleEnabled === 'function' && bleEnabled() && o && o.ble === false) out.push({lvl:'err', clock:true, msg:`Clock: Bluetooth LE needs a clock derived from the 32 MHz HSE (${o.e} is not)`});
+    if(typeof usbEnabled === 'function' && usbEnabled() && o && o.usb === false) out.push({lvl:'warn', clock:true, msg:`Clock: USB needs the PLL running; ${o.e} does not use the PLL`});
+    return out;
+  }
+  if(c.sys !== 'HSI' && d.hse && (+c.hse < d.hse.min || +c.hse > d.hse.max)) out.push({lvl:'err', clock:true, msg:`Clock: HSE ${fmtHz(+c.hse)} is outside the allowed ${fmtHz(d.hse.min)}–${fmtHz(d.hse.max)}`});
+  if(c.sys === 'PLL') lim(f.pll, chipMax(d, 'pllOutMax'), 'PLL output');
+  lim(f.sysclk, chipMax(d, 'sysMax'), 'SYSCLK');
+  lim(f.hclk, chipMax(d, 'hclkMax'), 'HCLK (AHB)');
+  if(d.apb1) lim(f.pclk1, chipMax(d, 'pclk1Max'), 'PCLK1 (APB1)');
+  if(d.apb2) lim(f.pclk2, chipMax(d, 'pclk2Max'), 'PCLK2 (APB2)');
+  if(d.pllInMin && c.sys === 'PLL' && f.pllIn < d.pllInMin) out.push({lvl:'err', clock:true, msg:`Clock: PLL input ${fmtHz(f.pllIn)} is below the minimum ${fmtHz(d.pllInMin)}`});
+  const usesAdc = state.configs.some(x => x.type === 'adc');
+  if(d.adc && d.adc.max && f.adcclk > d.adc.max + 1) out.push({lvl: usesAdc ? 'err' : 'warn', clock:true, msg:`Clock: ADC clock ${fmtHz(f.adcclk)} exceeds the maximum ${fmtHz(d.adc.max)} — raise the ADC prescaler`});
+  const needUsb = state.configs.some(x => /^usb/.test(x.type));
+  if(d.usb && needUsb && Math.abs(f.usbclk - 48e6) > 48e6 * 0.0025) out.push({lvl:'err', clock:true, msg:`Clock: USB needs exactly 48 MHz, the USB clock is ${f.usbclk ? fmtHz(f.usbclk) : 'off'} — use a PLL output of 48, 96 or 144 MHz`});
+  return out;
+}
+
+/* C code: the clock set-up called first in main() */
+function clockSetupCode(){
+  const d = clockDef();
+  if(!d || !state.clock) return null;
+  return d.kind === 'ble' ? clockCodeBle(clockCfg(), d, clockFreqs()) : clockCodeStd(clockCfg(), d, clockFreqs());
+}
+/* CH5xx: SetSysClock(<SYS_CLKTypeDef>) + the 32 kHz source; FREQ_SYS (compile-time, used by DelayUs/DelayMs and
+ * the TMR helpers) must match, so the VS Code export defines it and the C file warns when it does not. */
+function clockCodeBle(c, d, f){
+  const o = d.options.find(x => x.e === c.sys) || d.options[0];
+  const lines = [`    /* clock from the Clock Configuration view: SYSCLK ${fmtHz(o.hz)} (${o.path}) */`,
+    `#if defined(FREQ_SYS) && (FREQ_SYS != ${o.hz})`,
+    `#warning "FREQ_SYS (used by DelayUs/DelayMs) differs from the configured SYSCLK: define FREQ_SYS=${o.hz} in the project (the VS Code export does)"`,
+    `#endif`];
+  if(d.lsApi) lines.push(`    ${d.lsApi}(Clk32K_${c.ls === 'LSE' ? 'LSE' : 'LSI'});         /* 32 kHz clock: ${c.ls === 'LSE' ? 'external 32.768 kHz crystal' : 'internal RC'} */`);
+  lines.push(`    SetSysClock(${o.e});`);
+  return lines.join('\n');
+}
+/* compile definitions the exported project needs for the chosen clock */
+function clockCompileDefs(){
+  const d = clockDef();
+  if(!d || !state.clock || d.kind !== 'ble') return '';
+  const o = d.options.find(x => x.e === clockCfg().sys) || d.options[0];
+  return ` FREQ_SYS=${o.hz}` + (d.hasSysclkMacro ? ` SYSCLK_FREQ=${o.e}` : '');
+}
+
+/* ---------- clock tree view ---------- */
+function setClock(k, v){
+  const d = clockDef(); if(!d) return;
+  state.clock = Object.assign({}, clockCfg(), {[k]: v});
+  state.configs.forEach(relabel);
+  renderAll();
+}
+function renderClockView(){
+  const wrap = $('clockWrap');
+  const d = clockDef();
+  const v = currentVariant();
+  if(!d){
+    wrap.innerHTML = `<div class="stage-msg"><div class="card"><b>No clock tree for ${esc(v.id)} yet.</b><br>The EVT default clock (SystemInit / SetSysClock) is used and no clock code is generated.</div></div>`;
+    return;
+  }
+  const c = clockCfg(), f = clockFreqs();
+  const probs = clockProblems();
+  const bad = what => probs.some(p => p.lvl === 'err' && p.msg.includes(what));
+  const opt = (list, cur, lab) => list.map(x => `<option value="${esc(x.n !== undefined ? x.n : x.id)}" ${String(x.n !== undefined ? x.n : x.id) === String(cur) ? 'selected' : ''}>${esc(lab ? lab(x) : x.n)}</option>`).join('');
+  const node = (x, y, w, cls, title, inner, extra) => `<div class="ck-node ${cls}" style="left:${x}px; top:${y}px; width:${w}px" ${extra || ''}><div class="t">${title}</div>${inner}</div>`;
+  let html = '', wires = [], W = 1060, H = 520;
+  const head = `<div class="ck-head"><b>Clock Configuration · ${esc(v.id)}</b><span>${state.clock ? 'custom clock — <code>${d.kind === 'ble' ? 'SetSysClock()' : 'SystemClock_Config()'}</code> is generated' : 'EVT default clock (nothing generated)'}</span><span class="sp"></span>
+    ${state.clock ? '<button class="icon-btn" id="ckReset">Back to EVT default</button>' : ''}</div>`;
+  const wire = (x1, y1, x2, y2, on) => { const mx = (x1 + x2) / 2; wires.push(`<path class="${on ? 'on' : ''}" d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}"/>`); };
+  if(d.kind === 'ble'){
+    H = 330;
+    const o = d.options.find(x => x.e === c.sys) || d.options[0];
+    if(!d.lse) html += node(10, 240, 150, 'src', '32 kHz clock', `<div class="f">LSI RC</div><div class="m">~32 kHz (24–42 kHz uncalibrated); no LSE on this chip</div>`);
+    const srcY = {HSE:40, PLL:40, HSI:150, LSI:250, LSE:250};
+    html += node(10, 30, 150, 'src' + (o.src === 'HSE' || o.src === 'PLL' ? ' on' : ''), 'HSE crystal', `<div class="f">${fmtHz(d.hse)}</div><div class="m">32 MHz crystal (BLE reference)</div>`);
+    html += node(220, 30, 150, 'mux' + (o.src === 'PLL' ? ' on' : ''), 'PLL', `<div class="f">${fmtHz(d.pll)}</div><div class="m">from HSE</div>`);
+    if(d.hsi) html += node(10, 140, 150, 'src' + (o.src === 'HSI' ? ' on' : ''), 'Internal RC', `<div class="f">${fmtHz(d.hsi)}</div>`);
+    if(d.lse) html += node(10, 240, 150, 'src', '32 kHz clock', `<select data-ck="ls">${['LSI', 'LSE'].map(x => `<option ${c.ls === x ? 'selected' : ''}>${x}</option>`).join('')}</select><div class="m">${c.ls === 'LSE' ? 'LSE 32.768 kHz crystal' : 'LSI ~32 kHz RC'} → RTC / sleep timer / BLE sleep</div>`);
+    html += node(440, 60, 300, 'mux on', 'SetSysClock()', `<select data-ck="sys">${d.options.map(x => `<option value="${x.e}" ${x.e === c.sys ? 'selected' : ''}>${x.e} (${fmtHz(x.hz)})</option>`).join('')}</select><div class="m">${esc(o.path)}${o.note ? ' · ' + esc(o.note) : ''}</div>`);
+    html += node(800, 70, 200, 'out on', 'SYSCLK = HCLK = timers', `<div class="f">${fmtHz(f.sysclk)}</div><div class="m">UART / SPI / TMR / PWM use this clock</div>`);
+    wire(160, 55, 220, 55, o.src === 'PLL'); wire(370, 55, 440, 85, o.src === 'PLL'); wire(160, 55, 440, 95, o.src === 'HSE');
+    if(d.hsi) wire(160, 165, 440, 105, o.src === 'HSI');
+    wire(740, 95, 800, 95, true);
+  } else {
+    const pin = d.pllIn.find(x => x.id === c.pllIn) || d.pllIn[0];
+    const sysPLL = c.sys === 'PLL';
+    html += node(10, 20, 150, 'src' + (c.sys === 'HSI' || (sysPLL && pin.src === 'HSI') ? ' on' : ''), 'HSI (internal RC)', `<div class="f">${fmtHz(d.hsi)}</div>`);
+    html += node(10, 110, 150, 'src' + (c.sys === 'HSE' || (sysPLL && pin.src === 'HSE') ? ' on' : '') + (bad('HSE') ? ' bad' : ''), 'HSE (crystal)', `<input type="number" data-ck="hse" value="${+c.hse / 1e6}" step="0.001" min="${d.hse.min / 1e6}" max="${d.hse.max / 1e6}"><div class="m">MHz, ${fmtHz(d.hse.min)}–${fmtHz(d.hse.max)}</div>`);
+    html += node(10, 220, 150, 'src', 'LSI', `<div class="f">${fmtHz(d.lsi)}</div><div class="m">IWDG${d.rtc ? ' / RTC' : ''}</div>`);
+    if(d.rtc) html += node(10, 300, 150, 'src', 'LSE', `<div class="f">${fmtHz(d.lse)}</div><div class="m">RTC crystal</div>`);
+    html += node(200, 60, 150, 'mux' + (sysPLL ? ' on' : ''), 'PLL source', `<select data-ck="pllIn">${d.pllIn.map(x => `<option value="${x.id}" ${x.id === pin.id ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select><div class="m">${fmtHz(f.pllIn)}</div>`);
+    html += node(390, 60, 140, 'mux' + (sysPLL ? ' on' : '') + (bad('PLL output') ? ' bad' : ''), 'PLL ×', d.pllMul.length > 1 ? `<select data-ck="mul">${opt(d.pllMul, c.mul, x => '×' + x.n)}</select><div class="f">${fmtHz(f.pll)}</div>` : `<div class="f">×${d.pllMul[0].n} = ${fmtHz(f.pll)}</div>`);
+    html += node(570, 40, 130, 'mux on' + (bad('SYSCLK') ? ' bad' : ''), 'SYSCLK mux', `<select data-ck="sys">${d.sysMux.map(x => `<option ${x === c.sys ? 'selected' : ''}>${x}</option>`).join('')}</select><div class="f">${fmtHz(f.sysclk)}</div><div class="m">max ${fmtHz(chipMax(d, 'sysMax'))}</div>`);
+    html += node(740, 20, 130, 'mux on' + (bad('HCLK') ? ' bad' : ''), 'AHB prescaler', `<select data-ck="ahb">${opt(d.ahb, c.ahb, x => '/' + x.n)}</select><div class="f">${fmtHz(f.hclk)}</div><div class="m">HCLK · core, DMA</div>`);
+    let y = 20;
+    if(d.apb1){ html += node(905, y, 140, 'out on' + (bad('PCLK1') ? ' bad' : ''), 'APB1', `<select data-ck="apb1">${opt(d.apb1, c.apb1, x => '/' + x.n)}</select><div class="f">${fmtHz(f.pclk1)}</div><div class="m">timers ×: ${fmtHz(f.tim2clk)}</div>`); wire(870, 45, 905, y + 30, true); y += 110; }
+    if(d.apb2){ html += node(905, y, 140, 'out on' + (bad('PCLK2') ? ' bad' : ''), 'APB2', `<select data-ck="apb2">${opt(d.apb2, c.apb2, x => '/' + x.n)}</select><div class="f">${fmtHz(f.pclk2)}</div><div class="m">timers ×: ${fmtHz(f.tim1clk)}</div>`); wire(870, 45, 905, y + 30, true); y += 110; }
+    if(!d.apb1 && !d.apb2){ html += node(905, 20, 140, 'out on', 'PCLK = HCLK', `<div class="f">${fmtHz(f.pclk2)}</div><div class="m">peripherals, timers</div>`); wire(870, 45, 905, 50, true); y = 130; }
+    if(d.adc){ html += node(905, y, 140, 'out' + (state.configs.some(x => x.type === 'adc') ? ' on' : '') + (bad('ADC') ? ' bad' : ''), 'ADC prescaler', `<select data-ck="adc">${opt(d.adc.divs, c.adc, x => '/' + x.n)}</select><div class="f">${fmtHz(f.adcclk)}</div><div class="m">from ${d.adc.from === 'hclk' ? 'HCLK' : 'PCLK2'}, max ${fmtHz(d.adc.max)}</div>`); wire(870, 45, 905, y + 30, true); y += 110; }
+    if(d.usb){ html += node(740, 170, 130, 'out' + (sysPLL ? ' on' : '') + (bad('USB') ? ' bad' : ''), (d.usb.name || 'USB') + ' clock', `<select data-ck="usb">${opt(d.usb.divs, c.usb, x => '/' + x.n)}</select><div class="f">${f.usbclk ? fmtHz(f.usbclk) : 'off'}</div><div class="m">must be 48 MHz</div>`); wire(530, 95, 740, 200, sysPLL); }
+    wire(160, 45, 200, 85, sysPLL && pin.src === 'HSI'); wire(160, 135, 200, 95, sysPLL && pin.src === 'HSE');
+    wire(350, 95, 390, 95, sysPLL); wire(530, 95, 570, 75, sysPLL);
+    wire(160, 45, 570, 60, c.sys === 'HSI'); wire(160, 135, 570, 90, c.sys === 'HSE');
+    wire(700, 65, 740, 45, true);
+    H = Math.max(y, 380) + 20;
+  }
+  const legend = `<div class="ck-legend">${d.src ? 'Source: ' + esc(d.src) + '<br>' : ''}Highlighted wires are the active path. Changing anything here makes the generator emit <b>SystemClock_Config()</b>${d.kind === 'ble' ? ' (SetSysClock)' : ' (RCC_* calls, run before the peripherals)'}; the peripheral code (baud rates, timer prescalers, ADC timing) uses these frequencies.</div>`;
+  wrap.innerHTML = head + `<div class="ck-canvas" id="ckCanvas" style="width:${W}px; height:${H}px"><svg class="wires" width="${W}" height="${H}">${wires.join('')}</svg>${html}</div>` + legend;
+  const cv = $('ckCanvas'), avail = wrap.clientWidth - 28;
+  if(avail > 200 && avail < W){ cv.style.transform = `scale(${avail / W})`; cv.style.marginBottom = `${-(H * (1 - avail / W))}px`; }
+  wrap.querySelectorAll('[data-ck]').forEach(e => e.addEventListener('change', () => {
+    const k = e.dataset.ck; setClock(k, k === 'hse' ? Math.round(parseFloat(e.value) * 1e6) : e.value);
+  }));
+  const rb = $('ckReset'); if(rb) rb.onclick = () => { state.clock = null; renderAll(); };
+}
+
+
 /* =====================================================================
  * Pinout & Configuration view (CubeMX-style)
  * Pin data comes only from the PINOUTS table above, which was transcribed
@@ -3317,13 +3603,29 @@ state.mainView = 'pinout';
 state.rtab = 'code';
 state.selPin = null;
 
+/* ---------- module helpers ---------- */
+function modFor(tab){ return PERIPH_MODULES.find(m => m.tab === tab) || null; }
+function periphCtx(){
+  const fam = FAMILIES[state.family], v = currentVariant();
+  return {id: v.id, style: fam.style, family: state.family, header: v.header, v, clk: clockFreqs()};
+}
+function modSupported(m){ try{ return !!m.supports(periphCtx()); }catch(e){ return false; } }
+const BASE_TYPES = ['gpio', 'spi', 'i2c', 'uart', 'timer', 'adc', 'exti'];
+PERIPH_MODULES.forEach(m => { if(!PERIPH_COLOR[m.tab]) PERIPH_COLOR[m.tab] = m.color; });
+
 const CATS = [
   {title:'System Core', items:[{tab:'gpio', l:'GPIO'}, {tab:'exti', l:'NVIC / EXTI (IRQ)'}]},
   {title:'Analog', items:[{tab:'adc', l:'ADC'}]},
   {title:'Timers', items:[{tab:'timer', l:'TIM / TMR'}]},
   {title:'Connectivity', items:[{tab:'spi', l:'SPI'}, {tab:'i2c', l:'I²C'}, {tab:'uart', l:'UART / USART'}]},
   {title:'Wireless / USB', items:[{tab:'ble', l:'Bluetooth LE', cap:'ble'}, {tab:'usb', l:'USB device', cap:'usb'}]},
+  {title:'Power', items:[]},
 ];
+/* left-panel groups = fixed items + the peripheral modules that support the selected chip */
+function catGroups(){
+  return CATS.map(g => ({title: g.title, items: g.items.concat(PERIPH_MODULES.filter(m => m.cat === g.title && modSupported(m)).map(m => ({tab: m.tab, l: m.label || m.title, mod: true})))}));
+}
+function tabTitle(tab){ const m = modFor(tab); return m ? m.title : (TAB_TITLE[tab] || tab); }
 const TAB_TITLE = {gpio:'GPIO', exti:'External interrupt (EXTI)', adc:'ADC', timer:'Timer', spi:'SPI', i2c:'I²C', uart:'UART / USART', ble:'Bluetooth LE (GATT)', usb:'USB device'};
 const CAT_COLOR = Object.assign({ble:'#6fa8ff', usb:'#d9c26b'}, PERIPH_COLOR);
 const SIG_FIELDS = {spi:{SCK:'sck', MOSI:'mosi', MISO:'miso', NSS:'cs'}, i2c:{SCL:'scl', SDA:'sda'}, uart:{TX:'tx', RX:'rx'}};
@@ -3379,6 +3681,11 @@ function cfgPins(c){
   const P = (port, pin) => (port && pin !== undefined && pin !== null && pin !== '') ? 'P' + port + pin : null;
   const add = (g, role, af, sig) => { if(g) out.push({gpio:g, role, af, sig}); };
   const std = FAMILIES[c.family].style === 'stdperiph';
+  const mod = modFor(c.type);
+  if(mod){
+    if(mod.pins) (mod.pins(c, periphCtx()) || []).forEach(u => add(u.gpio, u.role, u.af && !/^OTHER:/.test(u.af) ? u.af : null, 'mod'));
+    return out;
+  }
   if(c.type === 'gpio'){
     add(P(c.port, c.pin), std ? stdGpioRole(c.mode) : (/^Out/.test(c.mode) ? 'GPIO_Output' : 'GPIO_Input'), null, 'pin');
   } else if(c.type === 'exti'){
@@ -3432,6 +3739,11 @@ function computeProblems(usage){
     const missing = Object.entries(SIG_FIELDS[c.type]).filter(([S, k]) => !has(c, k) && !(c.type === 'spi' && S === 'NSS')).map(([S]) => S);
     if(missing.length) probs.push({lvl:'warn', cfg:c.id, msg:`${c.inst || 'I2C'}: ${missing.join(', ')} not assigned yet — click a pin and choose the signal`});
   });
+  PERIPH_MODULES.forEach(m => {
+    const cs = state.configs.filter(c => c.type === m.tab);
+    if(cs.length && m.problems) (m.problems(cs, periphCtx()) || []).forEach(p => probs.push(p));
+  });
+  clockProblems().forEach(p => probs.push(p));
   if(!pinout()) probs.push({lvl:'info', msg:`No datasheet-verified package drawing for ${state.variant} yet, so pins cannot be checked against the datasheet.`});
   else if(currentPkg() && !currentPkg().verified) probs.push({lvl:'warn', msg:`${state.variant} ${currentPkg().name}: pinout marked UNVERIFIED — check the datasheet.`});
   return probs;
@@ -3441,6 +3753,8 @@ function computeProblems(usage){
 function pinLabelSuffix(g){ return state.labels[g] ? ` (${state.labels[g]})` : ''; }
 function relabel(c){
   const P = (port, pin) => 'P' + port + pin;
+  const mod = modFor(c.type);
+  if(mod){ try{ c.label = mod.label(c, periphCtx()); }catch(e){ c.label = mod.title; } return; }
   if(c.type === 'gpio'){
     const m = FAMILIES[c.family].gpioModes.find(x => x.v === c.mode);
     c.label = `${P(c.port, c.pin)} · GPIO ${m ? m.l : c.mode}${pinLabelSuffix(P(c.port, c.pin))}`;
@@ -3459,6 +3773,7 @@ function freePin(g){
   state.configs = state.configs.filter(c => {
     const us = cfgPins(c).filter(u => u.gpio === g);
     if(!us.length) return true;
+    if(modFor(c.type)) return false;
     if(['gpio', 'exti', 'adc'].includes(c.type)){
       if(c.type === 'adc' && us.every(u => u.sig === 'negpin')){ c.admode = 'single'; delete c.negpin; relabel(c); return true; }
       return false;
@@ -3512,7 +3827,8 @@ function assignPin(g, fn){
   else if((m = fn.match(/^(TIM\d+)_CH(\d)$/))){
     const inst = m[1], ch = m[2];
     let c = state.configs.find(x => x.type === 'timer' && x.inst === inst && x.mode === 'pwm' && x.ch === ch);
-    if(!c) c = newCfg('timer', {inst, mode:'pwm', psc:'71', arr:'999', ch, duty:'50', fromPin:true});
+    const tclk = ADV_TIMERS.includes(inst) ? clockFreqs().tim1clk : clockFreqs().tim2clk;
+    if(!c) c = newCfg('timer', {inst, mode:'pwm', psc:String(Math.max(0, Math.round(tclk / 1e6) - 1)), arr:'999', ch, duty:'50', fromPin:true});   /* 1 MHz tick, 1 kHz PWM */
     c.pwmPin = pin; c.pwmPort = port; relabel(c);
   }
 }
@@ -3877,11 +4193,11 @@ function renderCats(){
   state.configs.forEach(c => counts[c.type] = (counts[c.type] || 0) + 1);
   const caps = chipCaps(currentVariant());
   counts.ble = bleEnabled() ? 1 : 0; counts.usb = usbEnabled() ? 1 : 0;
-  $('catTree').innerHTML = CATS.map(g => {
+  $('catTree').innerHTML = catGroups().map(g => {
     const items = g.items.filter(it => !it.cap || caps[it.cap]);
     if(!items.length) return '';
     return `<div class="cat-group"><div class="cat-title">${g.title}</div>${items.map(it =>
-    `<div class="cat-item ${state.tab === it.tab ? 'active' : ''}" data-tab="${it.tab}"><span class="sw" style="background:${CAT_COLOR[it.tab]}"></span>${it.l}<span class="cnt ${counts[it.tab] ? 'on' : ''}">${it.cap ? (counts[it.tab] ? 'on' : 'off') : (counts[it.tab] || 0)}</span></div>`).join('')}</div>`;
+    `<div class="cat-item ${state.tab === it.tab ? 'active' : ''}" data-tab="${it.tab}"><span class="sw" style="background:${CAT_COLOR[it.tab] || PERIPH_COLOR[it.tab]}"></span>${it.l}<span class="cnt ${counts[it.tab] ? 'on' : ''}">${it.cap ? (counts[it.tab] ? 'on' : 'off') : (counts[it.tab] || 0)}</span></div>`).join('')}</div>`;
   }).join('');
 }
 $('catTree').addEventListener('click', e => {
@@ -3890,7 +4206,7 @@ $('catTree').addEventListener('click', e => {
   syncFormHead(); renderForm(); renderCats(); renderConfigList();
 });
 function syncFormHead(){
-  $('formTitle').textContent = TAB_TITLE[state.tab] || state.tab;
+  $('formTitle').textContent = tabTitle(state.tab);
   $('formMode').textContent = state.editId ? `editing #${state.editId}` : 'new';
   $('addBtn').textContent = state.editId ? 'Update configuration' : '+ Add to configuration';
   $('cancelEditBtn').style.display = state.editId ? '' : 'none';
@@ -3957,6 +4273,7 @@ $('addBtn').addEventListener('click', () => {
     if(fam.style==='stdperiph') cfg.stime=g('f_stime');
     else { cfg.admode=g('f_admode'); cfg.negpin=g('f_negpin'); cfg.pga=g('f_pga'); cfg.admode2=g('f_admode2'); }
   }
+  else if(modFor(tab)) Object.assign(cfg, modFor(tab).read(k => g('f_' + k), periphCtx()));
   Object.keys(cfg).forEach(k => { if(cfg[k] === undefined) delete cfg[k]; });
   if(state.editId){
     const old = state.configs.find(x => x.id === state.editId);
@@ -3968,7 +4285,7 @@ $('addBtn').addEventListener('click', () => {
       });
       if(tab === 'timer' && old.pwmPin && cfg.mode === 'pwm' && old.ch === cfg.ch){ cfg.pwmPin = old.pwmPin; cfg.pwmPort = old.pwmPort; }
       const keepLabel = cfg.label;
-      relabel(cfg); if(!['gpio','exti','adc','spi','i2c','uart'].includes(tab) && !(tab === 'timer' && cfg.pwmPin)) cfg.label = keepLabel;
+      relabel(cfg); if(!['gpio','exti','adc','spi','i2c','uart'].includes(tab) && !modFor(tab) && !(tab === 'timer' && cfg.pwmPin)) cfg.label = keepLabel;
       state.configs[state.configs.indexOf(old)] = cfg;
     }
     state.editId = null;
@@ -4037,7 +4354,7 @@ const variantSelect = $('variantSelect');
 const pkgSelect = $('pkgSelect');
 const chipNote = $('chipNote');
 function resetChip(){
-  state.configs = []; state.labels = {}; state.editId = null; state.selPin = null;
+  state.configs = []; state.labels = {}; state.editId = null; state.selPin = null; state.clock = null;
   $('pinMenu').hidden = true;
   const p = pinout();
   state.pkg = p ? p.pkgs[0].name : null;
@@ -4177,8 +4494,12 @@ function renderAll(keepMenu){
   renderProblems(probs);
   /* stage */
   const msg = $('stageMsg');
-  const svg = $('chipSvg'), table = $('pinTableWrap');
-  if(!pk){
+  const svg = $('chipSvg'), table = $('pinTableWrap'), clockWrap = $('clockWrap');
+  clockWrap.hidden = state.mainView !== 'clock';
+  if(state.mainView === 'clock'){
+    svg.style.display = 'none'; table.hidden = true; msg.hidden = true;
+    renderClockView();
+  } else if(!pk){
     svg.style.display = 'none'; table.hidden = true;
     msg.hidden = false;
     msg.innerHTML = `<div class="card"><b>No package drawing for ${esc(v.id)}.</b><br>Its pinout has not been checked against the official WCH datasheet in this tool yet, so no package is drawn (a guessed pinout could damage a board). The peripheral forms on the left and the code generator still work; this is the logical port map:${renderPinMap(usage)}</div>`;
@@ -4189,7 +4510,7 @@ function renderAll(keepMenu){
     if(state.mainView === 'pinout') paintPins(usage, probs); else renderPinTable(usage, probs);
   }
   $('pinSrc').innerHTML = pk ? `pinout: ${esc(p.ds)}${pk.src ? ' · ' + esc(pk.src) : ''}${pk.verified ? ' · <span style="color:var(--teal)">verified</span>' : ' · <span class="warnflag">UNVERIFIED</span>'}` : '<span class="warnflag">no verified pinout</span>';
-  $('legend').innerHTML = Object.entries(PERIPH_COLOR).map(([k, c]) => `<span><i style="background:${c}"></i>${k.toUpperCase()}</span>`).join('') + '<span><i style="background:var(--red)"></i>CONFLICT</span>';
+  $('legend').innerHTML = Object.entries(PERIPH_COLOR).filter(([k]) => BASE_TYPES.includes(k) || state.configs.some(c => c.type === k)).map(([k, c]) => `<span><i style="background:${c}"></i>${k.toUpperCase()}</span>`).join('') + '<span><i style="background:var(--red)"></i>CONFLICT</span>';
   if(!keepMenu && !$('pinMenu').hidden && state.selPin) positionMenu(state.selPin);
   renderCode();
 }
