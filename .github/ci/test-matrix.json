@@ -11,23 +11,29 @@
     ],
     "ch32v20x": [
       "EVT/EXAM/SRC",
-      "EVT/EXAM/GPIO/GPIO_Toggle"
+      "EVT/EXAM/GPIO/GPIO_Toggle",
+      "EVT/EXAM/FreeRTOS"
     ],
     "ch32v307": [
       "EVT/EXAM/SRC",
-      "EVT/EXAM/GPIO/GPIO_Toggle"
+      "EVT/EXAM/GPIO/GPIO_Toggle",
+      "EVT/EXAM/FreeRTOS",
+      "EVT/EXAM/ETH/NetLib"
     ],
     "ch32x035": [
       "EVT/EXAM/SRC",
-      "EVT/EXAM/GPIO/GPIO_Toggle"
+      "EVT/EXAM/GPIO/GPIO_Toggle",
+      "EVT/EXAM/FreeRTOS"
     ],
     "ch32l103": [
       "EVT/EXAM/SRC",
-      "EVT/EXAM/GPIO/GPIO_Toggle"
+      "EVT/EXAM/GPIO/GPIO_Toggle",
+      "EVT/EXAM/FreeRTOS"
     ],
     "ch32v103": [
       "EVT/EXAM/SRC",
-      "EVT/EXAM/GPIO/GPIO_Toggle"
+      "EVT/EXAM/GPIO/GPIO_Toggle",
+      "EVT/EXAM/FreeRTOS"
     ],
     "ch592": [
       "EVT/EXAM/SRC",
