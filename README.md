@@ -22,8 +22,9 @@ A collection of resources, drivers, templates and development tools for **WCH (N
   - [Peripherals](#peripherals)
   - [Bluetooth LE and USB on CH5xx](#bluetooth-le-and-usb-on-ch5xx)
   - [Project Manager and code output](#project-manager-and-code-output)
+  - [Projects: open, change, generate again](#projects-open-change-generate-again)
   - [VS Code project export](#vs-code-project-export)
-  - [Desktop app (Windows)](#desktop-app-windows)
+  - [Desktop app (Windows and Linux)](#desktop-app-windows-and-linux)
 - [Testing](#testing)
 - [Limitations](#limitations)
 - [Getting started](#getting-started)
@@ -44,7 +45,7 @@ WCH-Resources/
 - **Drivers**: WCH MCU drivers collected for reuse. Currently the CH59x series.
 - **Templates**: clean starting projects. Currently **CH59X BLE Template**.
 - **index.html**: the WCH Configurator. Open it in any modern browser; nothing to install.
-- **desktop/**: the same configurator as an offline Windows app. See [desktop/README.md](desktop/README.md).
+- **desktop/**: the same configurator as an offline desktop app for Windows and Linux. See [desktop/README.md](desktop/README.md).
 
 ### WCH Configurator
 
@@ -142,25 +143,43 @@ The code uses the official WCH BLE library (TMOS) and the usbdev driver from the
 - The generated code with a file selector (`main.c`, `app_callbacks.c`, ...), **Copy code** and **Download .c**.
 - **Problems** list (errors and warnings).
 - **VS Code project (.zip)** and the **VS Code guide**.
+- Project settings: **project name**, **Generate peripheral initialization as a pair of .c/.h files per peripheral**, the project folder, and **Open project**, **Save .wchproj**, **Generate code**.
+
+#### Projects: open, change, generate again
+
+Like an STM32CubeMX `.ioc` project:
+
+- **The project file** `<name>.wchproj` holds the whole configuration (chip, package, pins and labels, peripherals, clock tree, Bluetooth and USB). It is saved in the project folder, next to `CMakeLists.txt`.
+- **Generate code** writes the VS Code project into that folder. The first time it asks for a folder; after that it updates the same folder.
+- **Change it later**: open the project (the `.wchproj` file in the desktop app, the folder in the browser, or the VS Code task **WCH: Open in Configurator**), change the configuration and press **Generate code** again. VS Code picks up the new files right away.
+- **Your code is kept**: generated files have `USER CODE BEGIN x` / `USER CODE END x` sections (includes, before `main`, start of `main`, after the init calls, the main loop, after `main`, each peripheral file, each Bluetooth/USB callback, and one in `CMakeLists.txt`). Code inside them is carried into the new files. Files you added yourself are not touched, and `.vscode/settings.json` (your tool paths) is kept.
+- **Safety**: every file that changes is first copied to `.wch-backup/<date-time>/`. Files that are no longer generated (a peripheral you removed) are moved there too. If an old file has code outside the USER CODE sections, that code is only in the backup, and the message after Generate says so.
+- **One .c/.h pair per peripheral** (on by default): `main.c` only calls `Peripheral_Init()`, which calls `MX_GPIO_Init()`, `MX_USART_Init()`, `MX_ADC_Init()`, ... from `gpio.c/h`, `usart.c/h`, `adc.c/h`, and so on. Helper functions (ADC readers, `CAN1_Send`, `IWDG_Feed`, ...) are declared in each header, and `main.h` includes them all. Turn it off to get everything in `main.c` as before.
 
 #### VS Code project export
 
 The zip contains:
 
-- `src/main.c` with the generated init code (every `src/*.c` is built).
+- `src/main.c`, `src/main.h` and one `.c/.h` pair per peripheral (every `src/*.c` is built), plus `<name>.wchproj`.
 - `CMakeLists.txt` that builds against the official WCH EVT (drivers, startup, linker script, `libISP*.a`) and outputs `.elf`, `.hex` and `.bin`.
 - `.vscode/` with recommended extensions (C/C++, CMake Tools, Cortex-Debug, Serial Monitor), tasks, a Cortex-Debug launch config for WCH-Link and IntelliSense settings.
 - `tools/wch.ps1` (Windows) and `tools/wch.sh` (Linux/macOS), behind the VS Code tasks:
   - **WCH: Setup** finds the MounRiver toolchain and OpenOCD, installs CMake and Ninja (winget / brew / apt / dnf / Python, after asking), downloads the official EVT for the chip from `github.com/openwch`, and saves all paths.
   - **WCH: Doctor** checks every tool and says what is missing and how to fix it.
   - **WCH: Build** (`Ctrl+Shift+B`), **WCH: Flash (OpenOCD / wlink)**, **WCH: Clean**. A failed step ends with a short explanation of the likely cause (wrong EVT, ISA/library mismatch, missing WCH-Link, read-protected chip, ...).
+  - **WCH: Open in Configurator** opens this project in the desktop app (Windows), so you can change the configuration and generate again.
 - `README.md` with a step-by-step guide (English + Persian) and a troubleshooting table.
 
 Steps: unzip → open the folder in VS Code → install the recommended extensions → run **WCH: Setup** → `Ctrl+Shift+B` to build → `F5` to debug.
 
-#### Desktop app (Windows)
+#### Desktop app (Windows and Linux)
 
-An offline Windows build of the same page (pywebview + WebView2), with a toolbar (New, Open, Save / Save As `.wchproj`, Example, Copy code, Save .c, VS Code project, Guide, About), native Save dialogs and keyboard shortcuts. Download `WCH-Configurator.exe` from <https://github.com/zamanimahdi/WCH-Resources/releases/latest>. Details: [desktop/README.md](desktop/README.md).
+An offline build of the same page (pywebview), with a toolbar (New, Open, Save / Save As `.wchproj`, Generate code, Example, Copy code, Save .c, VS Code project, Guide, About), native dialogs and keyboard shortcuts. It writes straight into the project folder.
+
+- **Windows 10/11 x64**: `WCH-Configurator.exe` (Edge WebView2).
+- **Linux x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`, one executable with Qt WebEngine inside.
+
+Download from <https://github.com/zamanimahdi/WCH-Resources/releases/latest>. Details: [desktop/README.md](desktop/README.md).
 
 ### Testing
 
@@ -220,8 +239,12 @@ Setup + build from scratch (EVT downloaded automatically) was tested on Windows 
 
 - **WCH: Setup** needs internet to download the EVT and tools the first time.
 - The MounRiver toolchain is not downloaded automatically; install MounRiver Studio (or put `riscv-wch-elf-gcc` on PATH).
-- The desktop EXE is Windows 10/11 x64 only, needs the WebView2 runtime (built into Windows 11), and is not code-signed, so SmartScreen shows a warning (**More info → Run anyway**).
-- Desktop EXE releases are published on the `zamanimahdi/WCH-Resources` fork.
+- The Windows EXE needs the WebView2 runtime (built into Windows 11) and is not code-signed, so SmartScreen shows a warning (**More info → Run anyway**).
+- The Linux build is x86_64 only, needs glibc 2.35 or newer (Ubuntu 22.04, Debian 12, Fedora 36 and later) and a few Qt system libraries (`libxcb-cursor0 libxkbcommon-x11-0 libegl1 libnss3` on Ubuntu/Debian). It is tested in a virtual display on Ubuntu 22.04, not on a real desktop.
+- The VS Code task **WCH: Open in Configurator** works on Windows only; on Linux and macOS open the folder from the desktop app or the browser.
+- **Generate code into a folder** works in the desktop app and in Chrome/Edge (File System Access API). Firefox and Safari cannot write to a folder: there **Generate code** downloads the `.zip`.
+- Code written outside the USER CODE sections of generated files is replaced on the next **Generate code** (it stays in `.wch-backup/`). Projects exported before this version have no USER CODE sections: the first Generate into such a folder overwrites `main.c` and `app_callbacks.c` (backed up).
+- Desktop releases are published on the `zamanimahdi/WCH-Resources` fork.
 
 ### Getting started
 
@@ -229,7 +252,7 @@ Setup + build from scratch (EVT downloaded automatically) was tested on Windows 
 git clone https://github.com/amir1387aht/WCH-Resources.git
 ```
 
-Open `index.html` in a browser (or run the desktop EXE), pick a chip, configure it, then export a VS Code project or copy the code into your own project.
+Open `index.html` in a browser (or run the desktop app), pick a chip, configure it, then press **Generate code** (Project Manager) to create the VS Code project in a folder, or download it as a `.zip`.
 
 ### License and credits
 
@@ -259,7 +282,7 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **Drivers**: درایورهای میکروکنترلرهای WCH (فعلاً سری CH59x).
 - **Templates**: پروژه‌های آماده‌ی شروع (فعلاً **CH59X BLE Template**).
 - **index.html**: ابزار WCH Configurator. در هر مرورگر به‌روزی باز می‌شود و نصب لازم ندارد.
-- **desktop/**: همین ابزار به‌صورت برنامه‌ی آفلاین ویندوز. توضیحات در [desktop/README.md](desktop/README.md).
+- **desktop/**: همین ابزار به‌صورت برنامه‌ی آفلاین برای ویندوز و لینوکس. توضیحات در [desktop/README.md](desktop/README.md).
 
 ### WCH Configurator
 
@@ -357,17 +380,39 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - کد تولیدشده با انتخاب فایل، و دکمه‌های **Copy code** و **Download .c**.
 - فهرست **Problems** (خطاها و هشدارها).
 - **VS Code project (.zip)** و **راهنمای VS Code**.
+- تنظیمات پروژه: **نام پروژه**، **Generate peripheral initialization as a pair of .c/.h files per peripheral**، پوشه‌ی پروژه، و دکمه‌های **Open project**، **Save .wchproj** و **Generate code**.
+
+#### پروژه: باز کردن، تغییر، تولید دوباره‌ی کد
+
+مثل پروژه‌ی `.ioc` در STM32CubeMX:
+
+- **فایل پروژه** (`<name>.wchproj`) کل تنظیمات را نگه می‌دارد: تراشه، پکیج، پایه‌ها و برچسب‌ها، پریفرال‌ها، درخت کلاک، بلوتوث و USB. این فایل در پوشه‌ی پروژه، کنار `CMakeLists.txt` ذخیره می‌شود.
+- **Generate code** پروژه‌ی VS Code را در همان پوشه می‌نویسد. بار اول پوشه را می‌پرسد و از آن به بعد همان پوشه را به‌روز می‌کند.
+- **تغییر بعدی**: پروژه را باز کنید (فایل `.wchproj` در نسخه‌ی دسکتاپ، پوشه در مرورگر، یا تسک **WCH: Open in Configurator** در VS Code). تنظیمات را عوض کنید و دوباره **Generate code** بزنید. VS Code فایل‌های جدید را فوراً می‌بیند.
+- **کد شما حفظ می‌شود**:
+  - فایل‌های تولیدی بخش‌های `USER CODE BEGIN x` / `USER CODE END x` دارند: includeها، قبل از `main`، شروع `main`، بعد از راه‌اندازی‌ها، حلقه‌ی اصلی، بعد از `main`، هر فایل پریفرال، هر کال‌بک بلوتوث/USB، و یک بخش در `CMakeLists.txt`.
+  - کدی که داخل این بخش‌ها بنویسید به فایل‌های جدید منتقل می‌شود.
+  - فایل‌هایی که خودتان اضافه کرده‌اید دست نمی‌خورند. `.vscode/settings.json` (مسیر ابزارهای شما) هم حفظ می‌شود.
+- **پشتیبان**:
+  - هر فایلی که تغییر کند، اول در `.wch-backup/<تاریخ-ساعت>/` کپی می‌شود.
+  - فایل‌هایی که دیگر تولید نمی‌شوند (مثلاً پریفرالی که حذف کرده‌اید) هم به همان‌جا منتقل می‌شوند.
+  - اگر در فایل قدیمی کدی بیرون از بخش‌های USER CODE باشد، آن کد فقط در پشتیبان می‌ماند و پیام بعد از Generate این را می‌گوید.
+- **یک جفت فایل .c/.h برای هر پریفرال** (پیش‌فرض روشن):
+  - `main.c` فقط `Peripheral_Init()` را صدا می‌زند و آن تابع `MX_GPIO_Init()`، `MX_USART_Init()`، `MX_ADC_Init()` و بقیه را از `gpio.c/h`، `usart.c/h`، `adc.c/h` و غیره صدا می‌زند.
+  - توابع کمکی (خواندن ADC، `CAN1_Send`، `IWDG_Feed` و...) در هدر هر پریفرال اعلام شده‌اند و `main.h` همه‌ی هدرها را include می‌کند.
+  - اگر این گزینه را خاموش کنید، مثل قبل همه‌چیز در `main.c` می‌آید.
 
 #### خروجی پروژه‌ی VS Code
 
 فایل zip شامل این موارد است:
 
-- `src/main.c` و فایل `CMakeLists.txt`. پروژه روی EVT رسمی WCH ساخته می‌شود و خروجی `.elf`، `.hex` و `.bin` می‌دهد.
+- `src/main.c`، `src/main.h`، یک جفت `.c/.h` برای هر پریفرال، `<name>.wchproj` و فایل `CMakeLists.txt`. پروژه روی EVT رسمی WCH ساخته می‌شود و خروجی `.elf`، `.hex` و `.bin` می‌دهد.
 - پوشه‌ی `.vscode/` با افزونه‌های پیشنهادی، تسک‌ها، تنظیمات دیباگ Cortex-Debug برای WCH-Link و IntelliSense.
 - `tools/wch.ps1` (ویندوز) و `tools/wch.sh` (لینوکس/مک)، با این تسک‌ها:
   - **WCH: Setup**: تول‌چین MounRiver و OpenOCD را پیدا می‌کند و CMake و Ninja را با اجازه‌ی شما نصب می‌کند. EVT رسمی تراشه را هم از `github.com/openwch` دانلود می‌کند.
   - **WCH: Doctor**: همه‌ی ابزارها را بررسی می‌کند و می‌گوید چه چیزی کم است و چطور درست می‌شود.
   - **WCH: Build** (`Ctrl+Shift+B`)، **WCH: Flash (OpenOCD / wlink)** و **WCH: Clean**. هر مرحله‌ای که خطا بدهد، علت احتمالی را توضیح می‌دهد.
+  - **WCH: Open in Configurator**: همین پروژه را در نسخه‌ی دسکتاپ (ویندوز) باز می‌کند تا تنظیمات را عوض کنید و دوباره کد بگیرید.
 - `README.md` با راهنمای قدم‌به‌قدم (انگلیسی + فارسی) و جدول رفع اشکال.
 
 مراحل استفاده:
@@ -379,11 +424,14 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 5. با `Ctrl+Shift+B` بیلد بگیرید.
 6. با `F5` دیباگ کنید.
 
-#### نسخه‌ی دسکتاپ (ویندوز)
+#### نسخه‌ی دسکتاپ (ویندوز و لینوکس)
 
-همین ابزار به‌صورت برنامه‌ی آفلاین ویندوز (pywebview + WebView2) هم وجود دارد. نوار ابزار شامل New، Open، Save / Save As (`.wchproj`)، Example، Copy code، Save .c، VS Code project، Guide و About است. پنجره‌های ذخیره‌ی ویندوز و میانبرهای کیبورد هم دارد.
+همین ابزار به‌صورت برنامه‌ی آفلاین (pywebview) هم وجود دارد و مستقیم در پوشه‌ی پروژه می‌نویسد. نوار ابزار شامل New، Open، Save / Save As (`.wchproj`)، Generate code، Example، Copy code، Save .c، VS Code project، Guide و About است. پنجره‌های سیستمی و میانبرهای کیبورد هم دارد.
 
-فایل `WCH-Configurator.exe` را از <https://github.com/zamanimahdi/WCH-Resources/releases/latest> دانلود کنید.
+- **ویندوز ۱۰/۱۱ ۶۴ بیتی**: `WCH-Configurator.exe` (با Edge WebView2).
+- **لینوکس x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`، یک فایل اجرایی که Qt WebEngine داخلش است.
+
+دانلود از <https://github.com/zamanimahdi/WCH-Resources/releases/latest>.
 
 ### تست
 
@@ -442,11 +490,18 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 
 - **WCH: Setup** بار اول برای دانلود EVT و ابزارها اینترنت لازم دارد.
 - تول‌چین MounRiver خودکار دانلود نمی‌شود. MounRiver Studio را نصب کنید یا `riscv-wch-elf-gcc` را در PATH قرار دهید.
-- فایل EXE:
-  - فقط روی ویندوز ۱۰/۱۱ ۶۴ بیتی اجرا می‌شود.
+- فایل EXE ویندوز:
   - WebView2 لازم دارد (در ویندوز ۱۱ موجود است).
   - امضای دیجیتال ندارد، پس SmartScreen هشدار می‌دهد. **More info ← Run anyway** را بزنید.
-- نسخه‌های EXE روی فورک `zamanimahdi/WCH-Resources` منتشر می‌شوند.
+- نسخه‌ی لینوکس:
+  - فقط x86_64 است و glibc نسخه‌ی ۲.۳۵ یا جدیدتر لازم دارد (Ubuntu 22.04، Debian 12، Fedora 36 و بعد از آن).
+  - چند کتابخانه‌ی سیستمی Qt لازم دارد: در Ubuntu/Debian `libxcb-cursor0 libxkbcommon-x11-0 libegl1 libnss3`.
+  - روی Ubuntu 22.04 در نمایشگر مجازی تست شده، نه روی دسکتاپ واقعی.
+- تسک **WCH: Open in Configurator** فقط روی ویندوز کار می‌کند. در لینوکس و مک پوشه را از نسخه‌ی دسکتاپ یا مرورگر باز کنید.
+- **Generate code در پوشه** در نسخه‌ی دسکتاپ و در Chrome/Edge کار می‌کند. Firefox و Safari نمی‌توانند در پوشه بنویسند و آنجا **Generate code** فایل `.zip` را دانلود می‌کند.
+- کدی که بیرون از بخش‌های USER CODE در فایل‌های تولیدی بنویسید، در Generate بعدی جایگزین می‌شود (در `.wch-backup/` می‌ماند).
+- پروژه‌هایی که قبل از این نسخه خروجی گرفته شده‌اند بخش USER CODE ندارند. اولین Generate در چنین پوشه‌ای `main.c` و `app_callbacks.c` را بازنویسی می‌کند (با پشتیبان).
+- نسخه‌های دسکتاپ روی فورک `zamanimahdi/WCH-Resources` منتشر می‌شوند.
 
 ### شروع کار
 
@@ -458,7 +513,7 @@ git clone https://github.com/amir1387aht/WCH-Resources.git
 
 <div dir="rtl">
 
-فایل `index.html` را در مرورگر باز کنید یا EXE دسکتاپ را اجرا کنید. تراشه را انتخاب و تنظیم کنید، سپس پروژه‌ی VS Code بگیرید یا کد را در پروژه‌ی خودتان کپی کنید.
+فایل `index.html` را در مرورگر باز کنید یا نسخه‌ی دسکتاپ را اجرا کنید. تراشه را انتخاب و تنظیم کنید، سپس در Project Manager دکمه‌ی **Generate code** را بزنید تا پروژه‌ی VS Code در یک پوشه ساخته شود، یا آن را به‌صورت `.zip` دانلود کنید.
 
 ### مجوز و اعتبار
 

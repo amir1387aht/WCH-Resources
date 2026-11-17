@@ -1,5 +1,5 @@
 """
-WCH Configurator - Desktop edition (Windows)
+WCH Configurator - Desktop edition (Windows and Linux)
 
 Original tool: WCH Configurator, made by Amir1387aht (Another)
 Source:        https://github.com/amir1387aht/WCH-Resources
@@ -9,10 +9,16 @@ configuration and C-code / VS Code project generation stays in that single
 file, so the desktop app always produces exactly the same output as the web
 tool. The shell only adds what a browser normally provides:
 
-  * a native window (pywebview on top of Microsoft Edge WebView2),
+  * a native window (pywebview: Microsoft Edge WebView2 on Windows, Qt WebEngine or
+    WebKitGTK on Linux),
   * a toolbar with icons: New / Open / Save / Save As project (.wchproj),
-    Example, Copy code, Save .c, VS Code project, Guide, Source / GitHub, About
-    (with keyboard shortcuts),
+    Generate code, Example, Copy code, Save .c, VS Code project, Guide,
+    Source / GitHub, About (with keyboard shortcuts),
+  * project folders: the .wchproj lives in the VS Code project folder and
+    "Generate code" rewrites the generated files there, keeping the code between
+    USER CODE BEGIN / USER CODE END (the merge itself is done by index.html),
+  * `WCH-Configurator <folder or .wchproj>` opens that project (used by the
+    exported project's VS Code task "WCH: Open in Configurator"),
   * native "Save as" dialogs for "Download .c" and "VS Code project (.zip)",
   * opening external links (GitHub, e-mail, WCH sites) in the default browser,
   * a "Source / GitHub" bar and an About dialog with the original credit.
@@ -25,18 +31,21 @@ import base64
 import ctypes
 import json
 import os
+import subprocess
 import sys
 import threading
+import webbrowser
 
 import webview
 
 APP_NAME = "WCH Configurator"
-APP_VERSION = "1.3.1"
+APP_VERSION = "1.4.0"
 AUTHOR = "Amir1387aht (Another)"
 AUTHOR_EMAIL = "amir1387aht@gmail.com"
 REPO_URL = "https://github.com/amir1387aht/WCH-Resources"
 AUTHOR_URL = "https://github.com/amir1387aht"
 PROJECT_TYPES = ("WCH Configurator project (*.wchproj)", "All files (*.*)")
+IS_WIN = sys.platform.startswith("win")
 
 
 def logo_data_uri(root):
@@ -78,7 +87,15 @@ def resource_dir():
 
 
 def _copy_to_clipboard(text):
-    """Plain Win32 clipboard write (fallback when navigator.clipboard is unavailable)."""
+    """Clipboard write (fallback when navigator.clipboard is unavailable)."""
+    if not IS_WIN:
+        for cmd in (["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]):
+            try:
+                subprocess.run(cmd, input=(text or "").encode("utf-8"), check=True, timeout=5)
+                return True
+            except (OSError, subprocess.SubprocessError):
+                continue
+        return False
     CF_UNICODETEXT, GMEM_MOVEABLE = 13, 0x0002
     k32, u32 = ctypes.windll.kernel32, ctypes.windll.user32
     k32.GlobalAlloc.restype = ctypes.c_void_p
@@ -111,6 +128,10 @@ class Api:
         """Native file dialog; returns a path or None. In self-test mode no dialog is shown."""
         selftest_dir = os.environ.get("WCH_SELFTEST_DIR")
         if selftest_dir:
+            if kind == "FOLDER":
+                d = os.path.join(selftest_dir, "project")
+                os.makedirs(d, exist_ok=True)
+                return d
             return os.path.join(selftest_dir, os.path.basename(filename or "selftest.wchproj"))
         fd = getattr(webview, "FileDialog", None)
         k = getattr(fd, kind, None) if fd else None
@@ -181,9 +202,105 @@ class Api:
 
     def open_url(self, url):
         if isinstance(url, str) and url.startswith(("http://", "https://", "mailto:")):
-            os.startfile(url)  # default browser / mail client
+            if IS_WIN:
+                os.startfile(url)  # default browser / mail client
+            else:
+                webbrowser.open(url)
             return True
         return False
+
+    # -- project folders (the VS Code project: CMakeLists.txt, src/, <name>.wchproj) --
+    @staticmethod
+    def _inside(root, rel):
+        """Absolute path of `rel` inside `root`; None when it would leave the folder."""
+        if not isinstance(rel, str) or not rel or os.path.isabs(rel) or ":" in rel:
+            return None
+        root = os.path.realpath(root)
+        path = os.path.realpath(os.path.join(root, *rel.replace("\\", "/").split("/")))
+        try:
+            inside = os.path.commonpath([root, path]) == root
+        except ValueError:   # another drive
+            return None
+        return path if inside and path != root else None
+
+    def _folder_result(self, root):
+        root = os.path.realpath(root)
+        if not os.path.isdir(root):
+            return {"ok": False, "error": "folder not found: " + root}
+        self._title(root)
+        return {"ok": True, "root": root}
+
+    def project_open(self, path=None):
+        """Open a project: a .wchproj file (its folder is the project folder) or the folder itself."""
+        if not path:
+            path = self._ask("OPEN", "", PROJECT_TYPES)
+            if not path:
+                return {"ok": False, "cancelled": True}
+        if os.path.isdir(path):
+            return self._folder_result(path)
+        if os.path.isfile(path):
+            return self._folder_result(os.path.dirname(os.path.abspath(path)))
+        return {"ok": False, "error": "not found: " + str(path)}
+
+    def project_pick_folder(self):
+        path = self._ask("FOLDER")
+        if not path:
+            return {"ok": False, "cancelled": True}
+        return self._folder_result(path)
+
+    def project_folder_list(self, root):
+        try:
+            return sorted(os.listdir(root))
+        except OSError:
+            return []
+
+    def project_folder_read(self, root, rels):
+        out = {}
+        for rel in (rels or [])[:5000]:
+            path = self._inside(root, rel)
+            text = None
+            if path and os.path.isfile(path) and os.path.getsize(path) <= 8 * 1024 * 1024:
+                try:
+                    with open(path, "r", encoding="utf-8", newline="") as f:
+                        text = f.read()
+                except (OSError, UnicodeDecodeError):
+                    text = None
+            out[rel] = text
+        return out
+
+    def project_folder_write(self, root, writes, removes):
+        """Write the generated files (text, as given) and remove the ones that are no longer generated."""
+        try:
+            for rel, text in (writes or {}).items():
+                path = self._inside(root, rel)
+                if not path:
+                    return {"ok": False, "error": "refused path " + str(rel)}
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "w", encoding="utf-8", newline="") as f:
+                    f.write(text if isinstance(text, str) else "")
+            for rel in removes or []:
+                path = self._inside(root, rel)
+                if path and os.path.isfile(path):
+                    os.remove(path)
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        return {"ok": True}
+
+    def project_save(self, root, filename, text):
+        """Save <name>.wchproj into the project folder, or ask where (Save As)."""
+        if root and os.path.isdir(root):
+            path = os.path.join(root, os.path.basename(filename))
+        else:
+            path = self._ask("SAVE", filename, PROJECT_TYPES)
+            if not path:
+                return {"ok": False, "cancelled": True}
+        try:
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        self._title(os.path.dirname(os.path.abspath(path)))
+        return {"ok": True, "path": path, "root": os.path.dirname(os.path.abspath(path))}
 
     def copy_text(self, text):
         return _copy_to_clipboard(text)
@@ -269,7 +386,9 @@ INJECT_JS = r"""
   const $id = id => document.getElementById(id);
   let projectPath = null;
 
+  const wp = () => window.wchProject;   // newer pages: projects, folders and Generate live in index.html
   function projectJson(){
+    if (wp()) return wp().json();
     const s = page(); if (!s) throw new Error('this page version has no project state');
     return JSON.stringify({
       app: 'wch-configurator', format: 1,
@@ -288,6 +407,7 @@ INJECT_JS = r"""
     return undefined;
   }
   function loadProject(text){
+    if (wp()) return wp().load(text);
     const s = page(); if (!s) throw new Error('this page version has no project state');
     let p = JSON.parse(text);
     if (!p || p.app !== 'wch-configurator') throw new Error('not a WCH Configurator project file');
@@ -319,17 +439,20 @@ INJECT_JS = r"""
       projectPath = null; api().new_project();
     },
     async openProject(){
+      if (wp()) return wp().open();
       const r = await api().open_project();
       if (!r || !r.ok) { if (r && r.error) toast('Could not open: ' + r.error, true); return; }
       try { const n = loadProject(r.text); projectPath = r.path; toast('Opened ' + r.path + ' (' + n + ' items)'); }
       catch (e) { toast('Could not open: ' + e.message, true); }
     },
     async saveProject(asNew){
+      if (wp()) return wp().save(asNew);
       let text; try { text = projectJson(); } catch (e) { toast(e.message, true); return; }
       const r = await api().save_project(projName(), text, asNew ? null : projectPath);
       if (r && r.ok) { projectPath = r.path; toast('Saved: ' + r.path); }
       else if (r && r.error) toast('Could not save: ' + r.error, true);
     },
+    generate(){ wp() && wp().generate(); },
     example(){ $id('exampleBtn') && $id('exampleBtn').click(); },
     copy(){ $id('copyBtn') && $id('copyBtn').click(); },
     saveC(){ $id('downloadBtn') && $id('downloadBtn').click(); },
@@ -346,6 +469,7 @@ INJECT_JS = r"""
     open:   '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H7.5a2 2 0 0 0-1.9 1.4L3 19z"/><path d="M3 19l2.6-7.6A2 2 0 0 1 7.5 10H22l-2.7 8a2 2 0 0 1-1.9 1.4H3"/>',
     save:   '<path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/>',
     saveas: '<path d="M5 3h11l5 5v4M12 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2"/><path d="M7 3v5h8V3M7 21v-7h5"/><path d="M19.5 14.5l2 2-5 5H14.5v-2z"/>',
+    gen:    '<path d="M4 4h7v7H4zM13 13h7v7h-7z"/><path d="M11 7.5h4.5a2 2 0 0 1 2 2V13M13 16.5H8.5a2 2 0 0 1-2-2V11"/>',
     spark:  '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
     copy:   '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
     code:   '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M10 12l-2 2 2 2M14 12l2 2-2 2"/>',
@@ -360,6 +484,7 @@ INJECT_JS = r"""
     ['open',   'open',   'Open',           'Open project file (Ctrl+O)',                 actions.openProject],
     ['save',   'save',   'Save',           'Save project (Ctrl+S)',                      () => actions.saveProject(false)],
     ['saveas', 'saveas', 'Save As',        'Save project as a new file (Ctrl+Shift+S)',  () => actions.saveProject(true)],
+    ['gen',    'gen',    'Generate code',  'Write the code into the project folder, keeping USER CODE sections (Ctrl+G)', actions.generate, 'projGenBtn'],
     '|',
     ['example','spark',  'Example',        'Load an example configuration',             actions.example, 'exampleBtn'],
     '|',
@@ -417,6 +542,7 @@ INJECT_JS = r"""
     else if (c && !e.shiftKey && k === 'o') f = page() && actions.openProject;
     else if (c && e.shiftKey && k === 's') f = page() && (() => actions.saveProject(true));
     else if (c && k === 's') f = page() && (() => actions.saveProject(false));
+    else if (c && !e.shiftKey && k === 'g') f = wp() && actions.generate;
     else if (c && !e.shiftKey && k === 'e') f = actions.exportVsc;
     else if (c && e.shiftKey && k === 'e') f = actions.saveC;
     else if (c && e.shiftKey && k === 'c') f = actions.copy;
@@ -434,6 +560,7 @@ INJECT_JS = r"""
     + '<p style="margin:0 0 4px">Source / GitHub: <a href="' + REPO + '" style="color:#7cc4ff">' + REPO + '</a></p>'
     + '<p style="margin:0 0 4px">Author: <a href="https://github.com/amir1387aht" style="color:#7cc4ff">github.com/amir1387aht</a>'
     + ' &middot; <a href="mailto:amir1387aht@gmail.com" style="color:#7cc4ff">amir1387aht@gmail.com</a></p>'
+    + '<p style="margin:0 0 4px;opacity:.8;font-size:12.5px">Desktop edition for Windows and Linux: zamanimahdi</p>'
     + '<p style="margin:10px 0;opacity:.8;font-size:12.5px">Any usage of this work without crediting the author\'s name '
     + '(Amir1387aht) is forbidden. Runs fully offline; the generated code is produced locally by the same '
     + 'generator as the web version.</p>'
@@ -468,12 +595,28 @@ def _selftest(window):
         window.evaluate_js("window.__wchLoadProject(%s)" % json.dumps(text))
         time.sleep(1)
         roundtrip = window.evaluate_js("JSON.stringify(state.configs)") == before
+    # project folder: Generate, user code, Generate again (the folder dialog returns <out>/project)
+    gen_ok = False
+    if window.evaluate_js("!!window.wchProject"):
+        window.evaluate_js("document.getElementById('wch-tb-gen').click()")
+        time.sleep(3)
+        main_c = os.path.join(window.evaluate_js("window.wchProject.folder()") or os.path.join(out, "project"), "src", "main.c")
+        if os.path.isfile(main_c):
+            with open(main_c, encoding="utf-8", newline="") as f:
+                text = f.read()
+            with open(main_c, "w", encoding="utf-8", newline="") as f:
+                f.write(text.replace("/* USER CODE BEGIN 2 */", "/* USER CODE BEGIN 2 */\n    selftest_user_code();", 1))
+            window.evaluate_js("document.getElementById('wch-tb-gen').click()")
+            time.sleep(3)
+            with open(main_c, encoding="utf-8", newline="") as f:
+                gen_ok = "selftest_user_code();" in f.read()
     state = window.evaluate_js(
         "JSON.stringify({bar: !!document.getElementById('wch-desktop-bar'),"
         " tools: [...document.querySelectorAll('#wch-desktop-bar .tb')].map(b => b.id.replace('wch-tb-','')),"
         " credit: document.body.innerText.includes('Amir1387aht'),"
         " repo: document.body.innerHTML.includes('github.com/amir1387aht/WCH-Resources')})")
-    state = state[:-1] + ', "project_roundtrip": %s}' % json.dumps(roundtrip)
+    state = state[:-1] + ', "project_roundtrip": %s, "generate_keeps_user_code": %s, "platform": %s}' % (
+        json.dumps(roundtrip), json.dumps(gen_ok), json.dumps(sys.platform))
     with open(os.path.join(out, "selftest.json"), "w", encoding="utf-8") as f:
         f.write(str(state))
     time.sleep(float(os.environ.get("WCH_SELFTEST_HOLD", "3")))
@@ -493,16 +636,33 @@ def main():
     api._window = window
     inject_js = INJECT_JS.replace("__LOGO__", logo_data_uri(root))
 
+    start_path = next((a for a in sys.argv[1:] if not a.startswith("--")), None)
+
+    def inject():
+        window.evaluate_js(inject_js)
+        if start_path:   # WCH-Configurator <project folder | file.wchproj>
+            import time
+            for _ in range(50):   # the page's API bridge (window.pywebview.api) comes up a little later
+                if window.evaluate_js("!!(window.wchProject && window.pywebview && window.pywebview.api)"):
+                    break
+                time.sleep(0.2)
+            window.evaluate_js("window.wchProject && window.wchProject.openPath(%s)" % json.dumps(os.path.abspath(start_path)))
+
     def on_loaded():
         # run off the GUI thread; evaluate_js blocks until the page answers
-        threading.Thread(target=lambda: window.evaluate_js(inject_js), daemon=True).start()
+        threading.Thread(target=inject, daemon=True).start()
         if os.environ.get("WCH_SELFTEST_DIR"):
             threading.Thread(target=_selftest, args=(window,), daemon=True).start()
 
     window.events.loaded += on_loaded
 
-    storage = os.path.join(os.environ.get("LOCALAPPDATA", root), "WCH-Configurator")
-    webview.start(gui="edgechromium", http_server=True, private_mode=False,
+    if IS_WIN:
+        storage = os.path.join(os.environ.get("LOCALAPPDATA", root), "WCH-Configurator")
+        gui = "edgechromium"
+    else:
+        storage = os.path.join(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")), "WCH-Configurator")
+        gui = os.environ.get("WCH_GUI") or None   # pywebview picks Qt (bundled in the Linux build) or GTK
+    webview.start(gui=gui, http_server=True, private_mode=False,
                   storage_path=storage, debug="--debug" in sys.argv)
 
 
