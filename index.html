@@ -3538,7 +3538,7 @@ function renderClockView(){
   const opt = (list, cur, lab) => list.map(x => `<option value="${esc(x.n !== undefined ? x.n : x.id)}" ${String(x.n !== undefined ? x.n : x.id) === String(cur) ? 'selected' : ''}>${esc(lab ? lab(x) : x.n)}</option>`).join('');
   const node = (x, y, w, cls, title, inner, extra) => `<div class="ck-node ${cls}" style="left:${x}px; top:${y}px; width:${w}px" ${extra || ''}><div class="t">${title}</div>${inner}</div>`;
   let html = '', wires = [], W = 1060, H = 520;
-  const head = `<div class="ck-head"><b>Clock Configuration · ${esc(v.id)}</b><span>${state.clock ? 'custom clock — <code>${d.kind === 'ble' ? 'SetSysClock()' : 'SystemClock_Config()'}</code> is generated' : 'EVT default clock (nothing generated)'}</span><span class="sp"></span>
+  const head = `<div class="ck-head"><b>Clock Configuration · ${esc(v.id)}</b><span>${state.clock ? `custom clock — <code>${d.kind === 'ble' ? 'SetSysClock()' : 'SystemClock_Config()'}</code> is generated` : 'EVT default clock (nothing generated)'}</span><span class="sp"></span>
     ${state.clock ? '<button class="icon-btn" id="ckReset">Back to EVT default</button>' : ''}</div>`;
   const wire = (x1, y1, x2, y2, on) => { const mx = (x1 + x2) / 2; wires.push(`<path class="${on ? 'on' : ''}" d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}"/>`); };
   if(d.kind === 'ble'){
