@@ -43,6 +43,25 @@ Templates are intended to provide a clean foundation for new projects while keep
 
 It can be opened directly in a web browser without requiring a separate installation.
 
+#### VS Code project export
+
+The **VS Code project (.zip)** button next to *Download .c* exports a ready-to-use VS Code project for the selected chip. The **VS Code guide** button explains the steps.
+
+The zip contains:
+
+* `src/main.c` with the generated init code (every `src/*.c` file is built)
+* `CMakeLists.txt` that builds against the official WCH EVT (drivers, startup, linker script, `libISP*.a`) and outputs `.elf`, `.hex` and `.bin`
+* `.vscode/` with recommended extensions (C/C++, CMake Tools, Cortex-Debug, Serial Monitor), tasks, a Cortex-Debug launch config for WCH-Link and IntelliSense
+* `tools/wch.ps1` (Windows) and `tools/wch.sh` (Linux/macOS), behind the VS Code tasks:
+  * **WCH: Setup** finds MounRiver's toolchain and OpenOCD (and unpacks the toolchain from MounRiver's `.7z` if needed), installs CMake and Ninja (winget / brew / apt / dnf / Python, after asking), downloads the official EVT for the chip from `github.com/openwch`, and saves all paths
+  * **WCH: Doctor** checks every tool and prints what is missing and how to fix it
+  * **WCH: Build** (`Ctrl+Shift+B`), **WCH: Flash (OpenOCD / wlink)**, **WCH: Clean**. A failed step ends with a short explanation of the likely cause (wrong EVT, ISA/library mismatch, missing WCH-Link, read-protected chip, ...)
+* `README.md` with a step-by-step VS Code guide (English + Persian) and a troubleshooting table
+
+Steps: unzip, open the folder in VS Code, install the recommended extensions, run **WCH: Setup**, then `Ctrl+Shift+B` to build and `F5` to debug.
+
+Tested on Windows with the MounRiver Studio GCC12 toolchain: setup + build from scratch for CH32V003, CH32V203, CH32V307, CH585 and CH592 (EVTs downloaded automatically from openwch).
+
 ## 🎯 Purpose
 
 This repository is mainly intended for:
