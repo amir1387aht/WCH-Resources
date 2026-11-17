@@ -184,6 +184,7 @@
   .pm-item .why{margin-left:auto; font-size:9.5px; color:var(--text-faint);}
   .pm-label{display:flex; gap:6px; padding:8px 11px 10px; border-top:1px solid var(--line);}
   .pm-label input{flex:1; min-width:0; padding:5px 7px; font-size:11.5px;}
+  .pm-label .icon-btn:disabled{opacity:.38; cursor:default; pointer-events:none;}
   .pm-gpio{padding:6px 11px 0; color:var(--copper); font-size:10.5px;}
   /* pin table */
   .ptable-wrap{position:absolute; inset:0; overflow:auto; background:var(--panel); cursor:default;}
@@ -3817,15 +3818,21 @@ function openPinMenu(n){
     const other = fi.af.filter(f => /^OTHER:/.test(f)).map(f => f.slice(6));
     if(other.length) h += `<div class="pm-sec">Other functions</div>` + other.map(f => item(f, f, {off:true, why:'info'})).join('');
     if(fi.rm.length) h += `<div class="pm-sec">Remap (needs pin remap)</div>` + fi.rm.map(f => item(f, f.replace(/^OTHER:/, '').replace('@', ' · remap '), {off:true, why:'not generated', title:'Available on this pin only after enabling the remap (GPIO_PinRemapConfig / GPIOPinRemap). Assign it from the left panel if you add the remap yourself.'})).join('');
-    h += `<div class="pm-label"><input type="text" maxlength="24" placeholder="User label for ${g}" data-label="${g}" value="${esc(state.labels[g] || '')}"><button class="icon-btn" data-labelset="${g}">Set</button></div>`;
+    const lblNow = state.labels[g] || g;
+    h += `<div class="pm-label"><input type="text" maxlength="24" placeholder="User label for ${g}" title="User label for ${g} (the pin name means: no label)" data-label="${g}" data-orig="${esc(lblNow)}" value="${esc(lblNow)}"><button class="icon-btn" data-labelset="${g}" disabled title="Change the name to enable">Set</button></div>`;
   });
   const menu = $('pinMenu');
   menu.innerHTML = h;
   menu.hidden = false;
   positionMenu(n);
   renderAll(true);
-  const inp = menu.querySelector('input[data-label]');
-  if(inp) inp.addEventListener('keydown', e => { if(e.key === 'Enter') setLabel(inp.dataset.label, inp.value); });
+  menu.querySelectorAll('input[data-label]').forEach(inp => {
+    const btn = menu.querySelector(`[data-labelset="${inp.dataset.label}"]`);
+    const changed = () => inp.value.trim() !== inp.dataset.orig;
+    inp.addEventListener('input', () => { if(btn) btn.disabled = !changed(); });
+    inp.addEventListener('keydown', e => { if(e.key === 'Enter' && changed()) setLabel(inp.dataset.label, inp.value); });
+    inp.addEventListener('focus', () => inp.select());
+  });
 }
 $('pinMenu').addEventListener('click', e => {
   const it = e.target.closest('.pm-item[data-fn]');
@@ -3836,12 +3843,12 @@ $('pinMenu').addEventListener('click', e => {
     return;
   }
   const b = e.target.closest('[data-labelset]');
-  if(b){ const g = b.dataset.labelset; setLabel(g, $('pinMenu').querySelector(`input[data-label="${g}"]`).value); }
+  if(b && !b.disabled){ const g = b.dataset.labelset; setLabel(g, $('pinMenu').querySelector(`input[data-label="${g}"]`).value); }
 });
 $('pinMenu').addEventListener('pointerdown', e => e.stopPropagation());
 function setLabel(g, val){
   val = String(val || '').trim();
-  if(val) state.labels[g] = val; else delete state.labels[g];
+  if(val && val !== g) state.labels[g] = val; else delete state.labels[g];   /* the pin name itself = no label */
   state.configs.forEach(relabel);
   const n = state.selPin; renderAll(); if(n) openPinMenu(n);
 }
