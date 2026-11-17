@@ -261,6 +261,88 @@
   .pin-cell.used{color:#0c0f12; font-weight:700;}
   .brand .mark.mark-logo{background:none; box-shadow:none; padding:0; overflow:hidden;}
   .brand .mark.mark-logo svg{width:100%; height:100%; display:block;}
+
+  /* ---------- CubeMX-style main tabs and page layouts ---------- */
+  .maintabs{display:flex; align-items:flex-end; gap:2px; padding:6px 12px 0; background:var(--tabs-bg); border-bottom:1px solid var(--line);}
+  .mtab{font-family:var(--sans); font-size:13px; font-weight:600; color:var(--tab-text); background:var(--tab-off); border:1px solid var(--line); border-bottom:none; border-radius:7px 7px 0 0; padding:8px 18px; cursor:pointer; margin-bottom:-1px;}
+  .mtab:hover{color:var(--text);}
+  .mtab.active{background:var(--panel); color:var(--accent); border-color:var(--line); box-shadow:inset 0 3px 0 var(--accent);}
+  .mt-badge{display:inline-block; min-width:18px; margin-left:6px; padding:0 6px; border-radius:9px; font-size:10.5px; line-height:17px; background:var(--red); color:#fff; text-align:center;}
+  .maintabs .sp{flex:1;}
+  .mt-info{font-family:var(--mono); font-size:11px; color:var(--text-faint); padding-bottom:7px;}
+  .ide{height:calc(100vh - 100px);}
+  .ide[data-page="pinout"]{grid-template-columns:230px 330px minmax(0,1fr);}
+  .ide[data-page="pinout"] > .right{display:none;}
+  .ide[data-page="clock"]{grid-template-columns:minmax(0,1fr);}
+  .ide[data-page="clock"] > .left, .ide[data-page="clock"] > .mid, .ide[data-page="clock"] > .right{display:none;}
+  .ide[data-page="clock"] .center .toolbar, .ide[data-page="clock"] .statusbar{display:none;}
+  .ide[data-page="project"]{grid-template-columns:minmax(0,1fr);}
+  .ide[data-page="project"] > .left, .ide[data-page="project"] > .mid, .ide[data-page="project"] > .center{display:none;}
+  @media (max-width:1100px){
+    .ide[data-page="pinout"]{grid-template-columns:230px minmax(0,1fr); height:auto;}
+    .ide[data-page="pinout"] > .center{grid-column:1 / -1; height:64vh; min-height:420px;}
+  }
+  @media (max-width:720px){
+    .ide[data-page="pinout"]{grid-template-columns:1fr;}
+    .maintabs{overflow-x:auto;}
+    .mtab{padding:8px 11px; font-size:12px; white-space:nowrap;}
+  }
+  .cat-head{padding:8px 10px;}
+  .seg-wrap{display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden;}
+  .seg{font-family:var(--sans); font-size:11.5px; font-weight:600; background:var(--panel-2); color:var(--text-dim); border:none; padding:5px 12px; cursor:pointer;}
+  .seg + .seg{border-left:1px solid var(--line);}
+  .seg.active{background:var(--accent); color:var(--accent-ink);}
+  .cat-search{padding:8px 10px; border-bottom:1px solid var(--line-soft);}
+  .cat-search input{width:100%; padding:6px 9px; font-size:12px;}
+  .mode-head .mh-sub{font-family:var(--sans); font-weight:500; color:var(--text-dim); font-size:12px;}
+  .mode-head .mode{font-family:var(--mono); font-size:10.5px; color:var(--copper); font-weight:400;}
+  .mid .scroll{flex:1; overflow:auto;}
+  .sec-title{display:flex; align-items:center; justify-content:space-between; margin:0; padding:7px 14px; font-family:var(--sans); font-size:11.5px; font-weight:700; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-dim); background:var(--panel-2); border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);}
+  .sec-title .tag{font-family:var(--mono); font-weight:400; text-transform:none; color:var(--text-faint);}
+  .pm-head{display:flex; flex-wrap:wrap; gap:8px; padding:10px; border-bottom:1px solid var(--line); background:var(--panel-2);}
+  .pm-card{border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:6px 10px; min-width:120px;}
+  .pm-k{font-family:var(--mono); font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-faint);}
+  .pm-v{font-family:var(--mono); font-size:12px; color:var(--text); margin-top:2px;}
+  .theme-btn{white-space:nowrap;}
+
+  /* ---------- light theme (CubeMX-like): dark blue bar, light grey workspace, white panels ---------- */
+  :root{--accent:var(--copper); --accent-ink:#1a1305; --tabs-bg:var(--bg); --tab-off:var(--panel-2); --tab-text:var(--text-dim);}
+  html[data-theme="light"]{
+    --bg:#e9ecf0; --bg-grid:#e1e5ea; --panel:#ffffff; --panel-2:#f3f5f8; --panel-3:#e6eaef;
+    --line:#c5ccd5; --line-soft:#dde2e8; --text:#17212b; --text-dim:#3f4c59; --text-faint:#73808d;
+    --copper:#0b5cad; --copper-dim:#5b8fc7; --teal:#16805a; --teal-dim:#6aaf8f; --red:#cf3a2f; --yellow:#a87b00;
+    --accent:#0b5cad; --accent-ink:#ffffff; --tabs-bg:#d7dde5; --tab-off:#e7ebf0; --tab-text:#3f4c59;
+  }
+  html[data-theme="light"] header.top{background:#0b2e57; border-bottom-color:#08213f;}
+  html[data-theme="light"] header.top .brand h1{color:#ffffff;}
+  html[data-theme="light"] header.top .brand .sub, html[data-theme="light"] header.top .chip-pick label{color:#a9bdd4;}
+  html[data-theme="light"] header.top .fam-btn{background:#123b6b; border-color:#2a5385; color:#d5e2f1;}
+  html[data-theme="light"] header.top .fam-btn:hover{border-color:#8fb3dc; color:#fff;}
+  html[data-theme="light"] header.top .fam-btn.active{background:#ffffff; border-color:#ffffff; color:#0b2e57;}
+  html[data-theme="light"] header.top select{background:#ffffff; border-color:#2a5385; color:#0b2e57;}
+  html[data-theme="light"] header.top .icon-btn{background:#123b6b; border-color:#2a5385; color:#d5e2f1;}
+  html[data-theme="light"] header.top .icon-btn:hover{color:#fff; border-color:#8fb3dc;}
+  html[data-theme="light"] .btn-primary{background:#0b5cad; color:#fff;}
+  html[data-theme="light"] .cat-item.active{background:#dceafa; border-left-color:#0b5cad;}
+  html[data-theme="light"] .cat-item .cnt.on{color:#fff;}
+  html[data-theme="light"] .stage{background:#f7f8fa;}
+  html[data-theme="light"] .chip-body{fill:#2b3138; stroke:#1d2228;}
+  html[data-theme="light"] .pin rect.pad{fill:#d9dde2; stroke:#9aa4ae;}
+  html[data-theme="light"] .pin.io rect.pad{fill:#eef1f4; stroke:#8b96a1;}
+  html[data-theme="light"] .pin.power rect.pad{fill:#c9cd8d; stroke:#8b8f45;}
+  html[data-theme="light"] .pin.special rect.pad{fill:#aebfd1; stroke:#6f8396;}
+  html[data-theme="light"] .pin.power text.pname, html[data-theme="light"] .pin.special text.pname{fill:#1b1f24;}
+  html[data-theme="light"] .pin text.pnum{fill:#5e6b78;}
+  html[data-theme="light"] .pin:hover rect.pad{stroke:#0b5cad;}
+  html[data-theme="light"] pre#codeOut{color:#1f2b37; background:#ffffff;}
+  html[data-theme="light"] .clock-wrap{background:#f7f8fa;}
+  html[data-theme="light"] .ck-node.src{background:#e9f5ef;}
+  html[data-theme="light"] .ck-node.out{background:#eef3fa;}
+  html[data-theme="light"] .ck-canvas svg.wires path{stroke:#b4bec8;}
+  html[data-theme="light"] .pin-menu{box-shadow:0 10px 30px rgba(20,40,70,0.22);}
+  html[data-theme="light"] .cm{color:#6a737d;} html[data-theme="light"] .kw{color:#0b5cad; font-weight:600;} html[data-theme="light"] .fn{color:#6f42c1;} html[data-theme="light"] .str{color:#a3402a;} html[data-theme="light"] .num{color:#0a7a52;}
+  html[data-theme="light"] .pin text.psig{filter:brightness(0.62) saturate(1.4);}
+  html[data-theme="light"] .legend span, html[data-theme="light"] .statusbar{color:var(--text-dim);}
 </style>
 </head>
 <body>
@@ -289,29 +371,43 @@
     <div class="top-actions">
       <button class="icon-btn" id="exampleBtn" title="Fill the chip with a small example configuration">Load example</button>
       <button class="icon-btn" id="clearBtn" title="Remove every pin assignment and peripheral">Clear all</button>
+      <button class="icon-btn theme-btn" id="themeBtn" title="Switch light / dark theme">&#9681; Theme</button>
     </div>
   </div>
 </header>
-<div class="ide">
+<nav class="maintabs" id="mainTabs" aria-label="Views">
+  <button class="mtab active" data-page="pinout">Pinout &amp; Configuration</button>
+  <button class="mtab" data-page="clock">Clock Configuration</button>
+  <button class="mtab" data-page="project">Project Manager <span class="mt-badge" id="probBadge2" hidden></span></button>
+  <span class="sp"></span>
+  <span class="mt-info" id="mtInfo"></span>
+</nav>
+<div class="ide" data-page="pinout">
   <aside class="panel left">
-    <div class="panel-head">Categories <span class="tag">click a pin or pick a peripheral</span></div>
+    <div class="panel-head cat-head">
+      <span class="seg-wrap"><button class="seg active" data-catmode="cat">Categories</button><button class="seg" data-catmode="az">A&#8594;Z</button></span>
+    </div>
+    <div class="cat-search"><input type="search" id="catSearch" placeholder="Search peripheral" aria-label="Search peripheral"></div>
+    <div class="scroll"><nav id="catTree"></nav></div>
+  </aside>
+  <section class="panel mid">
+    <div class="panel-head mode-head"><span><span id="formTitle">GPIO</span> <span class="mh-sub">Mode and Configuration</span></span><span class="mode" id="formMode">new</span></div>
     <div class="scroll">
-      <nav id="catTree"></nav>
-      <div class="form-head"><span id="formTitle">GPIO</span><span class="mode" id="formMode">new</span></div>
+      <div class="sec-title">Mode</div>
       <div class="form" id="formArea"></div>
       <div class="btn-row">
         <button class="btn btn-primary" id="addBtn">+ Add to configuration</button>
         <button class="btn btn-ghost" id="cancelEditBtn" style="display:none; width:auto;">Cancel</button>
       </div>
-      <div class="panel-head" style="border-top:1px solid var(--line);">Active configuration <span class="tag" id="cfgCount">0 items</span></div>
+      <div class="sec-title">Configuration <span class="tag" id="cfgCount">0 items</span></div>
       <div class="cfg-list" id="cfgList"></div>
     </div>
-  </aside>
+  </section>
   <main class="panel center">
     <div class="toolbar">
       <button class="vtab active" data-view="pinout">Pinout view</button>
-      <button class="vtab" data-view="table">Pin table</button>
-      <button class="vtab" data-view="clock">Clock Configuration</button>
+      <button class="vtab" data-view="table">System view (pin table)</button>
+      <button class="vtab" data-view="clock" hidden>Clock Configuration</button>
       <span class="sp"></span>
       <input type="search" id="pinSearch" placeholder="Find pin / signal" aria-label="Find pin or signal">
       <button class="icon-btn sq" id="zoomOut" title="Zoom out">−</button>
@@ -335,6 +431,13 @@
     <div class="chip-note"><span class="dot"></span><span id="chipNote"></span></div>
   </main>
   <section class="panel right">
+    <div class="pm-head">
+      <div class="pm-card"><div class="pm-k">Chip</div><div class="pm-v" id="pmChip">-</div></div>
+      <div class="pm-card"><div class="pm-k">Package</div><div class="pm-v" id="pmPkg">-</div></div>
+      <div class="pm-card"><div class="pm-k">Library</div><div class="pm-v" id="pmLib">-</div></div>
+      <div class="pm-card"><div class="pm-k">Clock</div><div class="pm-v" id="pmClk">-</div></div>
+      <div class="pm-card"><div class="pm-k">Toolchain</div><div class="pm-v">VS Code + CMake + MounRiver GCC</div></div>
+    </div>
     <div class="toolbar">
       <button class="vtab active" data-rtab="code">Code</button>
       <button class="vtab" data-rtab="problems">Problems<span class="badge" id="probBadge">0</span></button>
@@ -4482,6 +4585,65 @@ function applyDatasheetDefaults(){
 const _renderFormOrig = renderForm;
 renderForm = function(){ _renderFormOrig(); applyDatasheetDefaults(); };
 
+
+/* ---------- CubeMX-style pages, theme, category search ---------- */
+state.page = 'pinout';
+state.catMode = 'cat';
+state.catFilter = '';
+function setPage(pg){
+  state.page = pg;
+  document.querySelector('.ide').dataset.page = pg;
+  document.querySelectorAll('#mainTabs .mtab').forEach(b => b.classList.toggle('active', b.dataset.page === pg));
+  if(pg === 'clock') state.mainView = 'clock';
+  else if(state.mainView === 'clock') state.mainView = 'pinout';
+  document.querySelectorAll('.vtab[data-view]').forEach(x => x.classList.toggle('active', x.dataset.view === state.mainView));
+  if(pg !== 'pinout') closePinMenu();
+  renderAll();
+}
+$('mainTabs').addEventListener('click', e => { const b = e.target.closest('.mtab'); if(b) setPage(b.dataset.page); });
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  try{ localStorage.setItem('wchcfg-theme', t); }catch(e){}
+}
+(function(){
+  let t = 'light';
+  try{ t = localStorage.getItem('wchcfg-theme') || 'light'; }catch(e){}
+  applyTheme(t);
+  $('themeBtn').addEventListener('click', () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light'));
+})();
+document.querySelectorAll('[data-catmode]').forEach(b => b.addEventListener('click', () => {
+  state.catMode = b.dataset.catmode;
+  document.querySelectorAll('[data-catmode]').forEach(x => x.classList.toggle('active', x === b));
+  renderCats();
+}));
+$('catSearch').addEventListener('input', e => { state.catFilter = e.target.value.trim().toLowerCase(); renderCats(); });
+/* categories: grouped (CubeMX "Categories") or one sorted list ("A->Z"), filtered by the search box */
+const _renderCatsOrig = renderCats;
+renderCats = function(){
+  _renderCatsOrig();
+  const q = state.catFilter;
+  const tree = $('catTree');
+  if(state.catMode === 'az'){
+    const items = [...tree.querySelectorAll('.cat-item')].sort((a, b) => a.textContent.localeCompare(b.textContent));
+    tree.innerHTML = '<div class="cat-group"></div>';
+    items.forEach(it => tree.firstChild.appendChild(it));
+  }
+  if(q){
+    tree.querySelectorAll('.cat-item').forEach(it => { it.hidden = !it.textContent.toLowerCase().includes(q); });
+    tree.querySelectorAll('.cat-group').forEach(g => { g.hidden = ![...g.querySelectorAll('.cat-item')].some(i => !i.hidden); });
+  }
+};
+/* project manager summary + problems badge on the main tab */
+function renderProjectHead(){
+  const v = currentVariant(), pk = currentPkg(), f = clockFreqs();
+  $('pmChip').textContent = v.id;
+  $('pmPkg').textContent = pk ? pk.name + (pk.code ? ' · ' + pk.code : '') : '-';
+  $('pmLib').textContent = FAMILIES[state.family].style === 'stdperiph' ? 'WCH StdPeriph EVT' : 'WCH CH5xx SDK (EVT)';
+  $('pmClk').textContent = (state.clock ? 'custom · ' : 'EVT default · ') + 'SYSCLK ' + fmtHz(f.sysclk);
+  const n = +($('probBadge').textContent || 0);
+  const b2 = $('probBadge2'); b2.textContent = n; b2.hidden = !n;
+  $('mtInfo').textContent = `${v.id}${pk ? ' · ' + pk.name : ''} · ${state.configs.length} item${state.configs.length === 1 ? '' : 's'}`;
+}
 /* ---------- main render ---------- */
 function renderAll(keepMenu){
   const v = currentVariant();
@@ -4513,6 +4675,7 @@ function renderAll(keepMenu){
   $('legend').innerHTML = Object.entries(PERIPH_COLOR).filter(([k]) => BASE_TYPES.includes(k) || state.configs.some(c => c.type === k)).map(([k, c]) => `<span><i style="background:${c}"></i>${k.toUpperCase()}</span>`).join('') + '<span><i style="background:var(--red)"></i>CONFLICT</span>';
   if(!keepMenu && !$('pinMenu').hidden && state.selPin) positionMenu(state.selPin);
   renderCode();
+  if(typeof renderProjectHead === 'function') renderProjectHead();
 }
 
 populateVariants();
