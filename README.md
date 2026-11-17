@@ -43,6 +43,16 @@ Templates are intended to provide a clean foundation for new projects while keep
 
 It can be opened directly in a web browser without requiring a separate installation.
 
+#### Bluetooth LE and USB (CH57x / CH58x / CH59x)
+
+The **BLE** and **USB** tabs appear for chips that have them:
+
+* **BLE (peripheral):** device name, advertising interval, TX power, MTU, PHY after connect (1M / 2M / Coded where the library supports it), connection parameters, and security (no pairing, Just Works, or a 6-digit passkey with bonding). Add any number of **services and characteristics** (16-bit or 128-bit UUIDs) with Read / Write / Write-without-response / Notify / Indicate, max length, initial value, access level (open / encrypted / authenticated) and a user description. A ready-made **UART service** (Nordic-UART compatible) is one click away.
+* **Callbacks:** for each characteristic you can turn on *on data received* (with your own function name), *before read* and *on subscribe*. Connect, disconnect, MTU, PHY and pairing callbacks are always generated. They all live in `src/app_callbacks.c`.
+* **USB device (full speed):** CDC virtual COM port, HID keyboard, HID mouse and HID custom (64-byte reports), in any combination (composite device), with VID/PID and strings. Callbacks for received data, line coding, DTR/RTS and keyboard LEDs, plus send functions (`usb_cdc_write`, `usb_kbd_tap`, `usb_mouse_send`, `usb_hid_custom_send`).
+
+The generated code uses the official WCH BLE library and usbdev driver from the EVT, and the VS Code export builds it automatically. Tested by building CH585, CH592, CH583 and CH572 projects.
+
 #### VS Code project export
 
 The **VS Code project (.zip)** button next to *Download .c* exports a ready-to-use VS Code project for the selected chip. The **VS Code guide** button explains the steps.
