@@ -43,9 +43,20 @@ Templates are intended to provide a clean foundation for new projects while keep
 
 It can be opened directly in a web browser without requiring a separate installation.
 
+#### Pinout & Configuration view
+
+The page works like the *Pinout & Configuration* view of STM32CubeMX:
+
+* **Chip view**: the selected part is drawn as its real package (QFN / LQFP / TSSOP / SOP / QSOP / DFN) with every pin number and name, pin 1 marker and exposed pad. Pick the package in the *Package* list. Zoom with the mouse wheel or the +/− buttons, drag to pan, *Fit* to reset.
+* **Click a pin** to get its menu: `Reset_State`, `GPIO_Input`, `GPIO_Output`, `GPIO_Analog`, `GPIO_EXTIx` and the alternate functions from the datasheet pin table (ADC channels, SPI, I²C, USART/UART, timer channels). Choosing one colors the pin by peripheral and adds or updates the matching entry in the configuration, so the generated C code follows. Functions that need a pin remap or that the generator does not cover are listed but greyed out. Each pin can get a user label (`LED`, `BUTTON`, ...), which becomes `#define LED_Pin` / `LED_GPIO_Port` in the code.
+* **Conflicts and checks**: two functions on one pin, a function the datasheet does not list for that pin, or a pin that is not bonded out on the chosen package are shown in red on the chip and in the *Problems* tab.
+* **Left panel**: categories (System Core, Analog, Timers, Connectivity, Wireless / USB) with the per-peripheral settings; click an entry in *Active configuration* to edit it. **Pin table** tab: every pin with its signal, label and datasheet functions.
+
+All pinouts were transcribed from the official WCH datasheets (CH32V003DS0, CH32V006DS0, CH32V103DS0, CH32V203DS0, CH32V20x_30xDS0, CH32X035DS0, CH32L103DS0, CH32F103DS0, CH32F20xDS0, CH583DS1, CH573DS1, CH572DS1, CH585DS1, CH592DS1) and checked against both the pin table and the package drawing. The source table and page are shown under the chip. Packages that could not be checked against a pin table are marked **UNVERIFIED**; chips without a datasheet pinout (CH581) keep the logical port map.
+
 #### Bluetooth LE and USB (CH57x / CH58x / CH59x)
 
-The **BLE** and **USB** tabs appear for chips that have them:
+The **Bluetooth LE** and **USB device** entries (*Wireless / USB* group in the left panel) appear for chips that have them:
 
 * **BLE (peripheral):** device name, advertising interval, TX power, MTU, PHY after connect (1M / 2M / Coded where the library supports it), connection parameters, and security (no pairing, Just Works, or a 6-digit passkey with bonding). Add any number of **services and characteristics** (16-bit or 128-bit UUIDs) with Read / Write / Write-without-response / Notify / Indicate, max length, initial value, access level (open / encrypted / authenticated) and a user description. A ready-made **UART service** (Nordic-UART compatible) is one click away.
 * **Callbacks:** for each characteristic you can turn on *on data received* (with your own function name), *before read* and *on subscribe*. Connect, disconnect, MTU, PHY and pairing callbacks are always generated. They all live in `src/app_callbacks.c`.
