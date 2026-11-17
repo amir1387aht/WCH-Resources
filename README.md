@@ -196,7 +196,7 @@ Setup + build from scratch (EVT downloaded automatically) was tested on Windows 
 - **CH32F103 / CH32F203**: Cortex-M3 chips aimed at Keil. Pinout and code are generated, but the VS Code export does not match the F10x/F20x EVT folder layout and is not build-tested. CH32F103 has no clock tree.
 - **CH32V006**: no public EVT, so no clock tree, no new modules and no auto EVT download.
 - **CH571 / CH573**: no public SDK in openwch, so no auto EVT download and no WWDG/RTC modules.
-- **CH581**: no datasheet pinout, so it keeps the logical port map. Packages that could not be checked against a pin table are marked **UNVERIFIED**.
+- **CH581**: pinout (CH581F, QFN28) is from CH583DS1 V1.6; WCH removed CH581F from the datasheet in V1.9. The EVT linker script allows 448 KB, but CH581 has 192 KB for the application: keep the program below that.
 - **CH570 / CH572**: the timer and ADC generators do not match their SDK yet.
 - **CH570** has no Bluetooth; **CH591** has no USB.
 
@@ -407,7 +407,7 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
   - CH32F103 درخت کلاک ندارد.
 - **CH32V006**: EVT عمومی ندارد. بنابراین درخت کلاک، ماژول‌های جدید و دانلود خودکار EVT ندارد.
 - **CH571 / CH573**: SDK عمومی در openwch ندارند. بنابراین دانلود خودکار EVT و ماژول‌های WWDG/RTC ندارند.
-- **CH581**: پین‌اوت دیتاشیت ندارد و نقشه‌ی منطقی پورت‌ها را نشان می‌دهد. پکیج‌هایی که با جدول پایه تطبیق داده نشده‌اند علامت **UNVERIFIED** دارند.
+- **CH581**: پین‌اوت (CH581F، QFN28) از دیتاشیت CH583DS1 نسخه‌ی V1.6 گرفته شده است، چون WCH در نسخه‌ی V1.9 این تراشه را از دیتاشیت حذف کرده. اسکریپت لینکر EVT تا ۴۴۸ کیلوبایت اجازه می‌دهد، ولی CH581 فقط ۱۹۲ کیلوبایت برای برنامه دارد؛ برنامه را کوچک‌تر از این نگه دارید.
 - **CH570 / CH572**: مولد تایمر و ADC هنوز با SDK آن‌ها جور نیست.
 - **CH570** بلوتوث ندارد و **CH591** USB ندارد.
 
