@@ -67,14 +67,20 @@
       "family": "ch32v",
       "variant": "CH32V203",
       "example": true,
-      "modules": "all"
+      "modules": "all",
+      "skip": [
+        "can"
+      ]
     },
     {
       "name": "v307-all",
       "family": "ch32v",
       "variant": "CH32V307",
       "example": true,
-      "modules": "all"
+      "modules": "all",
+      "skip": [
+        "icap"
+      ]
     },
     {
       "name": "x035-all",

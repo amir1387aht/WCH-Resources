@@ -13885,6 +13885,28 @@ void ${t}_IRQHandler(void)
   };
 })();
 
+/* ---- any interrupt handler defined twice (two entries using the same timer, CAN + USBD, ...) is an error ---- */
+(function(){
+  const inner = computeProblems;
+  let busy = false;
+  computeProblems = function(usage){
+    const probs = inner.apply(this, arguments);
+    if(busy) return probs;
+    busy = true;
+    try{
+      const files = generateFiles(), seen = {};
+      for(const [f, t] of Object.entries(files)){
+        if(!/\.c$/.test(f)) continue;
+        const re = /^void\s+(\w+_IRQHandler)\s*\(\s*void\s*\)\s*\r?\n\{/gm; let m;
+        while((m = re.exec(t))) (seen[m[1]] = seen[m[1]] || []).push(f.replace(/^src\//, ''));
+      }
+      for(const [irq, fs] of Object.entries(seen)) if(fs.length > 1)
+        probs.push({lvl:'err', msg:`${irq} is defined ${fs.length} times (${fs.join(', ')}): two entries use the same interrupt, for example the same timer. Pick another timer/peripheral for one of them.`});
+    }catch(e){}
+    busy = false;
+    return probs;
+  };
+})();
 /* EXTRA MODULES END */
 /* MODULES END */
 
