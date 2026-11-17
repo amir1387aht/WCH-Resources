@@ -28,7 +28,7 @@ param(
   [ValidateSet('nuitka', 'pyinstaller')] [string]$Tool = 'nuitka',
   [string]$Python = 'py -3.12',
   [string]$IndexHtml = '',
-  [string]$Version = '1.0.0'
+  [string]$Version = '1.2.0'
 )
 $ErrorActionPreference = 'Stop'
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path

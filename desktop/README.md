@@ -18,9 +18,25 @@ The exe is not code-signed, so Windows SmartScreen may show *"Windows protected 
 
 The app is a small Python shell ([`wch_configurator.py`](wch_configurator.py)) built on [pywebview](https://pywebview.flowrl.com/). It opens the repository's own [`index.html`](../index.html) in a native window, and it does not change that file. All generator logic stays in one place, so the desktop app gives the same code and the same VS Code project as the web tool. The shell adds:
 
+- a **toolbar with icons**:
+
+  | Tool | Shortcut | What it does |
+  | --- | --- | --- |
+  | New | Ctrl+N | Start an empty project (asks first if there is a configuration). |
+  | Open | Ctrl+O | Open a saved project file (`.wchproj`). |
+  | Save / Save As | Ctrl+S / Ctrl+Shift+S | Save the chip, package, peripherals and pin labels to a `.wchproj` file (JSON). |
+  | Example | | Load the example configuration. |
+  | Copy code | Ctrl+Shift+C | Copy the generated C code. |
+  | Save .c | Ctrl+Shift+E | Save the generated C file. |
+  | VS Code project | Ctrl+E | Export the ready-to-build VS Code project (.zip). |
+  | Guide | F1 | How to use the exported project. |
+  | Source / GitHub, About | | Repository link and the original credit. |
+
+  Tools that the loaded `index.html` does not support are hidden.
+- an app icon (`icon.ico`, made by `make_icon.py`)
 - native **Save as** dialogs for *Download .c* and *VS Code project (.zip)*
 - links (GitHub, e-mail, WCH sites) that open in your normal browser
-- a **Source / GitHub** bar and an **About** dialog with the original credit, *Made by Amir1387aht (Another)*
+- the original credit, *Made by Amir1387aht (Another)*, in the toolbar, the window title and the **About** dialog
 - a clipboard fallback for **Copy**
 
 **Network use:** none while you configure and generate. Fonts fall back to system fonts when offline. The exported VS Code project's **WCH: Setup** task still downloads the official WCH EVT inside VS Code when you run it. That is part of the exported project, not this app.

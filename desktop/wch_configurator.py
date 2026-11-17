@@ -10,6 +10,9 @@ file, so the desktop app always produces exactly the same output as the web
 tool. The shell only adds what a browser normally provides:
 
   * a native window (pywebview on top of Microsoft Edge WebView2),
+  * a toolbar with icons: New / Open / Save / Save As project (.wchproj),
+    Example, Copy code, Save .c, VS Code project, Guide, Source / GitHub, About
+    (with keyboard shortcuts),
   * native "Save as" dialogs for "Download .c" and "VS Code project (.zip)",
   * opening external links (GitHub, e-mail, WCH sites) in the default browser,
   * a "Source / GitHub" bar and an About dialog with the original credit.
@@ -20,6 +23,7 @@ downloads the WCH EVT later, and that happens inside VS Code, not here.
 
 import base64
 import ctypes
+import json
 import os
 import sys
 import threading
@@ -27,11 +31,12 @@ import threading
 import webview
 
 APP_NAME = "WCH Configurator"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.2.0"
 AUTHOR = "Amir1387aht (Another)"
 AUTHOR_EMAIL = "amir1387aht@gmail.com"
 REPO_URL = "https://github.com/amir1387aht/WCH-Resources"
 AUTHOR_URL = "https://github.com/amir1387aht"
+PROJECT_TYPES = ("WCH Configurator project (*.wchproj)", "All files (*.*)")
 
 
 def resource_dir():
@@ -77,26 +82,78 @@ class Api:
     def __init__(self):
         self._window = None
 
-    def save_file(self, filename, b64data):
+    # -- file dialogs ---------------------------------------------------------
+    def _ask(self, kind, filename="", file_types=()):
+        """Native file dialog; returns a path or None. In self-test mode no dialog is shown."""
         selftest_dir = os.environ.get("WCH_SELFTEST_DIR")
-        if selftest_dir:  # automated smoke test: save without a dialog
-            path = os.path.join(selftest_dir, os.path.basename(filename))
-            with open(path, "wb") as f:
-                f.write(base64.b64decode(b64data))
-            return {"ok": True, "path": path}
-        save_kind = getattr(getattr(webview, "FileDialog", None), "SAVE", None)
-        if save_kind is None:
-            save_kind = webview.SAVE_DIALOG
-        result = self._window.create_file_dialog(save_kind, save_filename=filename)
+        if selftest_dir:
+            return os.path.join(selftest_dir, os.path.basename(filename or "selftest.wchproj"))
+        fd = getattr(webview, "FileDialog", None)
+        k = getattr(fd, kind, None) if fd else None
+        if k is None:
+            k = getattr(webview, kind + "_DIALOG")
+        kw = {"file_types": file_types} if file_types else {}
+        if kind == "SAVE":
+            kw["save_filename"] = filename
+        result = self._window.create_file_dialog(k, **kw)
         if not result:
+            return None
+        return result if isinstance(result, str) else result[0]
+
+    def _title(self, path=None):
+        name = os.path.basename(path) + " - " if path else ""
+        try:
+            self._window.set_title(f"{name}{APP_NAME} - by {AUTHOR}")
+        except Exception:
+            pass
+
+    def save_file(self, filename, b64data):
+        """Download .c / VS Code project (.zip): ask where, then write the bytes."""
+        ext = os.path.splitext(filename)[1].lower()
+        types = {".c": ("C source (*.c)", "All files (*.*)"),
+                 ".zip": ("ZIP archive (*.zip)", "All files (*.*)")}.get(ext, ())
+        path = self._ask("SAVE", filename, types)
+        if not path:
             return {"ok": False, "cancelled": True}
-        path = result if isinstance(result, str) else result[0]
         try:
             with open(path, "wb") as f:
                 f.write(base64.b64decode(b64data))
         except OSError as e:
             return {"ok": False, "error": str(e)}
         return {"ok": True, "path": path}
+
+    # -- project files (.wchproj = JSON of the page's configuration) ----------
+    def save_project(self, filename, text, path=None):
+        """Save: write to `path` when the project already has one, else ask (Save As)."""
+        if not path or not os.path.isdir(os.path.dirname(path)):
+            path = self._ask("SAVE", filename, PROJECT_TYPES)
+            if not path:
+                return {"ok": False, "cancelled": True}
+        try:
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+        except OSError as e:
+            return {"ok": False, "error": str(e)}
+        self._title(path)
+        return {"ok": True, "path": path}
+
+    def open_project(self):
+        path = self._ask("OPEN", "", PROJECT_TYPES)
+        if not path:
+            return {"ok": False, "cancelled": True}
+        try:
+            if os.path.getsize(path) > 5 * 1024 * 1024:
+                return {"ok": False, "error": "file is too large for a project file"}
+            with open(path, "r", encoding="utf-8") as f:
+                text = f.read()
+        except (OSError, UnicodeDecodeError) as e:
+            return {"ok": False, "error": str(e)}
+        self._title(path)
+        return {"ok": True, "path": path, "text": text}
+
+    def new_project(self):
+        self._title(None)
+        return True
 
     def open_url(self, url):
         if isinstance(url, str) and url.startswith(("http://", "https://", "mailto:")):
@@ -168,21 +225,165 @@ INJECT_JS = r"""
     try { Object.defineProperty(navigator, 'clipboard', {value: {writeText: t => api().copy_text(t)}}); } catch(e) {}
   }
 
-  // 4) Source / GitHub bar + About dialog (original credit kept intact)
+  // 4) project files: the page keeps its whole configuration in the global `state`
+  const page = () => (typeof state !== 'undefined') ? state : null;   // eslint-disable-line no-undef
+  const $id = id => document.getElementById(id);
+  let projectPath = null;
+
+  function projectJson(){
+    const s = page(); if (!s) throw new Error('this page version has no project state');
+    return JSON.stringify({
+      app: 'wch-configurator', format: 1,
+      credit: 'WCH Configurator by Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources',
+      family: s.family, variant: s.variant, pkg: s.pkg || null,
+      configs: s.configs || [], labels: s.labels || {}, seq: s.seq || 1
+    }, null, 2);
+  }
+  // only plain data from a project file, and no markup in strings
+  function clean(v, depth){
+    if (depth > 6) return undefined;
+    if (typeof v === 'string') return v.replace(/[<>]/g, '').slice(0, 200);
+    if (typeof v === 'number' || typeof v === 'boolean' || v === null) return v;
+    if (Array.isArray(v)) return v.slice(0, 2000).map(x => clean(x, depth + 1));
+    if (typeof v === 'object') { const o = {}; for (const k of Object.keys(v).slice(0, 200)) o[String(k).replace(/[<>]/g, '')] = clean(v[k], depth + 1); return o; }
+    return undefined;
+  }
+  function loadProject(text){
+    const s = page(); if (!s) throw new Error('this page version has no project state');
+    let p = JSON.parse(text);
+    if (!p || p.app !== 'wch-configurator') throw new Error('not a WCH Configurator project file');
+    p = clean(p, 0);
+    if (typeof FAMILIES !== 'undefined' && !FAMILIES[p.family]) throw new Error('unknown family ' + p.family);  // eslint-disable-line no-undef
+    const fb = [...document.querySelectorAll('.fam-btn')].find(b => b.dataset.fam === p.family);
+    if (fb) fb.click();
+    const vs = $id('variantSelect');
+    if (vs && p.variant && [...vs.options].some(o => o.value === p.variant)) { vs.value = p.variant; vs.dispatchEvent(new Event('change')); }
+    const ps = $id('pkgSelect');
+    if (ps && p.pkg && !ps.disabled && [...ps.options].some(o => o.value === p.pkg)) { ps.value = p.pkg; ps.dispatchEvent(new Event('change')); }
+    s.configs = Array.isArray(p.configs) ? p.configs : [];
+    if ('labels' in s || p.labels) s.labels = p.labels || {};
+    s.seq = Math.max(p.seq || 1, ...s.configs.map(c => (+c.id || 0) + 1), 1);
+    s.editId = null;
+    ['renderForm', 'drawChip', 'renderAll'].forEach(fn => { if (typeof window[fn] === 'function') window[fn](); });
+    return s.configs.length;
+  }
+  window.__wchLoadProject = loadProject;
+  window.__wchProjectJson = projectJson;
+  const projName = () => { const s = page(); return ((s && s.variant) || 'wch').toLowerCase() + '_project.wchproj'; };
+
+  const actions = {
+    newProject(){
+      const s = page();
+      if (s && (s.configs || []).length && !confirm('Start a new project? Unsaved changes are lost.')) return;
+      $id('clearBtn') && $id('clearBtn').click();
+      if (typeof window.renderAll === 'function') window.renderAll();
+      projectPath = null; api().new_project();
+    },
+    async openProject(){
+      const r = await api().open_project();
+      if (!r || !r.ok) { if (r && r.error) toast('Could not open: ' + r.error, true); return; }
+      try { const n = loadProject(r.text); projectPath = r.path; toast('Opened ' + r.path + ' (' + n + ' items)'); }
+      catch (e) { toast('Could not open: ' + e.message, true); }
+    },
+    async saveProject(asNew){
+      let text; try { text = projectJson(); } catch (e) { toast(e.message, true); return; }
+      const r = await api().save_project(projName(), text, asNew ? null : projectPath);
+      if (r && r.ok) { projectPath = r.path; toast('Saved: ' + r.path); }
+      else if (r && r.error) toast('Could not save: ' + r.error, true);
+    },
+    example(){ $id('exampleBtn') && $id('exampleBtn').click(); },
+    copy(){ $id('copyBtn') && $id('copyBtn').click(); },
+    saveC(){ $id('downloadBtn') && $id('downloadBtn').click(); },
+    exportVsc(){ $id('vscodeBtn') && $id('vscodeBtn').click(); },
+    guide(){ $id('vscodeHelpBtn') && $id('vscodeHelpBtn').click(); },
+    github(){ api().open_url('https://github.com/amir1387aht/WCH-Resources'); },
+    about(){ $id('wch-about').showModal(); },
+  };
+  window.__wchDesktopActions = actions;
+
+  // 5) toolbar with icons (inline SVG, no network)
+  const I = {
+    file:   '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
+    open:   '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v1H7.5a2 2 0 0 0-1.9 1.4L3 19z"/><path d="M3 19l2.6-7.6A2 2 0 0 1 7.5 10H22l-2.7 8a2 2 0 0 1-1.9 1.4H3"/>',
+    save:   '<path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v5h8V3M7 21v-7h10v7"/>',
+    saveas: '<path d="M5 3h11l5 5v4M12 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2"/><path d="M7 3v5h8V3M7 21v-7h5"/><path d="M19.5 14.5l2 2-5 5H14.5v-2z"/>',
+    spark:  '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
+    copy:   '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/>',
+    code:   '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M10 12l-2 2 2 2M14 12l2 2-2 2"/>',
+    pkg:    '<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+    help:   '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.7M12 17h.01"/>',
+    gh:     '<path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>',
+    info:   '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>',
+  };
+  const svg = p => '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>';
+  const B = [
+    ['new',    'file',   'New',            'New project (Ctrl+N)',                       actions.newProject],
+    ['open',   'open',   'Open',           'Open project file (Ctrl+O)',                 actions.openProject],
+    ['save',   'save',   'Save',           'Save project (Ctrl+S)',                      () => actions.saveProject(false)],
+    ['saveas', 'saveas', 'Save As',        'Save project as a new file (Ctrl+Shift+S)',  () => actions.saveProject(true)],
+    '|',
+    ['example','spark',  'Example',        'Load an example configuration',             actions.example, 'exampleBtn'],
+    '|',
+    ['copy',   'copy',   'Copy code',      'Copy the generated C code (Ctrl+Shift+C)',   actions.copy, 'copyBtn'],
+    ['savec',  'code',   'Save .c',        'Save the generated C file (Ctrl+Shift+E)',   actions.saveC, 'downloadBtn'],
+    ['vsc',    'pkg',    'VS Code project','Export a ready-to-build VS Code project (.zip) (Ctrl+E)', actions.exportVsc, 'vscodeBtn'],
+    ['guide',  'help',   'Guide',          'How to use the exported project (F1)',       actions.guide, 'vscodeHelpBtn'],
+  ];
+  const css = document.createElement('style');
+  css.textContent = `
+    #wch-desktop-bar{position:sticky;top:0;z-index:9000;display:flex;align-items:center;gap:2px;padding:5px 10px;
+      background:linear-gradient(#10293d,#0b1f2f);border-bottom:1px solid #1d3c52;color:#cfe3f1;
+      font:12.5px Inter,'Segoe UI',sans-serif;user-select:none;flex-wrap:wrap}
+    #wch-desktop-bar .tb{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 9px;border:1px solid transparent;
+      border-radius:6px;background:transparent;color:inherit;font:inherit;cursor:pointer;white-space:nowrap}
+    #wch-desktop-bar .tb:hover{background:#173a55;border-color:#2b5675;color:#fff}
+    #wch-desktop-bar .tb:active{background:#1e4a6b}
+    #wch-desktop-bar .tb svg{color:#f0b24a;flex:none}
+    #wch-desktop-bar .sep{width:1px;height:20px;background:#244a66;margin:0 6px}
+    #wch-desktop-bar .credit{margin-left:auto;display:flex;align-items:center;gap:4px;padding-left:10px}
+    #wch-desktop-bar .credit span{opacity:.85;margin-right:4px}
+    #wch-desktop-bar .credit a{color:#7cc4ff;text-decoration:none}
+    @media (max-width:1180px){#wch-desktop-bar .tb .lbl{display:none}}`;
+  document.head.appendChild(css);
+
   const REPO = 'https://github.com/amir1387aht/WCH-Resources';
   const bar = document.createElement('div');
   bar.id = 'wch-desktop-bar';
-  bar.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:7px 16px;'
-    + 'font:12.5px Inter,Segoe UI,sans-serif;background:#0b2233;color:#cfe3f1;border-bottom:1px solid #1d3c52;';
-  bar.innerHTML =
-      '<b style="color:#fff">WCH Configurator</b><span style="opacity:.7">Desktop edition</span>'
-    + '<span style="opacity:.5">|</span>'
-    + '<span>Made by <b>Amir1387aht</b> (Another)</span>'
-    + '<span style="flex:1"></span>'
-    + '<span>Source / GitHub: <a href="' + REPO + '" style="color:#7cc4ff">github.com/amir1387aht/WCH-Resources</a></span>'
-    + '<button id="wch-about-btn" style="cursor:pointer;border:1px solid #3a6380;background:transparent;color:#cfe3f1;'
-    + 'border-radius:6px;padding:3px 10px;font:inherit">About</button>';
+  bar.setAttribute('role', 'toolbar');
+  for (const b of B) {
+    if (b === '|') { const s = document.createElement('span'); s.className = 'sep'; bar.appendChild(s); continue; }
+    const [id, icon, label, tip, fn, needs] = b;
+    if (needs && !$id(needs)) continue;                       // hide tools this page version lacks
+    if (['save', 'saveas', 'open'].includes(id) && !page()) continue;
+    const el = document.createElement('button');
+    el.className = 'tb'; el.id = 'wch-tb-' + id; el.title = tip; el.type = 'button';
+    el.innerHTML = svg(I[icon]) + '<span class="lbl">' + label + '</span>';
+    el.addEventListener('click', fn);
+    bar.appendChild(el);
+  }
+  const credit = document.createElement('div');
+  credit.className = 'credit';
+  credit.innerHTML = '<span>Made by <b>Amir1387aht</b> (Another)</span>'
+    + '<button class="tb" id="wch-tb-github" title="Source / GitHub: ' + REPO + '">' + svg(I.gh) + '<span class="lbl">Source / GitHub</span></button>'
+    + '<button class="tb" id="wch-about-btn" title="About">' + svg(I.info) + '<span class="lbl">About</span></button>';
+  bar.appendChild(credit);
   document.body.insertBefore(bar, document.body.firstChild);
+  $id('wch-tb-github').addEventListener('click', actions.github);
+
+  // keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase(), c = e.ctrlKey || e.metaKey;
+    let f = null;
+    if (c && !e.shiftKey && k === 'n') f = actions.newProject;
+    else if (c && !e.shiftKey && k === 'o') f = page() && actions.openProject;
+    else if (c && e.shiftKey && k === 's') f = page() && (() => actions.saveProject(true));
+    else if (c && k === 's') f = page() && (() => actions.saveProject(false));
+    else if (c && !e.shiftKey && k === 'e') f = actions.exportVsc;
+    else if (c && e.shiftKey && k === 'e') f = actions.saveC;
+    else if (c && e.shiftKey && k === 'c') f = actions.copy;
+    else if (k === 'f1') f = actions.guide;
+    if (f) { e.preventDefault(); f(); }
+  }, true);
 
   const dlg = document.createElement('dialog');
   dlg.id = 'wch-about';
@@ -200,7 +401,7 @@ INJECT_JS = r"""
     + '<div style="text-align:right"><button id="wch-about-close" style="cursor:pointer;border:1px solid #3a6380;'
     + 'background:#173247;color:#e6edf3;border-radius:6px;padding:5px 14px;font:inherit">Close</button></div>';
   document.body.appendChild(dlg);
-  document.getElementById('wch-about-btn').onclick = () => dlg.showModal();
+  document.getElementById('wch-about-btn').onclick = actions.about;
   document.getElementById('wch-about-close').onclick = () => dlg.close();
 })();
 """.replace("__VER__", APP_VERSION)
@@ -213,12 +414,27 @@ def _selftest(window):
     time.sleep(2)
     window.evaluate_js("document.getElementById('exampleBtn').click()")
     time.sleep(1)
-    window.evaluate_js("document.getElementById('downloadBtn').click()")
-    window.evaluate_js("document.getElementById('vscodeBtn').click()")
+    window.evaluate_js("document.getElementById('wch-tb-savec').click()")
+    window.evaluate_js("document.getElementById('wch-tb-vsc').click()")
+    # project round trip: save, clear, load the saved file back, compare
+    window.evaluate_js("document.getElementById('wch-tb-saveas').click()")
+    time.sleep(1.5)
+    before = window.evaluate_js("JSON.stringify(state.configs)")
+    proj = [f for f in os.listdir(out) if f.endswith(".wchproj")]
+    roundtrip = False
+    if proj:
+        with open(os.path.join(out, proj[0]), encoding="utf-8") as f:
+            text = f.read()
+        window.evaluate_js("document.getElementById('clearBtn').click()")
+        window.evaluate_js("window.__wchLoadProject(%s)" % json.dumps(text))
+        time.sleep(1)
+        roundtrip = window.evaluate_js("JSON.stringify(state.configs)") == before
     state = window.evaluate_js(
         "JSON.stringify({bar: !!document.getElementById('wch-desktop-bar'),"
+        " tools: [...document.querySelectorAll('#wch-desktop-bar .tb')].map(b => b.id.replace('wch-tb-','')),"
         " credit: document.body.innerText.includes('Amir1387aht'),"
         " repo: document.body.innerHTML.includes('github.com/amir1387aht/WCH-Resources')})")
+    state = state[:-1] + ', "project_roundtrip": %s}' % json.dumps(roundtrip)
     with open(os.path.join(out, "selftest.json"), "w", encoding="utf-8") as f:
         f.write(str(state))
     time.sleep(float(os.environ.get("WCH_SELFTEST_HOLD", "3")))
