@@ -31,7 +31,7 @@ import threading
 import webview
 
 APP_NAME = "WCH Configurator"
-APP_VERSION = "1.2.1"
+APP_VERSION = "1.2.2"
 AUTHOR = "Amir1387aht (Another)"
 AUTHOR_EMAIL = "amir1387aht@gmail.com"
 REPO_URL = "https://github.com/amir1387aht/WCH-Resources"
@@ -206,7 +206,7 @@ INJECT_JS = r"""
   const LOGO = '__LOGO__';
   if (LOGO.indexOf('data:image/') === 0) {
     const mk = document.querySelector('.brand .mark');
-    if (mk) {
+    if (mk && !mk.querySelector('svg')) {   // newer pages already carry the logo
       mk.textContent = '';
       mk.style.background = 'none';
       mk.style.boxShadow = 'none';
