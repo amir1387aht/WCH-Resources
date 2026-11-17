@@ -203,6 +203,8 @@
   .ck-canvas svg.wires{position:absolute; inset:0; overflow:visible; pointer-events:none;}
   .ck-canvas svg.wires path{fill:none; stroke:#3a4652; stroke-width:2;}
   .ck-canvas svg.wires path.on{stroke:var(--teal); stroke-width:2.5;}
+  .ck-canvas svg.wires circle{fill:#3a4652;} .ck-canvas svg.wires circle.on{fill:var(--teal);}
+  html[data-theme="light"] .ck-canvas svg.wires circle{fill:#b4bec8;} html[data-theme="light"] .ck-canvas svg.wires circle.on{fill:#0b5cad;}
   .ck-node{position:absolute; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-family:var(--mono); font-size:11px; color:var(--text-dim); box-shadow:0 2px 10px rgba(0,0,0,0.25);}
   .ck-node.on{border-color:var(--teal-dim);}
   .ck-node.bad{border-color:var(--red); box-shadow:0 0 0 1px rgba(255,95,86,0.4);}
@@ -5529,27 +5531,72 @@ function renderClockView(){
     wire(660, 140, 720, 145, true);
     W = 980; H = 500;
   } else {
-    const pin = d.pllIn.find(x => x.id === c.pllIn) || d.pllIn[0];
-    const sysPLL = c.sys === 'PLL';
-    html += node(10, 20, 150, 'src' + (c.sys === 'HSI' || (sysPLL && pin.src === 'HSI') ? ' on' : ''), 'HSI (internal RC)', `<div class="f">${fmtHz(d.hsi)}</div>`);
-    if(d.hse && d.hse.max) html += node(10, 110, 150, 'src' + (c.sys === 'HSE' || (sysPLL && pin.src === 'HSE') ? ' on' : '') + (bad('HSE') ? ' bad' : ''), 'HSE (crystal)', `<input type="number" data-ck="hse" value="${+c.hse / 1e6}" step="0.001" min="${d.hse.min / 1e6}" max="${d.hse.max / 1e6}"><div class="m">MHz, ${fmtHz(d.hse.min)}–${fmtHz(d.hse.max)}</div>`);
-    html += node(10, 220, 150, 'src', 'LSI', `<div class="f">${fmtHz(d.lsi)}</div><div class="m">IWDG${d.rtc ? ' / RTC' : ''}</div>`);
-    if(d.rtc) html += node(10, 300, 150, 'src', 'LSE', `<div class="f">${fmtHz(d.lse)}</div><div class="m">RTC crystal</div>`);
-    html += node(200, 60, 150, 'mux' + (sysPLL ? ' on' : ''), 'PLL source', `<select data-ck="pllIn">${d.pllIn.map(x => `<option value="${x.id}" ${x.id === pin.id ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select><div class="m">${fmtHz(f.pllIn)}</div>`);
-    html += node(390, 60, 140, 'mux' + (sysPLL ? ' on' : '') + (bad('PLL output') ? ' bad' : ''), 'PLL ×', d.pllMul.length > 1 ? `<select data-ck="mul">${opt(d.pllMul, c.mul, x => '×' + x.n)}</select><div class="f">${fmtHz(f.pll)}</div>` : `<div class="f">×${d.pllMul[0].n} = ${fmtHz(f.pll)}</div>`);
-    html += node(570, 40, 130, 'mux on' + (bad('SYSCLK') ? ' bad' : ''), 'SYSCLK mux', `<select data-ck="sys">${d.sysMux.map(x => `<option ${x === c.sys ? 'selected' : ''}>${x}</option>`).join('')}</select><div class="f">${fmtHz(f.sysclk)}</div><div class="m">max ${fmtHz(chipMax(d, 'sysMax'))}</div>`);
-    html += node(740, 20, 130, 'mux on' + (bad('HCLK') ? ' bad' : ''), 'AHB prescaler', `<select data-ck="ahb">${opt(d.ahb, c.ahb, x => '/' + x.n)}</select><div class="f">${fmtHz(f.hclk)}</div><div class="m">HCLK · core, DMA</div>`);
-    let y = 20;
-    if(d.apb1){ html += node(905, y, 140, 'out on' + (bad('PCLK1') ? ' bad' : ''), 'APB1', `<select data-ck="apb1">${opt(d.apb1, c.apb1, x => '/' + x.n)}</select><div class="f">${fmtHz(f.pclk1)}</div><div class="m">timers ×: ${fmtHz(f.tim2clk)}</div>`); wire(870, 45, 905, y + 30, true); y += 110; }
-    if(d.apb2){ html += node(905, y, 140, 'out on' + (bad('PCLK2') ? ' bad' : ''), 'APB2', `<select data-ck="apb2">${opt(d.apb2, c.apb2, x => '/' + x.n)}</select><div class="f">${fmtHz(f.pclk2)}</div><div class="m">timers ×: ${fmtHz(f.tim1clk)}</div>`); wire(870, 45, 905, y + 30, true); y += 110; }
-    if(!d.apb1 && !d.apb2){ html += node(905, 20, 140, 'out on', 'PCLK = HCLK', `<div class="f">${fmtHz(f.pclk2)}</div><div class="m">peripherals, timers</div>`); wire(870, 45, 905, 50, true); y = 130; }
-    if(d.adc){ html += node(905, y, 140, 'out' + (state.configs.some(x => x.type === 'adc') ? ' on' : '') + (bad('ADC') ? ' bad' : ''), 'ADC prescaler', `<select data-ck="adc">${opt(d.adc.divs, c.adc, x => '/' + x.n)}</select><div class="f">${fmtHz(f.adcclk)}</div><div class="m">from ${d.adc.from === 'hclk' ? 'HCLK' : 'PCLK2'}, max ${fmtHz(d.adc.max)}</div>`); wire(870, 45, 905, y + 30, true); y += 110; }
-    if(d.usb){ html += node(740, 170, 130, 'out' + (sysPLL ? ' on' : '') + (bad('USB') ? ' bad' : ''), (d.usb.name || 'USB') + ' clock', `<select data-ck="usb">${opt(d.usb.divs, c.usb, x => '/' + x.n)}</select><div class="f">${f.usbclk ? fmtHz(f.usbclk) : 'off'}</div><div class="m">must be 48 MHz</div>`); wire(530, 95, 740, 200, sysPLL); }
-    wire(160, 45, 200, 85, sysPLL && pin.src === 'HSI'); wire(160, 135, 200, 95, sysPLL && pin.src === 'HSE');
-    wire(350, 95, 390, 95, sysPLL); wire(530, 95, 570, 75, sysPLL);
-    wire(160, 45, 570, 60, c.sys === 'HSI'); wire(160, 135, 570, 90, c.sys === 'HSE');
-    wire(700, 65, 740, 45, true);
-    H = Math.max(y, 380) + 20;
+    /* CubeMX-style fixed grid: every connection is a straight run or one right angle, branches are T-junctions
+       with a dot, and no line passes under a block. HSI runs above the PLL row, HSE below it, both into the tall mux. */
+    const hasPll = !!(d.pllIn && d.pllIn.length && d.pllMul && d.pllMul.length);
+    const pin = hasPll ? (d.pllIn.find(x => x.id === c.pllIn) || d.pllIn[0]) : {src:''};
+    const sysPLL = c.sys === 'PLL', hasHse = !!(d.hse && d.hse.max);
+    const box = (x, y, w, h, cls, title, inner) => `<div class="ck-node ${cls}" style="left:${x}px; top:${y}px; width:${w}px; height:${h}px">${title ? `<div class="t">${title}</div>` : ''}${inner}</div>`;
+    const path = (pts, on) => wires.push(`<path class="${on ? 'on' : ''}" d="M${pts.map(q => q.join(' ')).join(' L')}"/>`);
+    const dot = (x, y, on) => wires.push(`<circle class="${on ? 'on' : ''}" cx="${x}" cy="${y}" r="3.5"/>`);
+    const usbFromPll = !!(d.usb && d.usb.from !== 'sys');
+    const ROW = 180, HSI_Y = 52, HSE_Y = usbFromPll ? 420 : 304;   /* lane heights; with a PLL-fed USB block the HSE lane runs below it */
+    const MUX_X = 640, MUX_W = 140, AHB_X = 840, OUT_X = 1060;
+    const hsiOn = c.sys === 'HSI', hseOn = c.sys === 'HSE', pllHsi = sysPLL && pin.src === 'HSI', pllHse = sysPLL && pin.src === 'HSE';
+    /* sources */
+    html += box(10, HSI_Y - 32, 150, 64, 'src' + (hsiOn || pllHsi ? ' on' : ''), 'HSI (internal RC)', `<div class="f">${fmtHz(d.hsi)}</div>`);
+    if(hasHse) html += box(10, HSE_Y - 38, 150, 76, 'src' + (hseOn || pllHse ? ' on' : '') + (bad('HSE') ? ' bad' : ''), 'HSE (crystal)', `<input type="number" data-ck="hse" value="${+c.hse / 1e6}" step="0.001" min="${d.hse.min / 1e6}" max="${d.hse.max / 1e6}"><div class="m">MHz, ${fmtHz(d.hse.min)}–${fmtHz(d.hse.max)}</div>`);
+    html += box(10, HSE_Y + 70, 150, 60, 'src', 'LSI', `<div class="f">${fmtHz(d.lsi)}</div><div class="m">IWDG${d.rtc ? ' / RTC' : ''}</div>`);
+    if(d.rtc) html += box(10, HSE_Y + 146, 150, 60, 'src', 'LSE', `<div class="f">${fmtHz(d.lse)}</div><div class="m">RTC crystal</div>`);
+    /* PLL row */
+    if(hasPll){
+      html += box(240, ROW - 48, 150, 96, 'mux' + (sysPLL ? ' on' : ''), 'PLL source', `<select data-ck="pllIn">${d.pllIn.map(x => `<option value="${x.id}" ${x.id === pin.id ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select><div class="m">${fmtHz(f.pllIn)}</div>`);
+      html += box(440, ROW - 48, 150, 96, 'mux' + (sysPLL ? ' on' : '') + (bad('PLL output') ? ' bad' : ''), 'PLL ×', d.pllMul.length > 1 ? `<select data-ck="mul">${opt(d.pllMul, c.mul, x => '×' + x.n)}</select><div class="f">${fmtHz(f.pll)}</div>` : `<div class="f">×${d.pllMul[0].n} = ${fmtHz(f.pll)}</div>`);
+      /* HSI lane -> branch down into the PLL source, HSE lane -> branch up into it */
+      path([[160, HSI_Y], [200, HSI_Y]], hsiOn || pllHsi); dot(200, HSI_Y, hsiOn || pllHsi);
+      path([[200, HSI_Y], [200, ROW - 18], [240, ROW - 18]], pllHsi);
+      if(hasHse){ path([[160, HSE_Y], [215, HSE_Y]], hseOn || pllHse); dot(215, HSE_Y, hseOn || pllHse); path([[215, HSE_Y], [215, ROW + 18], [240, ROW + 18]], pllHse); }
+      path([[390, ROW], [440, ROW]], sysPLL);
+      path([[590, ROW], [MUX_X, ROW]], sysPLL);
+      path([[200, HSI_Y], [MUX_X, HSI_Y]], hsiOn);
+      if(hasHse) path([[215, HSE_Y], [MUX_X, HSE_Y]], hseOn);
+    } else {
+      path([[160, HSI_Y], [MUX_X, HSI_Y]], hsiOn || c.sys === 'HSI');
+      if(hasHse) path([[160, HSE_Y], [MUX_X, HSE_Y]], hseOn);
+    }
+    /* tall system clock mux: inputs at the HSI lane, the PLL row and the HSE lane; output on the PLL row */
+    html += box(MUX_X, HSI_Y - 30, MUX_W, HSE_Y - HSI_Y + 60, 'mux on' + (bad('SYSCLK') ? ' bad' : ''), 'SYSCLK mux',
+      `<div style="margin-top:${ROW - HSI_Y - 30}px"><select data-ck="sys">${d.sysMux.map(x => `<option ${x === c.sys ? 'selected' : ''}>${x}</option>`).join('')}</select><div class="f">${fmtHz(f.sysclk)}</div><div class="m">max ${fmtHz(chipMax(d, 'sysMax'))}</div></div>`);
+    html += box(AHB_X, ROW - 48, 150, 96, 'mux on' + (bad('HCLK') ? ' bad' : ''), 'AHB prescaler', `<select data-ck="ahb">${opt(d.ahb, c.ahb, x => '/' + x.n)}</select><div class="f">${fmtHz(f.hclk)}</div><div class="m">HCLK · core, DMA</div>`);
+    path([[MUX_X + MUX_W, ROW], [AHB_X, ROW]], true);
+    /* outputs on a bus right of the AHB prescaler */
+    const outs = [];
+    if(d.apb1) outs.push(['APB1', 'out on' + (bad('PCLK1') ? ' bad' : ''), `<select data-ck="apb1">${opt(d.apb1, c.apb1, x => '/' + x.n)}</select><div class="f">${fmtHz(f.pclk1)}</div><div class="m">timers ×: ${fmtHz(f.tim2clk)}</div>`, true]);
+    if(d.apb2) outs.push(['APB2', 'out on' + (bad('PCLK2') ? ' bad' : ''), `<select data-ck="apb2">${opt(d.apb2, c.apb2, x => '/' + x.n)}</select><div class="f">${fmtHz(f.pclk2)}</div><div class="m">timers ×: ${fmtHz(f.tim1clk)}</div>`, true]);
+    if(!d.apb1 && !d.apb2) outs.push(['PCLK = HCLK', 'out on', `<div class="f">${fmtHz(f.pclk2)}</div><div class="m">peripherals, timers</div>`, true]);
+    const adcOn = state.configs.some(x => x.type === 'adc');
+    if(d.adc) outs.push(['ADC prescaler', 'out' + (adcOn ? ' on' : '') + (bad('ADC') ? ' bad' : ''), `<select data-ck="adc">${opt(d.adc.divs, c.adc, x => '/' + x.n)}</select><div class="f">${fmtHz(f.adcclk)}</div><div class="m">from ${d.adc.from === 'hclk' ? 'HCLK' : 'PCLK2'}, max ${fmtHz(d.adc.max)}</div>`, adcOn]);
+    const ys = outs.map((_, i) => ROW + (i - (outs.length - 1) / 2) * 116);
+    const BUS_X = AHB_X + 150 + 35;
+    path([[AHB_X + 150, ROW], [BUS_X, ROW]], true);
+    if(outs.length > 1) path([[BUS_X, Math.min(...ys)], [BUS_X, Math.max(...ys)]], true);
+    outs.forEach(([t, cls, inner, on], i) => {
+      html += box(OUT_X, ys[i] - 48, 150, 96, cls, t, inner);
+      path([[BUS_X, ys[i]], [OUT_X, ys[i]]], on);
+      if(ys[i] !== ROW || outs.length > 1) dot(BUS_X, ys[i], on);
+    });
+    /* USB: straight down from the PLL (or from the SYSCLK output) */
+    let usbBottom = 0;
+    if(d.usb){
+      const fromSys = d.usb.from === 'sys';
+      const ux = fromSys ? AHB_X : 440, uy = fromSys ? HSE_Y + 70 : ROW + 84;
+      html += box(ux, uy, 150, 96, 'out' + (sysPLL || fromSys ? ' on' : '') + (bad('USB') ? ' bad' : ''), (d.usb.name || 'USB') + ' clock', `<select data-ck="usb">${opt(d.usb.divs, c.usb, x => '/' + x.n)}</select><div class="f">${f.usbclk ? fmtHz(f.usbclk) : 'off'}</div><div class="m">must be 48 MHz</div>`);
+      if(fromSys){ const jx = MUX_X + MUX_W + 25; dot(jx, ROW, true); path([[jx, ROW], [jx, uy + 48], [ux, uy + 48]], true); }
+      else { dot(515, ROW + 48, sysPLL); path([[515, ROW + 48], [515, uy]], sysPLL); }
+      usbBottom = uy + 96;
+    }
+    W = OUT_X + 160;
+    H = Math.max(HSE_Y + (d.rtc ? 216 : 140), usbBottom + 20, Math.max(...ys) + 68);
   }
   const legend = `<div class="ck-legend">${d.src ? 'Source: ' + esc(d.src) + '<br>' : ''}Highlighted wires are the active path. Changing anything here makes the generator emit <b>SystemClock_Config()</b>${d.kind === 'ble' ? ' (SetSysClock)' : ' (RCC_* calls, run before the peripherals)'}; the peripheral code (baud rates, timer prescalers, ADC timing) uses these frequencies.</div>`;
   wrap.innerHTML = head + `<div class="ck-canvas" id="ckCanvas" style="width:${W}px; height:${H}px"><svg class="wires" width="${W}" height="${H}">${wires.join('')}</svg>${html}</div>` + legend;
