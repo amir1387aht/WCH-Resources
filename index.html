@@ -170,6 +170,17 @@
     border-bottom:1px solid var(--line); background:var(--panel-2);
   }
   .code-toolbar .fname{font-family:var(--mono); font-size:12px; color:var(--text-dim);}
+  .code-toolbar .fname select{font-size:12px; padding:4px 8px;}
+  .ck, .field label.ck{display:inline-flex; margin:0; align-items:center; gap:6px; font-size:12.5px; color:var(--text); cursor:pointer; text-transform:none; letter-spacing:0; font-family:var(--sans);}
+  .ck input{accent-color:var(--copper); width:auto;}
+  .bu-flags{display:flex; flex-wrap:wrap; gap:6px 14px;}
+  .bu-sec{display:flex; justify-content:space-between; align-items:center; gap:8px; margin:18px 0 10px; padding-top:12px; border-top:1px solid var(--line-soft); font-family:var(--disp); font-size:13px; color:var(--copper);}
+  .bu-card{border:1px solid var(--line); border-radius:9px; padding:12px; margin-bottom:12px; background:var(--panel-2);}
+  .bu-char{border:1px dashed var(--line); border-radius:8px; padding:10px; margin:10px 0; background:var(--panel);}
+  .bu-card-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12.5px;}
+  .bu-mini{padding:4px 9px; font-size:11px; width:auto; flex:none; white-space:nowrap;}
+  .bu-problems{border:1px solid rgba(226,104,95,0.45); background:rgba(226,104,95,0.08); color:#f0a39c; border-radius:8px; padding:8px 10px; font-size:12px; line-height:1.5; margin-bottom:12px;}
+  .tab.hidden{display:none;}
   .code-toolbar .actions{display:flex; gap:8px;}
   .icon-btn{
     font-family:var(--mono); font-size:11px; background:var(--panel); border:1px solid var(--line);
@@ -209,7 +220,7 @@
       <div class="mark">λ</div>
       <div>
         <h1>WCH Configurator</h1>
-        <div class="sub">GPIO · SPI · I²C · UART · TIMER · ADC · IRQ &nbsp;→&nbsp; C init code</div>
+        <div class="sub">GPIO · SPI · I²C · UART · TIMER · ADC · IRQ · BLE · USB &nbsp;→&nbsp; C init code</div>
       </div>
     </div>
     <div class="family-select" id="famSelect">
@@ -242,6 +253,8 @@
         <div class="tab" data-tab="timer">TIMER</div>
         <div class="tab" data-tab="adc">ADC</div>
         <div class="tab" data-tab="exti">IRQ</div>
+        <div class="tab hidden" data-tab="ble" id="tabBle">BLE</div>
+        <div class="tab hidden" data-tab="usb" id="tabUsb">USB</div>
       </div>
       <div class="form" id="formArea"></div>
       <div style="padding:0 18px 18px;">
@@ -462,7 +475,25 @@ const formArea = document.getElementById('formArea');
 
 function opts(arr, mapFn){ return arr.map(mapFn).join(''); }
 
+function syncBuTabs(){
+  const caps = chipCaps(currentVariant());
+  document.getElementById('tabBle').classList.toggle('hidden', !caps.ble);
+  document.getElementById('tabUsb').classList.toggle('hidden', !caps.usb);
+  if((state.tab === 'ble' && !caps.ble) || (state.tab === 'usb' && !caps.usb)){
+    state.tab = 'gpio';
+    [...tabsEl.children].forEach(x => x.classList.toggle('active', x.dataset.tab === 'gpio'));
+  }
+}
+
 function renderForm(){
+  syncBuTabs();
+  const bu = state.tab === 'ble' || state.tab === 'usb';
+  document.getElementById('addBtn').style.display = bu ? 'none' : '';
+  if(bu){
+    formArea.innerHTML = state.tab === 'ble' ? renderBleForm() : renderUsbForm();
+    bindBuForm();
+    return;
+  }
   const fam = FAMILIES[state.family];
   const v = currentVariant();
   const ports = v.ports;
@@ -1530,7 +1561,7 @@ ${style==='stdperiph' ? `#if defined(NVIC_PriorityGroup_2)            /* which g
     Delay_Init();` : `#ifdef SYSCLK_FREQ
     SetSysClock(SYSCLK_FREQ);            /* default from CHxx_common.h (CH585: HSE PLL 62.4 MHz) */
 #else
-    SetSysClock(CLK_SOURCE_PLL_60MHz);   /* pick the clock config that matches your project */
+    SetSysClock(${clkDefault(v)});   /* pick the clock config that matches your project */
 #endif`}
 
     ${fnName}();
@@ -1546,7 +1577,7 @@ ${style==='stdperiph' ? `#if defined(NVIC_PriorityGroup_2)            /* which g
 
 /* very small syntax highlight */
 function highlight(code){
-  return code
+  return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\/\*[\s\S]*?\*\//g, m => `<span class="cm">${m}</span>`)
     .replace(/^(#include.*)$/gm, m => `<span class="kw">${m}</span>`)
     .replace(/\b(void|int|uint8_t|uint16_t|uint32_t|int32_t|static|volatile|return|while|if|else|for)\b/g, '<span class="kw">$1</span>')
@@ -1558,9 +1589,19 @@ const codeOut = document.getElementById('codeOut');
 const fileNameEl = document.getElementById('fileName');
 
 function renderCode(){
-  const code = generateCode();
+  const files = generateFiles();
+  const names = Object.keys(files);
+  if(!files[state.curFile]) state.curFile = names[0];
+  const code = files[state.curFile];
   codeOut.innerHTML = highlight(code);
-  fileNameEl.textContent = `${state.variant.toLowerCase()}_peripheral_init.c`;
+  if(names.length > 1){
+    fileNameEl.innerHTML = `<select id="fileSel">${names.map(n => `<option value="${n}" ${n === state.curFile ? 'selected' : ''}>${n.replace(/^src\//, '')}</option>`).join('')}</select> <span style="color:var(--text-faint)">${names.length} files</span>`;
+    document.getElementById('fileSel').addEventListener('change', e => { state.curFile = e.target.value; renderCode(); });
+    window.__lastName = state.curFile.replace(/^src\//, '');
+  } else {
+    fileNameEl.textContent = `${state.variant.toLowerCase()}_peripheral_init.c`;
+    window.__lastName = fileNameEl.textContent;
+  }
   window.__lastCode = code;
 }
 
@@ -1575,9 +1616,1400 @@ document.getElementById('downloadBtn').addEventListener('click', () => {
   const blob = new Blob([window.__lastCode || ''], {type:'text/plain'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = fileNameEl.textContent;
+  a.download = window.__lastName || 'main.c';
   a.click();
 });
+
+/* ================= Bluetooth LE + USB device (CH5xx) ================= */
+function chipCaps(v){
+  const id = (v && v.id) || '';
+  const isCh5 = /^CH5/.test(id);
+  return {
+    ble: isCh5 && id !== 'CH570',          /* CH570 is 2.4G-only */
+    usb: isCh5 && id !== 'CH591',          /* CH591 has no USB */
+  };
+}
+function clkDefault(v){
+  return /^CH57[02]$/.test(v.id) ? 'CLK_SOURCE_HSE_PLL_60MHz' : 'CLK_SOURCE_PLL_60MHz';
+}
+function cIdent(s, fallback){
+  let r = String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if(!r) r = fallback || 'item';
+  if(/^[0-9]/.test(r)) r = '_' + r;
+  return r;
+}
+function cStr(s){ return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"'); }
+function hex2(n){ return '0x' + (n & 0xFF).toString(16).toUpperCase().padStart(2, '0'); }
+function parseUuid(s){
+  const t = String(s || '').trim().replace(/^0x/i, '');
+  if(/^[0-9a-f]{4}$/i.test(t)){ const n = parseInt(t, 16); return {bits:16, bytes:[n & 0xFF, n >> 8], ok:true}; }
+  const h = t.replace(/-/g, '');
+  if(/^[0-9a-f]{32}$/i.test(h)){
+    const b = []; for(let i = 0; i < 32; i += 2) b.push(parseInt(h.substr(i, 2), 16));
+    return {bits:128, bytes:b.reverse(), ok:true};    /* BLE stores UUIDs little-endian */
+  }
+  return {bits:16, bytes:[0, 0], ok:false};
+}
+function parseValue(s){
+  const t = String(s || '').trim();
+  if(!t) return [];
+  if(/^(0x[0-9a-f]{1,2}[\s,]*)+$/i.test(t)) return t.split(/[\s,]+/).filter(Boolean).map(x => parseInt(x, 16) & 0xFF);
+  if(/^([0-9a-f]{2}\s+)*[0-9a-f]{2}$/i.test(t) && /\s/.test(t)) return t.split(/\s+/).map(x => parseInt(x, 16));
+  return Array.from(new TextEncoder().encode(t));
+}
+function newChar(n){
+  return {name:'Char ' + n, uuid:'FFE' + n, maxLen:20, init:'', read:true, write:true, writeNoRsp:false,
+          notify:false, indicate:false, sec:'open', desc:true, onWrite:true, onWriteFn:'', onRead:false, onSub:false};
+}
+function nusPreset(){
+  return {name:'UART', uuid:'6E400001-B5A3-F393-E0A9-E50E24DCCA9E', chars:[
+    {name:'RX', uuid:'6E400002-B5A3-F393-E0A9-E50E24DCCA9E', maxLen:244, init:'', read:false, write:true, writeNoRsp:true,
+     notify:false, indicate:false, sec:'open', desc:true, onWrite:true, onWriteFn:'ble_uart_on_receive', onRead:false, onSub:false},
+    {name:'TX', uuid:'6E400003-B5A3-F393-E0A9-E50E24DCCA9E', maxLen:244, init:'', read:false, write:false, writeNoRsp:false,
+     notify:true, indicate:false, sec:'open', desc:true, onWrite:false, onWriteFn:'', onRead:false, onSub:true},
+  ]};
+}
+state.ble = {
+  enabled:false, name:'WCH BLE Device', advMs:100, txPower:'0', mtu:247, reqMtu:true,
+  connMinMs:20, connMaxMs:100, latency:0, timeoutMs:4000, phy:'2M',
+  pairing:'none', passkey:'123456', bonding:true,
+  services:[{name:'Custom', uuid:'FFE0', chars:[newChar(1), Object.assign(newChar(2), {write:false, read:true, notify:true, onWrite:false, onSub:true})]}],
+};
+state.usb = {
+  enabled:false, vid:'1A86', pid:'FE0C', manufacturer:'WCH', product:'WCH Composite Device', serial:'0001', maxPowerMa:100,
+  cdc:true, kbd:false, mouse:false, custom:false,
+  cdcRxFn:'usb_cdc_on_receive', customRxFn:'usb_hid_custom_on_receive', kbdLedFn:'usb_kbd_on_leds',
+};
+state.curFile = 'src/main.c';
+
+/* ---------- validation ---------- */
+function bleProblems(){
+  const b = state.ble, p = [];
+  if(!b.services.length) p.push('Add at least one service.');
+  if(new TextEncoder().encode(b.name).length > 20) p.push('Device name is longer than 20 bytes (it is cut to 20).');
+  if(b.mtu < 23 || b.mtu > 247) p.push('MTU must be 23–247.');
+  if(/^CH57[02]$/.test(currentVariant().id) && b.mtu > 100) p.push(`${currentVariant().id} has 12 KB RAM: keep the MTU at 100 or less (stack buffers grow with the MTU).`);
+  if(b.connMinMs > b.connMaxMs) p.push('Connection interval min is larger than max.');
+  if(b.pairing === 'passkey' && !/^\d{6}$/.test(b.passkey)) p.push('Passkey must be 6 digits.');
+  const fnSeen = {};
+  b.services.forEach((s, si) => {
+    if(!parseUuid(s.uuid).ok) p.push(`Service "${s.name}": UUID must be 4 hex digits (e.g. FFE0) or a 128-bit UUID.`);
+    if(!s.chars.length) p.push(`Service "${s.name}" has no characteristics.`);
+    s.chars.forEach(c => {
+      if(!parseUuid(c.uuid).ok) p.push(`"${s.name} / ${c.name}": invalid UUID.`);
+      if(!(c.read || c.write || c.writeNoRsp || c.notify || c.indicate)) p.push(`"${s.name} / ${c.name}": select at least one property.`);
+      if(c.maxLen < 1 || c.maxLen > 512) p.push(`"${s.name} / ${c.name}": max length must be 1–512.`);
+      if(parseValue(c.init).length > c.maxLen) p.push(`"${s.name} / ${c.name}": initial value is longer than max length.`);
+      if((c.notify || c.indicate) && c.maxLen > b.mtu - 3) p.push(`"${s.name} / ${c.name}": notify/indicate payload is limited to MTU-3 = ${b.mtu - 3} bytes.`);
+      const fn = bleNames(s, c).onWrite;
+      if((c.write || c.writeNoRsp) && c.onWrite){ if(fnSeen[fn]) p.push(`Two characteristics use the callback name ${fn}.`); fnSeen[fn] = 1; }
+      if(c.onWriteFn && !/^[A-Za-z_]\w*$/.test(c.onWriteFn)) p.push(`"${c.onWriteFn}" is not a valid C function name.`);
+    });
+  });
+  return p;
+}
+function usbProblems(){
+  const u = state.usb, p = [];
+  if(!(u.cdc || u.kbd || u.mouse || u.custom)) p.push('Select at least one USB function.');
+  if(!/^[0-9a-f]{4}$/i.test(u.vid) || !/^[0-9a-f]{4}$/i.test(u.pid)) p.push('VID and PID must be 4 hex digits.');
+  if(usbEndpoints().length > 4) p.push('This USB controller has 4 endpoints (EP1–EP4); the selected functions need more.');
+  [u.cdcRxFn, u.customRxFn, u.kbdLedFn].forEach(f => { if(f && !/^[A-Za-z_]\w*$/.test(f)) p.push(`"${f}" is not a valid C function name.`); });
+  return p;
+}
+
+/* ---------- editors ---------- */
+function chk(path, val, label){ return `<label class="ck"><input type="checkbox" data-p="${path}" ${val ? 'checked' : ''}> ${label}</label>`; }
+function txt(path, val, extra){ return `<input type="text" data-p="${path}" value="${String(val).replace(/"/g, '&quot;')}" ${extra || ''}>`; }
+function num(path, val, min, max){ return `<input type="number" data-p="${path}" data-t="n" value="${val}" min="${min}" max="${max}">`; }
+function sel(path, val, list){ return `<select data-p="${path}">${list.map(([v, l]) => `<option value="${v}" ${String(v) === String(val) ? 'selected' : ''}>${l}</option>`).join('')}</select>`; }
+function problemsBox(list){
+  return list.length ? `<div class="bu-problems">${list.map(x => `<div>• ${x}</div>`).join('')}</div>` : '';
+}
+
+function renderBleForm(){
+  const v = currentVariant(), b = state.ble;
+  if(!chipCaps(v).ble) return `<div class="hint">${v.id} has no Bluetooth LE radio.</div>`;
+  let h = `<div class="field">${chk('ble.enabled', b.enabled, '<b>Enable Bluetooth LE (peripheral)</b>')}
+    <div class="hint">Generates the GATT server, advertising, security and callbacks on top of the WCH BLE library (TMOS). Uses the EVT's BLE/HAL and BLE/LIB.</div></div>`;
+  if(!b.enabled) return h;
+  h += problemsBox(bleProblems());
+  h += `<div class="bu-sec">Device</div>
+    <div class="field"><label>Device name (max 20 bytes)</label>${txt('ble.name', b.name, 'maxlength="20"')}</div>
+    <div class="row2">
+      <div class="field"><label>Advertising interval (ms)</label>${num('ble.advMs', b.advMs, 20, 10240)}</div>
+      <div class="field"><label>TX power</label>${sel('ble.txPower', b.txPower, [['4','+4 dBm'],['3','+3 dBm'],['2','+2 dBm'],['1','+1 dBm'],['0','0 dBm'],['-1','-1 dBm'],['-3','-3 dBm'],['-5','-5 dBm'],['-8','-8 dBm']])}</div>
+    </div>
+    <div class="bu-sec">Connection</div>
+    <div class="row2">
+      <div class="field"><label>MTU (23–247)</label>${num('ble.mtu', b.mtu, 23, 247)}</div>
+      <div class="field"><label>PHY after connect</label>${sel('ble.phy', b.phy, [['1M','1M (default)'],['2M','2M (faster)'],['CODED_S8','Coded S8 (long range)'],['CODED_S2','Coded S2']])}</div>
+    </div>
+    <div class="field">${chk('ble.reqMtu', b.reqMtu, 'Request the MTU from the phone after connecting')}</div>
+    <div class="row2">
+      <div class="field"><label>Conn. interval min (ms)</label>${num('ble.connMinMs', b.connMinMs, 7.5, 4000)}</div>
+      <div class="field"><label>Conn. interval max (ms)</label>${num('ble.connMaxMs', b.connMaxMs, 7.5, 4000)}</div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Slave latency</label>${num('ble.latency', b.latency, 0, 499)}</div>
+      <div class="field"><label>Supervision timeout (ms)</label>${num('ble.timeoutMs', b.timeoutMs, 100, 32000)}</div>
+    </div>
+    <div class="bu-sec">Security</div>
+    <div class="row2">
+      <div class="field"><label>Pairing</label>${sel('ble.pairing', b.pairing, [['none','No pairing'],['justworks','Just Works (encrypted)'],['passkey','Passkey (encrypted + MITM)']])}</div>
+      <div class="field"><label>Passkey (6 digits)</label>${txt('ble.passkey', b.passkey, `maxlength="6" ${b.pairing === 'passkey' ? '' : 'disabled'}`)}</div>
+    </div>
+    <div class="field">${chk('ble.bonding', b.bonding, 'Bonding (remember paired phones)')}</div>
+    <div class="bu-sec">GATT services
+      <span><button class="btn btn-ghost bu-mini" data-act="addSvc">+ Service</button>
+      <button class="btn btn-ghost bu-mini" data-act="addNus" title="Nordic-UART-compatible service: works with nRF Connect / Serial Bluetooth Terminal apps">+ UART service</button></span></div>`;
+  b.services.forEach((s, si) => {
+    const P = `ble.services.${si}`;
+    h += `<div class="bu-card">
+      <div class="bu-card-head"><b>${s.name || 'Service'}</b> <button class="btn btn-ghost bu-mini" data-act="delSvc" data-i="${si}">Remove</button></div>
+      <div class="row2">
+        <div class="field"><label>Service name</label>${txt(P + '.name', s.name)}</div>
+        <div class="field"><label>UUID (FFE0 or 128-bit)</label>${txt(P + '.uuid', s.uuid)}</div>
+      </div>`;
+    s.chars.forEach((c, ci) => {
+      const C = `${P}.chars.${ci}`, nm = bleNames(s, c);
+      h += `<div class="bu-char">
+        <div class="bu-card-head"><span>${c.name || 'Characteristic'}</span> <button class="btn btn-ghost bu-mini" data-act="delChr" data-i="${si}" data-j="${ci}">Remove</button></div>
+        <div class="row2">
+          <div class="field"><label>Name</label>${txt(C + '.name', c.name)}</div>
+          <div class="field"><label>UUID</label>${txt(C + '.uuid', c.uuid)}</div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Max length (bytes)</label>${num(C + '.maxLen', c.maxLen, 1, 512)}</div>
+          <div class="field"><label>Initial value (text or 0x01 0x02)</label>${txt(C + '.init', c.init)}</div>
+        </div>
+        <div class="field"><label>Properties</label><div class="bu-flags">
+          ${chk(C + '.read', c.read, 'Read')} ${chk(C + '.write', c.write, 'Write')} ${chk(C + '.writeNoRsp', c.writeNoRsp, 'Write w/o response')}
+          ${chk(C + '.notify', c.notify, 'Notify')} ${chk(C + '.indicate', c.indicate, 'Indicate')}</div></div>
+        <div class="row2">
+          <div class="field"><label>Access</label>${sel(C + '.sec', c.sec, [['open','Open'],['encrypted','Encrypted (paired)'],['authenticated','Authenticated (passkey)']])}</div>
+          <div class="field"><label>&nbsp;</label>${chk(C + '.desc', c.desc, 'User description (name)')}</div>
+        </div>
+        <div class="field"><label>Callbacks</label><div class="bu-flags">
+          ${(c.write || c.writeNoRsp) ? chk(C + '.onWrite', c.onWrite, 'On data received') : ''}
+          ${c.read ? chk(C + '.onRead', c.onRead, 'Before read') : ''}
+          ${(c.notify || c.indicate) ? chk(C + '.onSub', c.onSub, 'On subscribe') : ''}</div>
+          ${(c.write || c.writeNoRsp) && c.onWrite ? `<div style="margin-top:6px">${txt(C + '.onWriteFn', c.onWriteFn, `placeholder="${bleNames(s, Object.assign({}, c, {onWriteFn:''})).onWrite}"`)}</div>
+          <div class="hint">Called as <code>${nm.onWrite}(data, len)</code> when the phone writes this characteristic.</div>` : ''}
+        </div>
+      </div>`;
+    });
+    h += `<button class="btn btn-ghost bu-mini" data-act="addChr" data-i="${si}">+ Characteristic</button></div>`;
+  });
+  h += `<div class="hint">All callbacks are in <code>src/app_callbacks.c</code>: connect, disconnect, MTU, PHY, pairing and one per characteristic. Send data with <code>ble_&lt;service&gt;_&lt;char&gt;_notify()</code>.</div>`;
+  return h;
+}
+
+function renderUsbForm(){
+  const v = currentVariant(), u = state.usb;
+  if(!chipCaps(v).usb) return `<div class="hint">${v.id} has no USB device controller.</div>`;
+  let h = `<div class="field">${chk('usb.enabled', u.enabled, '<b>Enable USB device (full speed)</b>')}
+    <div class="hint">Composite device built on the SDK's usbdev driver (USB_DeviceInit, EP0–EP4).</div></div>`;
+  if(!u.enabled) return h;
+  h += problemsBox(usbProblems());
+  const eps = usbEndpoints();
+  h += `<div class="bu-sec">Functions</div>
+    <div class="field"><div class="bu-flags" style="flex-direction:column;align-items:flex-start">
+      ${chk('usb.cdc', u.cdc, 'CDC virtual COM port')}
+      ${chk('usb.kbd', u.kbd, 'HID keyboard')}
+      ${chk('usb.mouse', u.mouse, 'HID mouse')}
+      ${chk('usb.custom', u.custom, 'HID custom (64-byte reports, no driver needed)')}</div>
+      <div class="hint">Endpoints: ${eps.map(e => `EP${e.ep} ${e.what}`).join(' · ') || '—'}${u.kbd && u.mouse ? '. Keyboard and mouse share one HID interface (report IDs 1 and 2).' : ''}</div></div>
+    <div class="bu-sec">Descriptors</div>
+    <div class="row2">
+      <div class="field"><label>VID (hex)</label>${txt('usb.vid', u.vid, 'maxlength="4"')}</div>
+      <div class="field"><label>PID (hex)</label>${txt('usb.pid', u.pid, 'maxlength="4"')}</div>
+    </div>
+    <div class="hint" style="margin:-8px 0 12px">Use your own VID/PID for a product. 1A86 is WCH's VID.</div>
+    <div class="row2">
+      <div class="field"><label>Manufacturer</label>${txt('usb.manufacturer', u.manufacturer)}</div>
+      <div class="field"><label>Product</label>${txt('usb.product', u.product)}</div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Serial number</label>${txt('usb.serial', u.serial)}</div>
+      <div class="field"><label>Max power (mA)</label>${num('usb.maxPowerMa', u.maxPowerMa, 2, 500)}</div>
+    </div>
+    <div class="bu-sec">Callbacks</div>
+    ${u.cdc ? `<div class="field"><label>CDC data received</label>${txt('usb.cdcRxFn', u.cdcRxFn)}<div class="hint"><code>${u.cdcRxFn}(data, len)</code>. Send with <code>usb_cdc_write(data, len)</code>.</div></div>` : ''}
+    ${u.custom ? `<div class="field"><label>HID custom report received</label>${txt('usb.customRxFn', u.customRxFn)}<div class="hint">Send with <code>usb_hid_custom_send(data, len)</code>.</div></div>` : ''}
+    ${u.kbd ? `<div class="field"><label>Keyboard LEDs changed</label>${txt('usb.kbdLedFn', u.kbdLedFn)}<div class="hint">Send keys with <code>usb_kbd_send(modifier, keys)</code> / <code>usb_kbd_tap(key)</code>.</div></div>` : ''}
+    ${u.mouse ? `<div class="hint">Move the mouse with <code>usb_mouse_send(buttons, dx, dy, wheel)</code>.</div>` : ''}`;
+  return h;
+}
+
+function bindBuForm(){
+  formArea.querySelectorAll('[data-p]').forEach(el => {
+    const ev = (el.type === 'checkbox' || el.tagName === 'SELECT') ? 'change' : 'input';
+    el.addEventListener(ev, () => {
+      const path = el.dataset.p.split('.');
+      let o = state; for(let i = 0; i < path.length - 1; i++) o = o[path[i]];
+      const k = path[path.length - 1];
+      o[k] = el.type === 'checkbox' ? el.checked : (el.dataset.t === 'n' ? Number(el.value) : el.value);
+      if(ev === 'change') renderForm();         /* structure may change (callback boxes, problems) */
+      renderAll();
+    });
+    if(ev === 'input') el.addEventListener('change', () => renderForm());
+  });
+  formArea.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', () => {
+    const b = state.ble, i = +el.dataset.i, j = +el.dataset.j;
+    if(el.dataset.act === 'addSvc') b.services.push({name:'Service ' + (b.services.length + 1), uuid:'FFF' + b.services.length, chars:[newChar(1)]});
+    if(el.dataset.act === 'addNus') b.services.push(nusPreset());
+    if(el.dataset.act === 'delSvc') b.services.splice(i, 1);
+    if(el.dataset.act === 'addChr') b.services[i].chars.push(newChar(b.services[i].chars.length + 1));
+    if(el.dataset.act === 'delChr') b.services[i].chars.splice(j, 1);
+    renderForm(); renderAll();
+  }));
+}
+
+/* ---------- BLE code generation ---------- */
+function bleNames(s, c){
+  const sv = cIdent(s.name, 'svc'), ch = cIdent(c.name, 'chr'), base = `ble_${sv}_${ch}`;
+  return {sv, ch, base, val:`${sv}_${ch}_val`, len:`${sv}_${ch}_len`, ccc:`${sv}_${ch}_ccc`,
+          onWrite: c.onWriteFn || `${base}_on_write`, onRead:`${base}_on_read`, onSub:`${base}_on_subscribe`};
+}
+function bleEnabled(){ const v = currentVariant(); return state.ble.enabled && chipCaps(v).ble; }
+function usbEnabled(){ const v = currentVariant(); return state.usb.enabled && chipCaps(v).usb; }
+
+function genBleHeader(){
+  const b = state.ble;
+  let h = `/* Bluetooth LE peripheral - generated by WCH Configurator
+ * Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources
+ */
+#ifndef BLE_APP_H
+#define BLE_APP_H
+
+#include "CONFIG.h"
+
+void     ble_stack_init(void);      /* CHxx_BLEInit() of the EVT HAL */
+void     ble_app_init(void);        /* GAP role, advertising, security, GATT services */
+uint8_t  ble_is_connected(void);
+uint16_t ble_get_mtu(void);
+uint16_t ble_get_conn_handle(void);
+void     ble_disconnect(void);
+`;
+  b.services.forEach(s => s.chars.forEach(c => {
+    const n = bleNames(s, c);
+    h += `\n/* ${s.name} / ${c.name}  (UUID ${c.uuid}, max ${c.maxLen} bytes) */\n`;
+    h += `bStatus_t ${n.base}_set(const uint8_t *data, uint16_t len);   /* value returned on read */\n`;
+    h += `uint16_t  ${n.base}_get(uint8_t *out, uint16_t max);\n`;
+    if(c.notify) h += `bStatus_t ${n.base}_notify(const uint8_t *data, uint16_t len);\n`;
+    if(c.indicate) h += `bStatus_t ${n.base}_indicate(const uint8_t *data, uint16_t len);\n`;
+  }));
+  h += `\n/* ---- callbacks: implemented in app_callbacks.c ---- */
+void ble_on_connected(uint16_t conn_handle);
+void ble_on_disconnected(uint8_t reason);
+void ble_on_mtu_changed(uint16_t mtu);
+void ble_on_phy_changed(uint8_t tx_phy, uint8_t rx_phy);
+void ble_on_pairing(uint8_t state, uint8_t status);
+`;
+  b.services.forEach(s => s.chars.forEach(c => {
+    const n = bleNames(s, c);
+    if((c.write || c.writeNoRsp) && c.onWrite) h += `void ${n.onWrite}(const uint8_t *data, uint16_t len);\n`;
+    if(c.read && c.onRead) h += `void ${n.onRead}(void);\n`;
+    if((c.notify || c.indicate) && c.onSub) h += `void ${n.onSub}(uint8_t enabled);\n`;
+  }));
+  return h + `\n#endif\n`;
+}
+
+function genBleSource(v){
+  const b = state.ble;
+  const ms = (x, unit) => Math.max(1, Math.round(x / unit));
+  const nameBytes = Array.from(new TextEncoder().encode(b.name)).slice(0, 20);
+  const s0 = b.services[0], u0 = s0 ? parseUuid(s0.uuid) : parseUuid('FFE0');
+  const phyMap = {'2M':['GAP_PHY_BIT_LE_2M', '0'], 'CODED_S8':['GAP_PHY_BIT_LE_CODED', 'GAP_PHY_OPTIONS_S8'], 'CODED_S2':['GAP_PHY_BIT_LE_CODED', 'GAP_PHY_OPTIONS_S2']};
+  let o = `/* Bluetooth LE peripheral - generated by WCH Configurator for ${v.id}
+ * Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources
+ * Based on the GAP peripheral role and GATT server of the WCH BLE library (see EVT BLE/Peripheral).
+ */
+#include "CONFIG.h"
+#include "ble_app.h"
+
+/* the HAL of each chip names its stack init differently - pick whichever one exists */
+extern void CH57X_BLEInit(void) __attribute__((weak));
+extern void CH57x_BLEInit(void) __attribute__((weak));
+extern void CH58X_BLEInit(void) __attribute__((weak));
+extern void CH58x_BLEInit(void) __attribute__((weak));
+extern void CH59X_BLEInit(void) __attribute__((weak));
+extern void CH59x_BLEInit(void) __attribute__((weak));
+void ble_stack_init(void)
+{
+    if(CH58x_BLEInit)      CH58x_BLEInit();
+    else if(CH58X_BLEInit) CH58X_BLEInit();
+    else if(CH59x_BLEInit) CH59x_BLEInit();
+    else if(CH59X_BLEInit) CH59X_BLEInit();
+    else if(CH57x_BLEInit) CH57x_BLEInit();
+    else if(CH57X_BLEInit) CH57X_BLEInit();
+}
+
+#define ADV_INTERVAL            ${ms(b.advMs, 0.625)}     /* ${b.advMs} ms (unit 0.625 ms) */
+#define CONN_INTERVAL_MIN       ${ms(b.connMinMs, 1.25)}     /* ${b.connMinMs} ms (unit 1.25 ms) */
+#define CONN_INTERVAL_MAX       ${ms(b.connMaxMs, 1.25)}     /* ${b.connMaxMs} ms */
+#define CONN_SLAVE_LATENCY      ${b.latency}
+#define CONN_TIMEOUT            ${ms(b.timeoutMs, 10)}     /* ${b.timeoutMs} ms (unit 10 ms) */
+
+#define EVT_START_DEVICE        0x0001
+#define EVT_PARAM_UPDATE        0x0002
+#define EVT_PHY_UPDATE          0x0004
+#define EVT_MTU_REQUEST         0x0008
+
+static uint8_t  ble_task_id = INVALID_TASK_ID;
+static uint16_t ble_conn = GAP_CONNHANDLE_INIT;
+static uint16_t ble_mtu = ATT_MTU_SIZE;
+
+/* advertising: flags + first service UUID */
+static uint8_t advertData[] = {
+    0x02, GAP_ADTYPE_FLAGS, GAP_ADTYPE_FLAGS_GENERAL | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
+    ${u0.bytes.length + 1}, ${u0.bits === 16 ? 'GAP_ADTYPE_16BIT_MORE' : 'GAP_ADTYPE_128BIT_MORE'}, ${u0.bytes.map(hex2).join(', ')}
+};
+/* scan response: complete name + preferred connection interval */
+static uint8_t scanRspData[] = {
+    ${nameBytes.length + 1}, GAP_ADTYPE_LOCAL_NAME_COMPLETE, ${nameBytes.map(x => hex2(x)).join(', ')},
+    0x05, GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE,
+    LO_UINT16(CONN_INTERVAL_MIN), HI_UINT16(CONN_INTERVAL_MIN), LO_UINT16(CONN_INTERVAL_MAX), HI_UINT16(CONN_INTERVAL_MAX)
+};
+static uint8_t attDeviceName[GAP_DEVICE_NAME_LEN] = "${cStr(new TextDecoder().decode(new Uint8Array(nameBytes)))}";
+`;
+  /* ---- GATT: values, attribute tables ---- */
+  const tables = [];
+  b.services.forEach((s, si) => {
+    const su = parseUuid(s.uuid), sv = cIdent(s.name, 'svc');
+    o += `\n/* ================= service: ${s.name} (${s.uuid}) ================= */\n`;
+    o += `static const uint8_t ${sv}_uuid[${su.bytes.length}] = {${su.bytes.map(hex2).join(', ')}};\n`;
+    o += `static const gattAttrType_t ${sv}_type = {${su.bits === 16 ? 'ATT_BT_UUID_SIZE' : 'ATT_UUID_SIZE'}, ${sv}_uuid};\n`;
+    let rows = [`    {{ATT_BT_UUID_SIZE, primaryServiceUUID}, GATT_PERMIT_READ, 0, (uint8_t *)&${sv}_type},`];
+    const charInfo = [];
+    s.chars.forEach(c => {
+      const n = bleNames(s, c), cu = parseUuid(c.uuid), init = parseValue(c.init).slice(0, c.maxLen);
+      const props = [c.read && 'GATT_PROP_READ', c.write && 'GATT_PROP_WRITE', c.writeNoRsp && 'GATT_PROP_WRITE_NO_RSP',
+                     c.notify && 'GATT_PROP_NOTIFY', c.indicate && 'GATT_PROP_INDICATE'].filter(Boolean).join(' | ') || '0';
+      const rp = c.sec === 'authenticated' ? 'GATT_PERMIT_AUTHEN_READ' : c.sec === 'encrypted' ? 'GATT_PERMIT_ENCRYPT_READ' : 'GATT_PERMIT_READ';
+      const wp = c.sec === 'authenticated' ? 'GATT_PERMIT_AUTHEN_WRITE' : c.sec === 'encrypted' ? 'GATT_PERMIT_ENCRYPT_WRITE' : 'GATT_PERMIT_WRITE';
+      const perms = [c.read && rp, (c.write || c.writeNoRsp) && wp].filter(Boolean).join(' | ') || '0';
+      o += `/* ${c.name} */\n`;
+      o += `static const uint8_t ${n.sv}_${n.ch}_uuid[${cu.bytes.length}] = {${cu.bytes.map(hex2).join(', ')}};\n`;
+      o += `static uint8_t  ${n.sv}_${n.ch}_props = ${props};\n`;
+      o += `static uint8_t  ${n.val}[${c.maxLen}]${init.length ? ` = {${init.map(hex2).join(', ')}}` : ''};\n`;
+      o += `static uint16_t ${n.len} = ${init.length};\n`;
+      if(c.notify || c.indicate) o += `static gattCharCfg_t ${n.ccc}[PERIPHERAL_MAX_CONNECTION];\n`;
+      if(c.desc) o += `static uint8_t  ${n.sv}_${n.ch}_desc[] = "${cStr(c.name)}";\n`;
+      rows.push(`    {{ATT_BT_UUID_SIZE, characterUUID}, GATT_PERMIT_READ, 0, &${n.sv}_${n.ch}_props},`);
+      const valIdx = rows.length;
+      rows.push(`    {{${cu.bits === 16 ? 'ATT_BT_UUID_SIZE' : 'ATT_UUID_SIZE'}, ${n.sv}_${n.ch}_uuid}, ${perms}, 0, ${n.val}},`);
+      if(c.notify || c.indicate) rows.push(`    {{ATT_BT_UUID_SIZE, clientCharCfgUUID}, GATT_PERMIT_READ | GATT_PERMIT_WRITE, 0, (uint8_t *)${n.ccc}},`);
+      if(c.desc) rows.push(`    {{ATT_BT_UUID_SIZE, charUserDescUUID}, GATT_PERMIT_READ, 0, ${n.sv}_${n.ch}_desc},`);
+      charInfo.push({c, n, valIdx});
+    });
+    o += `\nstatic gattAttribute_t ${sv}_attrs[] = {\n${rows.join('\n')}\n};\n`;
+    charInfo.forEach(({n, valIdx}) => { o += `#define ${n.sv.toUpperCase()}_${n.ch.toUpperCase()}_VALUE_IDX  ${valIdx}\n`; });
+    tables.push({s, sv, charInfo});
+  });
+
+  /* ---- read / write callbacks ---- */
+  const all = tables.flatMap(t => t.charInfo.map(x => Object.assign({sv:t.sv}, x)));
+  o += `
+/* ================= attribute read / write ================= */
+static bStatus_t ble_read_cb(uint16_t connHandle, gattAttribute_t *pAttr, uint8_t *pValue,
+                             uint16_t *pLen, uint16_t offset, uint16_t maxLen, uint8_t method)
+{
+    const uint8_t *src = NULL;
+    uint16_t total = 0;
+`;
+  all.filter(x => x.c.read).forEach(({c, n}, k) => {
+    o += `    ${k ? 'else ' : ''}if(pAttr->pValue == ${n.val})
+    {
+${c.onRead ? `        if(offset == 0) ${n.onRead}();   /* lets the application refresh the value */\n` : ''}        src = ${n.val}; total = ${n.len};
+    }
+`;
+  });
+  all.filter(x => x.c.desc).forEach(({n}) => {
+    o += `    if(pAttr->pValue == ${n.sv}_${n.ch}_desc) { src = ${n.sv}_${n.ch}_desc; total = sizeof(${n.sv}_${n.ch}_desc) - 1; }\n`;
+  });
+  o += `    if(src == NULL) return ATT_ERR_ATTR_NOT_FOUND;
+    if(offset > total) return ATT_ERR_INVALID_OFFSET;
+    *pLen = (total - offset) > maxLen ? maxLen : (total - offset);
+    tmos_memcpy(pValue, src + offset, *pLen);
+    return SUCCESS;
+}
+
+static bStatus_t ble_write_cb(uint16_t connHandle, gattAttribute_t *pAttr, uint8_t *pValue,
+                              uint16_t len, uint16_t offset, uint8_t method)
+{
+    if(gattPermitAuthorWrite(pAttr->permissions)) return ATT_ERR_INSUFFICIENT_AUTHOR;
+
+    /* client characteristic configuration (notify / indicate on/off) */
+    if(pAttr->type.len == ATT_BT_UUID_SIZE &&
+       BUILD_UINT16(pAttr->type.uuid[0], pAttr->type.uuid[1]) == GATT_CLIENT_CHAR_CFG_UUID)
+    {
+`;
+  const sub = all.filter(x => x.c.notify || x.c.indicate);
+  if(sub.length){
+    sub.forEach(({c, n}, k) => {
+      const allow = c.indicate && !c.notify ? 'GATT_CLIENT_CFG_INDICATE' : 'GATT_CLIENT_CFG_NOTIFY';
+      o += `        ${k ? 'else ' : ''}if(pAttr->pValue == (uint8_t *)${n.ccc})
+        {
+            bStatus_t st = GATTServApp_ProcessCCCWriteReq(connHandle, pAttr, pValue, len, offset, ${allow});
+${c.onSub ? `            if(st == SUCCESS) ${n.onSub}(BUILD_UINT16(pValue[0], pValue[1]) != 0);\n` : ''}            return st;
+        }
+`;
+    });
+    o += `        return GATTServApp_ProcessCCCWriteReq(connHandle, pAttr, pValue, len, offset, GATT_CLIENT_CFG_NOTIFY);\n`;
+  } else {
+    o += `        return GATTServApp_ProcessCCCWriteReq(connHandle, pAttr, pValue, len, offset, GATT_CLIENT_CFG_NOTIFY);\n`;
+  }
+  o += `    }
+`;
+  all.filter(x => x.c.write || x.c.writeNoRsp).forEach(({c, n}) => {
+    o += `    if(pAttr->pValue == ${n.val})
+    {
+        if(offset + len > sizeof(${n.val})) return ATT_ERR_INVALID_VALUE_SIZE;
+        tmos_memcpy(${n.val} + offset, pValue, len);
+        ${n.len} = offset + len;
+${c.onWrite ? `        ${n.onWrite}(${n.val}, ${n.len});\n` : ''}        return SUCCESS;
+    }
+`;
+  });
+  o += `    return ATT_ERR_ATTR_NOT_FOUND;
+}
+
+static gattServiceCBs_t ble_service_cbs = {ble_read_cb, ble_write_cb, NULL};
+
+static void ble_link_status_cb(uint16_t connHandle, uint8_t changeType)
+{
+    if(connHandle == LOOPBACK_CONNHANDLE) return;
+    if(changeType == LINKDB_STATUS_UPDATE_REMOVED ||
+       (changeType == LINKDB_STATUS_UPDATE_STATEFLAGS && !linkDB_Up(connHandle)))
+    {
+${sub.map(({n}) => `        GATTServApp_InitCharCfg(connHandle, ${n.ccc});`).join('\n') || '        ;'}
+    }
+}
+
+/* ================= value API ================= */
+static bStatus_t ble_send(uint16_t handle, gattCharCfg_t *ccc, const uint8_t *data, uint16_t len, uint8_t indicate)
+{
+    if(ble_conn == GAP_CONNHANDLE_INIT) return bleNotConnected;
+    uint16_t cfg = GATTServApp_ReadCharCfg(ble_conn, ccc);
+    if(!(cfg & (indicate ? GATT_CLIENT_CFG_INDICATE : GATT_CLIENT_CFG_NOTIFY))) return bleIncorrectMode;  /* phone did not subscribe */
+    if(len > ble_mtu - 3) return bleInvalidRange;
+    uint8_t *buf = GATT_bm_alloc(ble_conn, indicate ? ATT_HANDLE_VALUE_IND : ATT_HANDLE_VALUE_NOTI, len, NULL, 0);
+    if(buf == NULL) return bleMemAllocError;
+    tmos_memcpy(buf, data, len);
+    bStatus_t st;
+    if(indicate)
+    {
+        attHandleValueInd_t ind = {handle, len, buf};
+        st = GATT_Indication(ble_conn, &ind, FALSE, ble_task_id);
+        if(st != SUCCESS) GATT_bm_free((gattMsg_t *)&ind, ATT_HANDLE_VALUE_IND);
+    }
+    else
+    {
+        attHandleValueNoti_t noti = {handle, len, buf};
+        st = GATT_Notification(ble_conn, &noti, FALSE);
+        if(st != SUCCESS) GATT_bm_free((gattMsg_t *)&noti, ATT_HANDLE_VALUE_NOTI);
+    }
+    return st;
+}
+`;
+  tables.forEach(({sv, charInfo}) => charInfo.forEach(({c, n}) => {
+    const idx = `${n.sv.toUpperCase()}_${n.ch.toUpperCase()}_VALUE_IDX`;
+    o += `
+bStatus_t ${n.base}_set(const uint8_t *data, uint16_t len)
+{
+    if(len > sizeof(${n.val})) return bleInvalidRange;
+    tmos_memcpy(${n.val}, data, len);
+    ${n.len} = len;
+    return SUCCESS;
+}
+uint16_t ${n.base}_get(uint8_t *out, uint16_t max)
+{
+    uint16_t l = ${n.len} < max ? ${n.len} : max;
+    tmos_memcpy(out, ${n.val}, l);
+    return l;
+}
+`;
+    if(c.notify) o += `bStatus_t ${n.base}_notify(const uint8_t *data, uint16_t len)
+{
+    return ble_send(${sv}_attrs[${idx}].handle, ${n.ccc}, data, len, FALSE);
+}
+`;
+    if(c.indicate) o += `bStatus_t ${n.base}_indicate(const uint8_t *data, uint16_t len)
+{
+    return ble_send(${sv}_attrs[${idx}].handle, ${n.ccc}, data, len, TRUE);
+}
+`;
+  }));
+
+  const ph = phyMap[b.phy];
+  o += `
+uint8_t  ble_is_connected(void)    { return ble_conn != GAP_CONNHANDLE_INIT; }
+uint16_t ble_get_mtu(void)         { return ble_mtu; }
+uint16_t ble_get_conn_handle(void) { return ble_conn; }
+void     ble_disconnect(void)      { if(ble_conn != GAP_CONNHANDLE_INIT) GAPRole_TerminateLink(ble_conn); }
+
+/* ================= GAP role ================= */
+static void ble_state_cb(gapRole_States_t newState, gapRoleEvent_t *pEvent)
+{
+    switch(newState & GAPROLE_STATE_ADV_MASK)
+    {
+        case GAPROLE_CONNECTED:
+            if(pEvent->gap.opcode == GAP_LINK_ESTABLISHED_EVENT)
+            {
+                ble_conn = pEvent->linkCmpl.connectionHandle;
+                ble_mtu = ATT_MTU_SIZE;
+                tmos_start_task(ble_task_id, EVT_PARAM_UPDATE, MS1_TO_SYSTEM_TIME(6000));
+${ph ? `                tmos_start_task(ble_task_id, EVT_PHY_UPDATE, MS1_TO_SYSTEM_TIME(2000));\n` : ''}${b.reqMtu ? `                tmos_start_task(ble_task_id, EVT_MTU_REQUEST, MS1_TO_SYSTEM_TIME(800));\n` : ''}                ble_on_connected(ble_conn);
+            }
+            break;
+
+        case GAPROLE_ADVERTISING:
+        case GAPROLE_WAITING:
+            if(pEvent->gap.opcode == GAP_LINK_TERMINATED_EVENT)
+            {
+                uint8_t reason = pEvent->linkTerminate.reason;
+                uint8_t adv = TRUE;
+                ble_conn = GAP_CONNHANDLE_INIT;
+                ble_mtu = ATT_MTU_SIZE;
+                tmos_stop_task(ble_task_id, EVT_PARAM_UPDATE);
+                tmos_stop_task(ble_task_id, EVT_PHY_UPDATE);
+                tmos_stop_task(ble_task_id, EVT_MTU_REQUEST);
+                GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);   /* advertise again */
+                ble_on_disconnected(reason);
+            }
+            break;
+
+        default:
+            break;
+    }
+}
+
+static void ble_pair_state_cb(uint16_t connHandle, uint8_t state, uint8_t status)
+{
+    ble_on_pairing(state, status);
+}
+
+static gapRolesCBs_t ble_role_cbs = {ble_state_cb, NULL, NULL};
+static gapBondCBs_t  ble_bond_cbs = {NULL, ble_pair_state_cb, NULL};
+
+static void ble_process_msg(tmos_event_hdr_t *pMsg)
+{
+    if(pMsg->event == GATT_MSG_EVENT)
+    {
+        gattMsgEvent_t *m = (gattMsgEvent_t *)pMsg;
+        if(m->method == ATT_MTU_UPDATED_EVENT)
+        {
+            ble_mtu = m->msg.mtuEvt.MTU;
+            ble_on_mtu_changed(ble_mtu);
+        }
+        GATT_bm_free(&m->msg, m->method);
+    }
+    else if(pMsg->event == GAP_MSG_EVENT)
+    {
+        gapRoleEvent_t *e = (gapRoleEvent_t *)pMsg;
+        if(e->gap.opcode == GAP_PHY_UPDATE_EVENT)
+            ble_on_phy_changed(e->linkPhyUpdate.connTxPHYS, e->linkPhyUpdate.connRxPHYS);
+    }
+}
+
+static uint16_t ble_process_event(uint8_t task_id, uint16_t events)
+{
+    if(events & SYS_EVENT_MSG)
+    {
+        uint8_t *pMsg = tmos_msg_receive(ble_task_id);
+        if(pMsg != NULL)
+        {
+            ble_process_msg((tmos_event_hdr_t *)pMsg);
+            tmos_msg_deallocate(pMsg);
+        }
+        return events ^ SYS_EVENT_MSG;
+    }
+    if(events & EVT_START_DEVICE)
+    {
+        GAPRole_PeripheralStartDevice(ble_task_id, &ble_bond_cbs, &ble_role_cbs);
+        return events ^ EVT_START_DEVICE;
+    }
+    if(events & EVT_PARAM_UPDATE)
+    {
+        if(ble_conn != GAP_CONNHANDLE_INIT)
+            GAPRole_PeripheralConnParamUpdateReq(ble_conn, CONN_INTERVAL_MIN, CONN_INTERVAL_MAX,
+                                                 CONN_SLAVE_LATENCY, CONN_TIMEOUT, ble_task_id);
+        return events ^ EVT_PARAM_UPDATE;
+    }
+    if(events & EVT_PHY_UPDATE)
+    {
+${ph ? (ph[0] === 'GAP_PHY_BIT_LE_CODED' ? `#if defined(GAP_PHY_BIT_LE_CODED)
+        if(ble_conn != GAP_CONNHANDLE_INIT) GAPRole_UpdatePHY(ble_conn, 0, ${ph[0]}, ${ph[0]}, ${ph[1]});
+#else
+#warning "This BLE library has no Coded PHY - staying on 1M"
+#endif
+` : `        if(ble_conn != GAP_CONNHANDLE_INIT) GAPRole_UpdatePHY(ble_conn, 0, ${ph[0]}, ${ph[0]}, ${ph[1]});\n`) : ''}        return events ^ EVT_PHY_UPDATE;
+    }
+    if(events & EVT_MTU_REQUEST)
+    {
+        if(ble_conn != GAP_CONNHANDLE_INIT)
+        {
+            attExchangeMTUReq_t req = {BLE_BUFF_MAX_LEN - 4};
+            GATT_ExchangeMTU(ble_conn, &req, ble_task_id);
+        }
+        return events ^ EVT_MTU_REQUEST;
+    }
+    return 0;
+}
+
+/* ================= init ================= */
+void ble_app_init(void)
+{
+    ble_task_id = TMOS_ProcessEventRegister(ble_process_event);
+
+    {   /* advertising + preferred connection parameters */
+        uint8_t  adv = TRUE;
+        uint16_t minI = CONN_INTERVAL_MIN, maxI = CONN_INTERVAL_MAX;
+        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &adv);
+        GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(scanRspData), scanRspData);
+        GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
+        GAPRole_SetParameter(GAPROLE_MIN_CONN_INTERVAL, sizeof(uint16_t), &minI);
+        GAPRole_SetParameter(GAPROLE_MAX_CONN_INTERVAL, sizeof(uint16_t), &maxI);
+        GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, ADV_INTERVAL);
+        GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, ADV_INTERVAL);
+    }
+    {   /* security */
+${b.pairing === 'none' ? `        uint8_t pairMode = GAPBOND_PAIRING_MODE_NO_PAIRING;
+        GAPBondMgr_SetParameter(GAPBOND_PERI_PAIRING_MODE, sizeof(uint8_t), &pairMode);` : `        uint32_t passkey = ${b.pairing === 'passkey' ? (parseInt(b.passkey, 10) || 0) : 0};   ${b.pairing === 'passkey' ? '/* the phone asks the user for this number */' : ''}
+        uint8_t  pairMode = GAPBOND_PAIRING_MODE_WAIT_FOR_REQ;
+        uint8_t  mitm = ${b.pairing === 'passkey' ? 'TRUE' : 'FALSE'};
+        uint8_t  ioCap = ${b.pairing === 'passkey' ? 'GAPBOND_IO_CAP_DISPLAY_ONLY' : 'GAPBOND_IO_CAP_NO_INPUT_NO_OUTPUT'};
+        uint8_t  bonding = ${b.bonding ? 'TRUE' : 'FALSE'};
+        GAPBondMgr_SetParameter(GAPBOND_PERI_DEFAULT_PASSCODE, sizeof(uint32_t), &passkey);
+        GAPBondMgr_SetParameter(GAPBOND_PERI_PAIRING_MODE, sizeof(uint8_t), &pairMode);
+        GAPBondMgr_SetParameter(GAPBOND_PERI_MITM_PROTECTION, sizeof(uint8_t), &mitm);
+        GAPBondMgr_SetParameter(GAPBOND_PERI_IO_CAPABILITIES, sizeof(uint8_t), &ioCap);
+        GAPBondMgr_SetParameter(GAPBOND_PERI_BONDING_ENABLED, sizeof(uint8_t), &bonding);`}
+    }
+
+    /* GATT */
+    GGS_AddService(GATT_ALL_SERVICES);
+    GATTServApp_AddService(GATT_ALL_SERVICES);
+${sub.map(({n}) => `    GATTServApp_InitCharCfg(INVALID_CONNHANDLE, ${n.ccc});`).join('\n')}
+    linkDB_Register(ble_link_status_cb);
+${tables.map(({sv}) => `    GATTServApp_RegisterService(${sv}_attrs, GATT_NUM_ATTRS(${sv}_attrs), GATT_MAX_ENCRYPT_KEY_SIZE, &ble_service_cbs);`).join('\n')}
+    GGS_SetParameter(GGS_DEVICE_NAME_ATT, GAP_DEVICE_NAME_LEN, attDeviceName);
+
+    tmos_set_event(ble_task_id, EVT_START_DEVICE);
+}
+`;
+  return o;
+}
+
+function genAppConfig(v){
+  const b = state.ble;
+  const pwPrefix = /^CH57[02]$/.test(v.id) ? 'LL_TX_PWR_' : 'LL_TX_POWEER_';
+  const small = /^CH57[02]$/.test(v.id);   /* 12 KB RAM: use the EVT's small stack profile */   /* CH570/572 library uses the short name */
+  const pw = {'4':'4_DBM','3':'3_DBM','2':'2_DBM','1':'1_DBM','0':'0_DBM','-1':'MINUS_1_DBM','-3':'MINUS_3_DBM','-5':'MINUS_5_DBM','-8':'MINUS_8_DBM'}[b.txPower] || '0_DBM';
+  return `/* Stack configuration, force-included before every file (see CMakeLists.txt).
+ * These values override the defaults in the EVT's BLE/HAL/include/CONFIG.h.
+ * Generated by WCH Configurator - original tool by Amir1387aht (Another).
+ */
+#ifndef APP_CONFIG_H
+#define APP_CONFIG_H
+
+#define BLE_BUFF_MAX_LEN            ${b.mtu + 4}     /* ATT MTU ${b.mtu} + 4 */
+#define BLE_TX_POWER                ${pwPrefix}${pw}
+#define PERIPHERAL_MAX_CONNECTION   1
+#define BLE_MEMHEAP_SIZE            ${small ? (b.mtu > 100 ? '(1024 * 4)' : '(512 * 7)') : (b.mtu > 100 ? '(1024 * 8)' : '(1024 * 6)')}
+#define BLE_BUFF_NUM                ${small ? 3 : (b.mtu > 100 ? 8 : 5)}
+#define BLE_SNV                     ${b.pairing !== 'none' && b.bonding ? 'TRUE' : 'FALSE'}     /* stores bonding keys in data flash */
+#define HAL_KEY                     FALSE
+#define HAL_LED                     FALSE
+
+#endif
+`;
+}
+
+/* ---------- USB code generation ---------- */
+function usbEndpoints(){
+  const u = state.usb, list = [];
+  let ep = 1;
+  if(u.cdc){ list.push({ep:ep++, fn:'cdc_notif', what:'CDC notify (IN)'}); list.push({ep:ep++, fn:'cdc_data', what:'CDC data (IN/OUT)'}); }
+  if(u.kbd || u.mouse) list.push({ep:ep++, fn:'hid_km', what:u.kbd && u.mouse ? 'HID keyboard+mouse (IN)' : u.kbd ? 'HID keyboard (IN)' : 'HID mouse (IN)'});
+  if(u.custom) list.push({ep:ep++, fn:'hid_custom', what:'HID custom (IN/OUT)'});
+  return list;
+}
+function usbStrDesc(s){
+  const cps = Array.from(String(s)).slice(0, 31);
+  const b = [2 + cps.length * 2, 0x03];
+  cps.forEach(ch => { const c = ch.codePointAt(0) & 0xFFFF; b.push(c & 0xFF, c >> 8); });
+  return b;
+}
+function usbBuild(){
+  const u = state.usb, eps = usbEndpoints(), epOf = f => (eps.find(e => e.fn === f) || {}).ep;
+  const KBD = [0x05,0x01,0x09,0x06,0xA1,0x01, 0x05,0x07,0x19,0xE0,0x29,0xE7,0x15,0x00,0x25,0x01,0x75,0x01,0x95,0x08,0x81,0x02,
+               0x95,0x01,0x75,0x08,0x81,0x01, 0x95,0x05,0x75,0x01,0x05,0x08,0x19,0x01,0x29,0x05,0x91,0x02, 0x95,0x01,0x75,0x03,0x91,0x01,
+               0x95,0x06,0x75,0x08,0x15,0x00,0x26,0xFF,0x00,0x05,0x07,0x19,0x00,0x29,0xFF,0x81,0x00, 0xC0];
+  const MOUSE = [0x05,0x01,0x09,0x02,0xA1,0x01,0x09,0x01,0xA1,0x00, 0x05,0x09,0x19,0x01,0x29,0x05,0x15,0x00,0x25,0x01,0x95,0x05,0x75,0x01,0x81,0x02,
+                 0x95,0x01,0x75,0x03,0x81,0x01, 0x05,0x01,0x09,0x30,0x09,0x31,0x09,0x38,0x15,0x81,0x25,0x7F,0x75,0x08,0x95,0x03,0x81,0x06, 0xC0,0xC0];
+  const withId = (d, id) => d.slice(0, 6).concat([0x85, id], d.slice(6));
+  const CUSTOM = [0x06,0x00,0xFF,0x09,0x01,0xA1,0x01, 0x09,0x02,0x15,0x00,0x26,0xFF,0x00,0x75,0x08,0x95,0x40,0x81,0x02,
+                  0x09,0x03,0x15,0x00,0x26,0xFF,0x00,0x75,0x08,0x95,0x40,0x91,0x02, 0xC0];
+  const both = u.kbd && u.mouse;
+  const kmDesc = both ? withId(KBD, 1).concat(withId(MOUSE, 2)) : u.kbd ? KBD : u.mouse ? MOUSE : [];
+  const ifaces = []; let ifn = 0; const cfg = [];
+  const multi = (u.cdc ? 2 : 0) + ((u.kbd || u.mouse) ? 1 : 0) + (u.custom ? 1 : 0) > (u.cdc ? 2 : 1);
+  if(u.cdc){
+    const c = ifn, d = ifn + 1, n = epOf('cdc_notif'), e = epOf('cdc_data');
+    if(multi) cfg.push(0x08,0x0B,c,0x02,0x02,0x02,0x01,0x00);                 /* IAD */
+    cfg.push(0x09,0x04,c,0x00,0x01,0x02,0x02,0x01,0x00,
+             0x05,0x24,0x00,0x10,0x01, 0x05,0x24,0x01,0x00,d, 0x04,0x24,0x02,0x02, 0x05,0x24,0x06,c,d,
+             0x07,0x05,0x80 | n,0x03,0x08,0x00,0x10,
+             0x09,0x04,d,0x00,0x02,0x0A,0x00,0x00,0x00,
+             0x07,0x05,e,0x02,0x40,0x00,0x00, 0x07,0x05,0x80 | e,0x02,0x40,0x00,0x00);
+    ifaces.push({n:c, kind:'cdc'}); ifaces.push({n:d, kind:'cdc_data'}); ifn += 2;
+  }
+  let kmHidOff = -1, cuHidOff = -1;
+  if(u.kbd || u.mouse){
+    const e = epOf('hid_km');
+    cfg.push(0x09,0x04,ifn,0x00,0x01,0x03, both ? 0x00 : 0x01, both ? 0x00 : (u.kbd ? 0x01 : 0x02), 0x00);
+    kmHidOff = cfg.length;
+    cfg.push(0x09,0x21,0x11,0x01,0x00,0x01,0x22, kmDesc.length & 0xFF, kmDesc.length >> 8);
+    cfg.push(0x07,0x05,0x80 | e,0x03,0x10,0x00,0x0A);
+    ifaces.push({n:ifn, kind:'hid_km'}); ifn++;
+  }
+  if(u.custom){
+    const e = epOf('hid_custom');
+    cfg.push(0x09,0x04,ifn,0x00,0x02,0x03,0x00,0x00,0x00);
+    cuHidOff = cfg.length;
+    cfg.push(0x09,0x21,0x11,0x01,0x00,0x01,0x22, CUSTOM.length & 0xFF, CUSTOM.length >> 8);
+    cfg.push(0x07,0x05,0x80 | e,0x03,0x40,0x00,0x01, 0x07,0x05,e,0x03,0x40,0x00,0x01);
+    ifaces.push({n:ifn, kind:'hid_custom'}); ifn++;
+  }
+  const total = 9 + cfg.length;
+  const cfgFull = [0x09,0x02,total & 0xFF,total >> 8,ifn,0x01,0x00,0x80,Math.min(250, Math.ceil(u.maxPowerMa / 2))].concat(cfg);
+  const vid = parseInt(u.vid, 16) || 0x1A86, pid = parseInt(u.pid, 16) || 0xFE0C;
+  const devCls = u.cdc && multi ? [0xEF,0x02,0x01] : u.cdc ? [0x02,0x00,0x00] : [0x00,0x00,0x00];
+  const dev = [0x12,0x01,0x00,0x02].concat(devCls, [0x40, vid & 0xFF, vid >> 8, pid & 0xFF, pid >> 8, 0x00,0x01, 0x01,0x02, u.serial ? 0x03 : 0x00, 0x01]);
+  return {eps, epOf, ifaces, dev, cfg:cfgFull, kmDesc, custom:CUSTOM, kmHidOff:kmHidOff >= 0 ? kmHidOff + 9 : -1, cuHidOff:cuHidOff >= 0 ? cuHidOff + 9 : -1, both};
+}
+function cArr(name, bytes, cnst){
+  const rows = []; for(let i = 0; i < bytes.length; i += 16) rows.push('    ' + bytes.slice(i, i + 16).map(hex2).join(', '));
+  return `${cnst === false ? '' : 'const '}uint8_t ${name}[${bytes.length}] = {\n${rows.join(',\n')}\n};\n`;
+}
+function genUsbHeader(){
+  const u = state.usb;
+  let h = `/* USB device - generated by WCH Configurator
+ * Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources
+ */
+#ifndef USB_APP_H
+#define USB_APP_H
+
+#include <stdint.h>
+
+void    usb_app_init(void);
+uint8_t usb_is_configured(void);
+`;
+  if(u.cdc) h += `
+/* CDC virtual COM port */
+uint16_t usb_cdc_write(const uint8_t *data, uint16_t len);   /* blocks until sent (or 50 ms timeout per packet) */
+void     usb_cdc_print(const char *s);
+uint8_t  usb_cdc_dtr(void);                                  /* 1 = terminal program has the port open */
+`;
+  if(u.kbd) h += `
+/* HID keyboard. key = HID usage (e.g. 0x04 = 'a', 0x28 = Enter); modifier bits: 0x01 Ctrl, 0x02 Shift, 0x04 Alt, 0x08 GUI */
+uint8_t usb_kbd_send(uint8_t modifier, const uint8_t keys[6]);
+uint8_t usb_kbd_tap(uint8_t modifier, uint8_t key);          /* press + release */
+`;
+  if(u.mouse) h += `
+/* HID mouse. buttons: bit0 left, bit1 right, bit2 middle */
+uint8_t usb_mouse_send(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel);
+`;
+  if(u.custom) h += `
+/* HID custom: 64-byte reports both ways (no driver needed; use hidapi / WebHID on the PC) */
+uint8_t usb_hid_custom_send(const uint8_t *data, uint8_t len);
+`;
+  h += `
+/* ---- callbacks: implemented in app_callbacks.c (called from the USB interrupt - keep them short) ---- */
+void usb_on_configured(void);
+void usb_on_suspend(uint8_t suspended);
+`;
+  if(u.cdc) h += `void ${u.cdcRxFn}(const uint8_t *data, uint16_t len);
+void usb_cdc_on_line_coding(uint32_t baud, uint8_t stop_bits, uint8_t parity, uint8_t data_bits);
+void usb_cdc_on_control_line(uint8_t dtr, uint8_t rts);
+`;
+  if(u.custom) h += `void ${u.customRxFn}(const uint8_t *data, uint8_t len);\n`;
+  if(u.kbd) h += `void ${u.kbdLedFn}(uint8_t leds);    /* bit0 NumLock, bit1 CapsLock, bit2 ScrollLock */\n`;
+  return h + `\n#endif\n`;
+}
+function genUsbSource(v){
+  const u = state.usb, d = usbBuild(), hdr = v.header;
+  const epBuf = n => n === 4 ? ['pEP4_OUT_DataBuf', 'pEP4_IN_DataBuf'] : [`pEP${n}_OUT_DataBuf`, `pEP${n}_IN_DataBuf`];
+  const ctrl = n => `R8_UEP${n}_CTRL`;
+  const nE = d.epOf('cdc_notif'), dE = d.epOf('cdc_data'), kE = d.epOf('hid_km'), cE = d.epOf('hid_custom');
+  const cdcIf = (d.ifaces.find(i => i.kind === 'cdc') || {}).n;
+  const kmIf = (d.ifaces.find(i => i.kind === 'hid_km') || {}).n, cuIf = (d.ifaces.find(i => i.kind === 'hid_custom') || {}).n;
+  let o = `/* USB full-speed device - generated by WCH Configurator for ${v.id}
+ * Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources
+ * Control-transfer handling follows the EVT example USB/Device/CompoundDev.
+ * Endpoints: ${d.eps.map(e => `EP${e.ep} ${e.what}`).join(', ')}
+ */
+#include "${hdr}"
+#include "usb_app.h"
+#include <string.h>
+
+#define EP0_SIZE   64
+
+/* ---------------- descriptors ---------------- */
+${cArr('usb_dev_desc', d.dev)}
+${cArr('usb_cfg_desc', d.cfg)}
+${cArr('usb_lang_desc', [0x04, 0x03, 0x09, 0x04])}
+${cArr('usb_manu_desc', usbStrDesc(u.manufacturer))}
+${cArr('usb_prod_desc', usbStrDesc(u.product))}
+${u.serial ? cArr('usb_serial_desc', usbStrDesc(u.serial)) : ''}${d.kmDesc.length ? cArr('usb_hid_km_report', d.kmDesc) : ''}${u.custom ? cArr('usb_hid_custom_report', d.custom) : ''}
+/* ---------------- endpoint RAM (DMA) ---------------- */
+__attribute__((aligned(4))) static uint8_t EP0_Databuf[64 + 64 + 64];   /* ep0 + ep4 out + ep4 in */
+__attribute__((aligned(4))) static uint8_t EP1_Databuf[64 + 64];
+__attribute__((aligned(4))) static uint8_t EP2_Databuf[64 + 64];
+__attribute__((aligned(4))) static uint8_t EP3_Databuf[64 + 64];
+
+static uint8_t        usb_config, usb_setup_code, usb_idle, usb_protocol = 1, usb_suspended;
+static uint16_t       usb_setup_len;
+static const uint8_t *usb_descr;
+static volatile uint8_t usb_ep_busy[5];
+${u.cdc ? `static uint8_t        usb_line_coding[7] = {0x00, 0xC2, 0x01, 0x00, 0x00, 0x00, 0x08};   /* 115200 8N1 */
+static uint8_t        usb_cdc_lines;
+` : ''}
+uint8_t usb_is_configured(void) { return usb_config != 0; }
+
+/* wait until the IN endpoint is free, then send */
+static uint8_t usb_ep_send(uint8_t ep, uint8_t *buf, const uint8_t *data, uint8_t len)
+{
+    uint32_t t = 0;
+    if(!usb_config) return 0;
+    while(usb_ep_busy[ep]) { if(++t > 50000) { usb_ep_busy[ep] = 0; return 0; } mDelayuS(1); }
+    memcpy(buf, data, len);
+    usb_ep_busy[ep] = 1;
+    switch(ep)
+    {
+        case 1: DevEP1_IN_Deal(len); break;
+        case 2: DevEP2_IN_Deal(len); break;
+        case 3: DevEP3_IN_Deal(len); break;
+        case 4: DevEP4_IN_Deal(len); break;
+    }
+    return len;
+}
+`;
+  if(u.cdc) o += `
+uint16_t usb_cdc_write(const uint8_t *data, uint16_t len)
+{
+    uint16_t sent = 0;
+    while(sent < len)
+    {
+        uint8_t n = (len - sent) > 64 ? 64 : (uint8_t)(len - sent);
+        if(usb_ep_send(${dE}, ${epBuf(dE)[1]}, data + sent, n) != n) break;
+        sent += n;
+    }
+    if(sent && (sent % 64) == 0) usb_ep_send(${dE}, ${epBuf(dE)[1]}, data, 0);   /* zero-length packet ends the transfer */
+    return sent;
+}
+void    usb_cdc_print(const char *s) { usb_cdc_write((const uint8_t *)s, (uint16_t)strlen(s)); }
+uint8_t usb_cdc_dtr(void) { return usb_cdc_lines & 0x01; }
+`;
+  if(u.kbd) o += `
+uint8_t usb_kbd_send(uint8_t modifier, const uint8_t keys[6])
+{
+    uint8_t r[9], i = 0;
+${d.both ? '    r[i++] = 1;   /* report ID: keyboard */\n' : ''}    r[i++] = modifier; r[i++] = 0;
+    for(uint8_t k = 0; k < 6; k++) r[i++] = keys ? keys[k] : 0;
+    return usb_ep_send(${kE}, ${epBuf(kE)[1]}, r, i);
+}
+uint8_t usb_kbd_tap(uint8_t modifier, uint8_t key)
+{
+    uint8_t k[6] = {key, 0, 0, 0, 0, 0};
+    if(!usb_kbd_send(modifier, k)) return 0;
+    mDelaymS(10);
+    return usb_kbd_send(0, NULL);
+}
+`;
+  if(u.mouse) o += `
+uint8_t usb_mouse_send(uint8_t buttons, int8_t dx, int8_t dy, int8_t wheel)
+{
+    uint8_t r[5], i = 0;
+${d.both ? '    r[i++] = 2;   /* report ID: mouse */\n' : ''}    r[i++] = buttons; r[i++] = (uint8_t)dx; r[i++] = (uint8_t)dy; r[i++] = (uint8_t)wheel;
+    return usb_ep_send(${kE}, ${epBuf(kE)[1]}, r, i);
+}
+`;
+  if(u.custom) o += `
+uint8_t usb_hid_custom_send(const uint8_t *data, uint8_t len)
+{
+    uint8_t r[64] = {0};
+    memcpy(r, data, len > 64 ? 64 : len);
+    return usb_ep_send(${cE}, ${epBuf(cE)[1]}, r, 64);
+}
+`;
+  /* endpoint register helpers for CLEAR/SET_FEATURE and GET_STATUS */
+  const epNums = [1, 2, 3, 4];
+  o += `
+static volatile uint8_t *usb_ep_ctrl(uint8_t ep)
+{
+    switch(ep & 0x0F)
+    {
+        case 1: return &R8_UEP1_CTRL;
+        case 2: return &R8_UEP2_CTRL;
+        case 3: return &R8_UEP3_CTRL;
+        case 4: return &R8_UEP4_CTRL;
+    }
+    return NULL;
+}
+
+static void usb_ep_out(uint8_t ep, uint8_t len)
+{
+`;
+  if(dE) o += `    if(ep == ${dE}) { ${u.cdcRxFn}(${epBuf(dE)[0]}, len); return; }\n`;
+  if(cE) o += `    if(ep == ${cE}) { ${u.customRxFn}(${epBuf(cE)[0]}, len); return; }\n`;
+  o += `    (void)len;
+}
+
+/* ---------------- transfer handling (called from USB_IRQHandler) ---------------- */
+static void usb_process(void)
+{
+    uint8_t len, chtype, errflag = 0;
+    uint8_t intflag = R8_USB_INT_FG;
+
+    if(intflag & RB_UIF_TRANSFER)
+    {
+        if((R8_USB_INT_ST & MASK_UIS_TOKEN) != MASK_UIS_TOKEN)
+        {
+            uint8_t token = R8_USB_INT_ST & MASK_UIS_TOKEN, ep = R8_USB_INT_ST & MASK_UIS_ENDP;
+            if(ep == 0)
+            {
+                if(token == UIS_TOKEN_IN)
+                {
+                    switch(usb_setup_code)
+                    {
+                        case USB_GET_DESCRIPTOR:
+                            len = usb_setup_len >= EP0_SIZE ? EP0_SIZE : usb_setup_len;
+                            memcpy(pEP0_DataBuf, usb_descr, len);
+                            usb_setup_len -= len;
+                            usb_descr += len;
+                            R8_UEP0_T_LEN = len;
+                            R8_UEP0_CTRL ^= RB_UEP_T_TOG;
+                            break;
+                        case USB_SET_ADDRESS:
+                            R8_USB_DEV_AD = (R8_USB_DEV_AD & RB_UDA_GP_BIT) | usb_setup_len;
+                            R8_UEP0_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;
+                            break;
+                        default:
+                            R8_UEP0_T_LEN = 0;
+                            R8_UEP0_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;
+                            break;
+                    }
+                }
+                else if(token == UIS_TOKEN_OUT)
+                {
+                    len = R8_USB_RX_LEN;
+${u.cdc ? `                    if(usb_setup_code == 0x20 && len >= 7)        /* SET_LINE_CODING data stage */
+                    {
+                        memcpy(usb_line_coding, pEP0_DataBuf, 7);
+                        usb_cdc_on_line_coding(usb_line_coding[0] | ((uint32_t)usb_line_coding[1] << 8) |
+                                               ((uint32_t)usb_line_coding[2] << 16) | ((uint32_t)usb_line_coding[3] << 24),
+                                               usb_line_coding[4], usb_line_coding[5], usb_line_coding[6]);
+                    }
+` : ''}${u.kbd ? `                    if(usb_setup_code == 0x09 && len >= 1)        /* SET_REPORT: keyboard LEDs */
+                        ${u.kbdLedFn}(len >= 2 ? pEP0_DataBuf[1] : pEP0_DataBuf[0]);
+` : ''}                }
+            }
+            else if(token == UIS_TOKEN_OUT)
+            {
+                if(R8_USB_INT_ST & RB_UIS_TOG_OK)
+                {
+                    volatile uint8_t *c = usb_ep_ctrl(ep);
+                    *c ^= RB_UEP_R_TOG;
+                    usb_ep_out(ep, R8_USB_RX_LEN);
+                }
+            }
+            else if(token == UIS_TOKEN_IN)
+            {
+                volatile uint8_t *c = usb_ep_ctrl(ep);
+                *c ^= RB_UEP_T_TOG;
+                *c = (*c & ~MASK_UEP_T_RES) | UEP_T_RES_NAK;
+                usb_ep_busy[ep] = 0;
+            }
+            R8_USB_INT_FG = RB_UIF_TRANSFER;
+        }
+
+        if(R8_USB_INT_ST & RB_UIS_SETUP_ACT)
+        {
+            R8_UEP0_CTRL = RB_UEP_R_TOG | RB_UEP_T_TOG | UEP_R_RES_ACK | UEP_T_RES_NAK;
+            usb_setup_len = pSetupReqPak->wLength;
+            usb_setup_code = pSetupReqPak->bRequest;
+            chtype = pSetupReqPak->bRequestType;
+            len = 0;
+            errflag = 0;
+            uint8_t iface = pSetupReqPak->wIndex & 0xFF;
+
+            if((chtype & USB_REQ_TYP_MASK) != USB_REQ_TYP_STANDARD)
+            {
+                if((chtype & USB_REQ_TYP_MASK) != USB_REQ_TYP_CLASS) errflag = 0xFF;
+${u.cdc ? `                else if(iface == ${cdcIf} || iface == ${cdcIf + 1})
+                {
+                    switch(usb_setup_code)
+                    {
+                        case 0x20: break;                                            /* SET_LINE_CODING (data follows) */
+                        case 0x21: memcpy(pEP0_DataBuf, usb_line_coding, 7); len = 7; break;   /* GET_LINE_CODING */
+                        case 0x22:                                                   /* SET_CONTROL_LINE_STATE */
+                            usb_cdc_lines = pSetupReqPak->wValue & 0x03;
+                            usb_cdc_on_control_line(usb_cdc_lines & 0x01, (usb_cdc_lines >> 1) & 0x01);
+                            break;
+                        default: errflag = 0xFF;
+                    }
+                }
+` : ''}                else
+                {
+                    switch(usb_setup_code)                                           /* HID class requests */
+                    {
+                        case DEF_USB_SET_IDLE:     usb_idle = pEP0_DataBuf[3]; break;
+                        case DEF_USB_SET_REPORT:   break;
+                        case DEF_USB_SET_PROTOCOL: usb_protocol = pEP0_DataBuf[2]; break;
+                        case DEF_USB_GET_IDLE:     pEP0_DataBuf[0] = usb_idle; len = 1; break;
+                        case DEF_USB_GET_PROTOCOL: pEP0_DataBuf[0] = usb_protocol; len = 1; break;
+                        default: errflag = 0xFF;
+                    }
+                }
+                if(len && usb_setup_len > len) usb_setup_len = len;
+            }
+            else
+            {
+                switch(usb_setup_code)
+                {
+                    case USB_GET_DESCRIPTOR:
+                    {
+                        switch(pSetupReqPak->wValue >> 8)
+                        {
+                            case USB_DESCR_TYP_DEVICE: usb_descr = usb_dev_desc; len = sizeof(usb_dev_desc); break;
+                            case USB_DESCR_TYP_CONFIG: usb_descr = usb_cfg_desc; len = sizeof(usb_cfg_desc); break;
+                            case USB_DESCR_TYP_STRING:
+                                switch(pSetupReqPak->wValue & 0xFF)
+                                {
+                                    case 0: usb_descr = usb_lang_desc; len = sizeof(usb_lang_desc); break;
+                                    case 1: usb_descr = usb_manu_desc; len = sizeof(usb_manu_desc); break;
+                                    case 2: usb_descr = usb_prod_desc; len = sizeof(usb_prod_desc); break;
+${u.serial ? `                                    case 3: usb_descr = usb_serial_desc; len = sizeof(usb_serial_desc); break;\n` : ''}                                    default: errflag = 0xFF; break;
+                                }
+                                break;
+${(d.kmDesc.length || u.custom) ? `                            case USB_DESCR_TYP_HID:
+${d.kmHidOff >= 0 ? `                                if(iface == ${kmIf}) { usb_descr = &usb_cfg_desc[${d.kmHidOff}]; len = 9; break; }\n` : ''}${d.cuHidOff >= 0 ? `                                if(iface == ${cuIf}) { usb_descr = &usb_cfg_desc[${d.cuHidOff}]; len = 9; break; }\n` : ''}                                errflag = 0xFF;
+                                break;
+                            case USB_DESCR_TYP_REPORT:
+${d.kmDesc.length ? `                                if(iface == ${kmIf}) { usb_descr = usb_hid_km_report; len = sizeof(usb_hid_km_report); break; }\n` : ''}${u.custom ? `                                if(iface == ${cuIf}) { usb_descr = usb_hid_custom_report; len = sizeof(usb_hid_custom_report); break; }\n` : ''}                                errflag = 0xFF;
+                                break;
+` : ''}                            default: errflag = 0xFF; break;     /* incl. device qualifier: full-speed only */
+                        }
+                        if(!errflag)
+                        {
+                            if(usb_setup_len > len) usb_setup_len = len;
+                            len = usb_setup_len >= EP0_SIZE ? EP0_SIZE : usb_setup_len;
+                            memcpy(pEP0_DataBuf, usb_descr, len);
+                            usb_descr += len;
+                        }
+                        break;
+                    }
+                    case USB_SET_ADDRESS:
+                        usb_setup_len = pSetupReqPak->wValue & 0xFF;
+                        break;
+                    case USB_GET_CONFIGURATION:
+                        pEP0_DataBuf[0] = usb_config;
+                        if(usb_setup_len > 1) usb_setup_len = 1;
+                        break;
+                    case USB_SET_CONFIGURATION:
+                        usb_config = pSetupReqPak->wValue & 0xFF;
+                        if(usb_config) usb_on_configured();
+                        break;
+                    case USB_CLEAR_FEATURE:
+                    case USB_SET_FEATURE:
+                        if((chtype & USB_REQ_RECIP_MASK) == USB_REQ_RECIP_ENDP)
+                        {
+                            volatile uint8_t *c = usb_ep_ctrl(pSetupReqPak->wIndex & 0x0F);
+                            if(c == NULL) { errflag = 0xFF; break; }
+                            uint8_t stall = usb_setup_code == USB_SET_FEATURE;
+                            if(pSetupReqPak->wIndex & 0x80)
+                                *c = (*c & ~(RB_UEP_T_TOG | MASK_UEP_T_RES)) | (stall ? UEP_T_RES_STALL : UEP_T_RES_NAK);
+                            else
+                                *c = (*c & ~(RB_UEP_R_TOG | MASK_UEP_R_RES)) | (stall ? UEP_R_RES_STALL : UEP_R_RES_ACK);
+                        }
+                        else if((chtype & USB_REQ_RECIP_MASK) == USB_REQ_RECIP_DEVICE)
+                            usb_suspended = usb_setup_code == USB_SET_FEATURE;       /* remote wakeup feature */
+                        else
+                            errflag = 0xFF;
+                        break;
+                    case USB_GET_INTERFACE:
+                        pEP0_DataBuf[0] = 0;
+                        if(usb_setup_len > 1) usb_setup_len = 1;
+                        break;
+                    case USB_SET_INTERFACE:
+                        break;
+                    case USB_GET_STATUS:
+                        pEP0_DataBuf[0] = 0;
+                        pEP0_DataBuf[1] = 0;
+                        if((chtype & USB_REQ_RECIP_MASK) == USB_REQ_RECIP_ENDP)
+                        {
+                            volatile uint8_t *c = usb_ep_ctrl(pSetupReqPak->wIndex & 0x0F);
+                            if(c && (pSetupReqPak->wIndex & 0x80) && (*c & MASK_UEP_T_RES) == UEP_T_RES_STALL) pEP0_DataBuf[0] = 1;
+                            if(c && !(pSetupReqPak->wIndex & 0x80) && (*c & MASK_UEP_R_RES) == UEP_R_RES_STALL) pEP0_DataBuf[0] = 1;
+                        }
+                        if(usb_setup_len > 2) usb_setup_len = 2;
+                        break;
+                    default:
+                        errflag = 0xFF;
+                        break;
+                }
+            }
+
+            if(errflag == 0xFF)
+            {
+                usb_setup_code = 0xFF;
+                R8_UEP0_CTRL = RB_UEP_R_TOG | RB_UEP_T_TOG | UEP_R_RES_STALL | UEP_T_RES_STALL;   /* STALL */
+            }
+            else
+            {
+                if(chtype & 0x80)
+                {
+                    len = usb_setup_len > EP0_SIZE ? EP0_SIZE : usb_setup_len;
+                    usb_setup_len -= len;
+                }
+                else
+                    len = 0;
+                R8_UEP0_T_LEN = len;
+                R8_UEP0_CTRL = RB_UEP_R_TOG | RB_UEP_T_TOG | UEP_R_RES_ACK | UEP_T_RES_ACK;   /* DATA1 */
+            }
+            R8_USB_INT_FG = RB_UIF_TRANSFER;
+        }
+    }
+    else if(intflag & RB_UIF_BUS_RST)
+    {
+        R8_USB_DEV_AD = 0;
+        R8_UEP0_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;
+${epNums.map(n => `        R8_UEP${n}_CTRL = UEP_R_RES_ACK | UEP_T_RES_NAK;`).join('\n')}
+        usb_config = 0;
+        memset((void *)usb_ep_busy, 0, sizeof(usb_ep_busy));
+        R8_USB_INT_FG = RB_UIF_BUS_RST;
+    }
+    else if(intflag & RB_UIF_SUSPEND)
+    {
+        usb_on_suspend((R8_USB_MIS_ST & RB_UMS_SUSPEND) ? 1 : 0);
+        R8_USB_INT_FG = RB_UIF_SUSPEND;
+    }
+    else
+    {
+        R8_USB_INT_FG = intflag;
+    }
+}
+
+__INTERRUPT
+__HIGH_CODE
+void USB_IRQHandler(void)
+{
+    usb_process();
+}
+
+void usb_app_init(void)
+{
+    pEP0_RAM_Addr = EP0_Databuf;
+    pEP1_RAM_Addr = EP1_Databuf;
+    pEP2_RAM_Addr = EP2_Databuf;
+    pEP3_RAM_Addr = EP3_Databuf;
+    USB_DeviceInit();
+    PFIC_EnableIRQ(USB_IRQn);
+}
+`;
+  return o;
+}
+
+function genCallbacks(){
+  const b = state.ble, u = state.usb, ble = bleEnabled(), usb = usbEnabled();
+  let o = `/* Application callbacks - edit this file.
+ * Generated once by WCH Configurator (original tool: Amir1387aht (Another)).
+ */
+`;
+  if(ble) o += `#include "ble_app.h"\n`;
+  if(usb) o += `#include "usb_app.h"\n`;
+  if(ble){
+    o += `
+/* ======================= Bluetooth LE ======================= */
+void ble_on_connected(uint16_t conn_handle)
+{
+    (void)conn_handle;   /* a phone connected */
+}
+
+void ble_on_disconnected(uint8_t reason)
+{
+    (void)reason;        /* advertising restarts automatically */
+}
+
+void ble_on_mtu_changed(uint16_t mtu)
+{
+    (void)mtu;           /* notifications can now carry up to mtu - 3 bytes */
+}
+
+void ble_on_phy_changed(uint8_t tx_phy, uint8_t rx_phy)
+{
+    (void)tx_phy; (void)rx_phy;
+}
+
+void ble_on_pairing(uint8_t state, uint8_t status)
+{
+    (void)state; (void)status;   /* GAPBOND_PAIRING_STATE_COMPLETE / _BONDED, status 0 = success */
+}
+`;
+    b.services.forEach(s => s.chars.forEach(c => {
+      const n = bleNames(s, c);
+      if((c.write || c.writeNoRsp) && c.onWrite){
+        const echo = b.services.flatMap(ss => ss.chars.map(cc => ({ss, cc}))).find(x => x.cc.notify && x.ss === s && x.cc !== c);
+        o += `
+/* ${s.name} / ${c.name}: the phone wrote ${'`'}len${'`'} bytes */
+void ${n.onWrite}(const uint8_t *data, uint16_t len)
+{
+${echo ? `    /* example: echo back on ${echo.cc.name} */\n    ${bleNames(echo.ss, echo.cc).base}_notify(data, len);\n` : '    (void)data; (void)len;\n'}}
+`;
+      }
+      if(c.read && c.onRead) o += `
+/* ${s.name} / ${c.name}: the phone is about to read - update the value here */
+void ${n.onRead}(void)
+{
+    /* ${n.base}_set(data, len); */
+}
+`;
+      if((c.notify || c.indicate) && c.onSub) o += `
+/* ${s.name} / ${c.name}: notifications ${c.indicate && !c.notify ? '(indications) ' : ''}switched on/off by the phone */
+void ${n.onSub}(uint8_t enabled)
+{
+    (void)enabled;
+}
+`;
+    }));
+  }
+  if(usb){
+    o += `
+/* ======================= USB ======================= */
+void usb_on_configured(void)
+{
+    /* the PC finished enumeration - USB functions can be used now */
+}
+
+void usb_on_suspend(uint8_t suspended)
+{
+    (void)suspended;
+}
+`;
+    if(u.cdc) o += `
+/* data from the PC (virtual COM port), max 64 bytes per call */
+void ${u.cdcRxFn}(const uint8_t *data, uint16_t len)
+{
+    usb_cdc_write(data, len);   /* example: echo */
+}
+
+void usb_cdc_on_line_coding(uint32_t baud, uint8_t stop_bits, uint8_t parity, uint8_t data_bits)
+{
+    (void)baud; (void)stop_bits; (void)parity; (void)data_bits;   /* terminal changed baud rate / format */
+}
+
+void usb_cdc_on_control_line(uint8_t dtr, uint8_t rts)
+{
+    (void)dtr; (void)rts;      /* dtr = 1 when a terminal opens the port */
+}
+`;
+    if(u.custom) o += `
+/* 64-byte report from the PC */
+void ${u.customRxFn}(const uint8_t *data, uint8_t len)
+{
+    (void)data; (void)len;
+}
+`;
+    if(u.kbd) o += `
+/* keyboard LEDs from the PC: bit0 NumLock, bit1 CapsLock, bit2 ScrollLock */
+void ${u.kbdLedFn}(uint8_t leds)
+{
+    (void)leds;
+}
+`;
+  }
+  return o;
+}
+
+/* ---------- all generated files ---------- */
+function generateFiles(){
+  const v = currentVariant(), ble = bleEnabled(), usb = usbEnabled();
+  const base = generateCode();
+  if(!ble && !usb) return {'src/main.c': base};
+  const files = {};
+  const cut = base.indexOf('\nint main(void)');
+  let head = cut > 0 ? base.slice(0, cut) : base;
+  if(ble) head = head.replace(/#include "CH5[0-9x]+_common\.h"/, '#include "CONFIG.h"\n#include "HAL.h"\n#include "ble_app.h"');
+  if(usb) head = head.replace(/(#include "[^"]+"\n)(?![\s\S]*#include)/, `$1#include "usb_app.h"\n`);
+  const clk = `#if defined(SYSCLK_FREQ)
+    SetSysClock(SYSCLK_FREQ);
+#else
+    SetSysClock(${clkDefault(v)});
+#endif`;
+  if(ble){
+    files['src/main.c'] = `${head}
+/* RAM for the BLE stack (size set in app_config.h) */
+__attribute__((aligned(4))) uint32_t MEM_BUF[BLE_MEMHEAP_SIZE / 4];
+
+#if(defined(BLE_MAC)) && (BLE_MAC == TRUE)
+const uint8_t MacAddr[6] = {0x84, 0xC2, 0xE4, 0x03, 0x02, 0x02};
+#endif
+
+__HIGH_CODE
+__attribute__((noinline))
+static void Main_Circulation(void)
+{
+    while(1)
+    {
+        TMOS_SystemProcess();       /* runs the BLE stack and all TMOS tasks - do not block here */
+    }
+}
+
+int main(void)
+{
+#if(defined(DCDC_ENABLE)) && (DCDC_ENABLE == TRUE)
+    PWR_DCDCCfg(ENABLE);
+#endif
+${clk}
+
+    Peripheral_Init();
+    ble_stack_init();
+    HAL_Init();
+    GAPRole_PeripheralInit();
+    ble_app_init();
+${usb ? '    usb_app_init();\n' : ''}
+    Main_Circulation();
+}
+`;
+    files['src/app_config.h'] = genAppConfig(v);
+    files['src/ble_app.h'] = genBleHeader();
+    files['src/ble_app.c'] = genBleSource(v);
+  } else {
+    files['src/main.c'] = `${head}
+int main(void)
+{
+${clk}
+
+    Peripheral_Init();
+    usb_app_init();
+
+    while(1)
+    {
+        /* application loop - USB runs in its interrupt */
+    }
+}
+`;
+  }
+  if(usb){
+    files['src/usb_app.h'] = genUsbHeader();
+    files['src/usb_app.c'] = genUsbSource(v);
+  }
+  files['src/app_callbacks.c'] = genCallbacks();
+  return files;
+}
 
 /* ================= VS Code project export ================= */
 const VSC_CORE = {
@@ -1605,7 +3037,7 @@ function vscCore(v){
   return VSC_CORE[v.id] || {march:'rv32imac_zicsr_zifencei', mabi:'ilp32', startup:'startup_' + v.id + '.S', evt:''};
 }
 /* helper scripts shipped inside the exported project (tools/wch.ps1, tools/wch.sh) */
-const VSC_TOOLS = {"wch.ps1": "<#\n  WCH project helper for VS Code (Windows / PowerShell 5.1+)\n  Exported by WCH Configurator - original tool by Amir1387aht (Another)\n  https://github.com/amir1387aht/WCH-Resources\n\n  Usage:  powershell -ExecutionPolicy Bypass -File tools/wch.ps1 <command> [-Yes]\n  Commands:\n    setup    find or install everything this project needs and save the paths in .vscode/settings.json\n    doctor   check the environment and explain what is missing\n    build    configure + build (build/<name>.elf/.hex/.bin)\n    flash    build, then program the chip with WCH-Link through OpenOCD\n    wlink    build, then program the chip with wlink\n    clean    delete the build folder\n#>\nparam(\n  [Parameter(Position = 0)][string]$Command = 'help',\n  [switch]$Yes\n)\n$ErrorActionPreference = 'Continue'   # native tools write progress to stderr; every step checks its own result\n$Root = Split-Path -Parent $PSScriptRoot\n$ProjFile = Join-Path $Root 'wch-project.json'\n$SettingsFile = Join-Path $Root '.vscode\\settings.json'\n$BuildDir = Join-Path $Root 'build'\n$Cache = Join-Path $env:LOCALAPPDATA 'wch-tools'\n\nfunction Say($m) { Write-Host \"[wch] $m\" -ForegroundColor Cyan }\nfunction Ok($m) { Write-Host \"  [ OK ] $m\" -ForegroundColor Green }\nfunction Warn($m) { Write-Host \"  [WARN] $m\" -ForegroundColor Yellow }\nfunction Bad($m) { Write-Host \"  [FAIL] $m\" -ForegroundColor Red }\nfunction Hint($m) { Write-Host \"         -> $m\" -ForegroundColor Yellow }\nfunction Die($m, $hint) {\n  Write-Host \"\"\n  Write-Host \"[wch] ERROR: $m\" -ForegroundColor Red\n  if ($hint) { foreach ($h in @($hint)) { Hint $h } }\n  exit 1\n}\nfunction Fwd($p) { if ($p) { return ($p -replace '\\\\', '/') } return '' }\nfunction Confirm-Step($q) {\n  if ($Yes) { return $true }\n  $a = Read-Host \"$q [Y/n]\"\n  return ($a -eq '' -or $a -match '^[Yy]')\n}\n\n# ---------- project + settings ----------\nif (-not (Test-Path $ProjFile)) { Die \"wch-project.json not found in $Root\" \"Open the exported project folder itself in VS Code (File > Open Folder).\" }\ntry { $Proj = Get-Content $ProjFile -Raw | ConvertFrom-Json } catch { Die \"wch-project.json is not valid JSON: $($_.Exception.Message)\" }\n\nfunction Read-Settings {\n  if (-not (Test-Path $SettingsFile)) { return [pscustomobject]@{} }\n  $raw = Get-Content $SettingsFile -Raw\n  # VS Code allows comments and trailing commas in settings.json\n  $raw = [regex]::Replace($raw, '(?m)^\\s*//.*$', '')\n  $raw = [regex]::Replace($raw, '/\\*[\\s\\S]*?\\*/', '')\n  $raw = [regex]::Replace($raw, ',(\\s*[}\\]])', '$1')\n  try { return ($raw | ConvertFrom-Json) }\n  catch { Die \".vscode/settings.json could not be parsed: $($_.Exception.Message)\" \"Fix the JSON syntax (missing comma or quote) or delete the file and run the 'WCH: Setup' task again.\" }\n}\nfunction Get-Setting($s, $k) { $p = $s.PSObject.Properties[$k]; if ($p) { return [string]$p.Value } return '' }\nfunction Save-Settings($s) {\n  $dir = Split-Path $SettingsFile\n  if (-not (Test-Path $dir)) { New-Item -ItemType Directory $dir | Out-Null }\n  $json = $s | ConvertTo-Json -Depth 10\n  [IO.File]::WriteAllText($SettingsFile, $json + \"`n\", (New-Object Text.UTF8Encoding($false)))\n}\nfunction Set-Setting($s, $k, $v) {\n  if ($s.PSObject.Properties[$k]) { $s.$k = $v } else { $s | Add-Member -NotePropertyName $k -NotePropertyValue $v }\n}\n$S = Read-Settings\n\n# ---------- tool discovery ----------\nfunction Get-MrsRoots {\n  $bases = @('C:\\MounRiver', 'D:\\MounRiver', \"$env:ProgramFiles\", \"${env:ProgramFiles(x86)}\", \"$env:LOCALAPPDATA\\Programs\", \"$env:USERPROFILE\")\n  $roots = @()\n  foreach ($b in $bases) {\n    if ($b -and (Test-Path $b)) {\n      $roots += Get-ChildItem -Path $b -Directory -Filter 'MounRiver*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }\n      if ((Split-Path $b -Leaf) -like 'MounRiver*') { $roots += $b }\n    }\n  }\n  $more = @()\n  foreach ($r in $roots) { $more += Get-ChildItem -Path $r -Directory -Filter 'MounRiver*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } }\n  return @($roots + $more | Select-Object -Unique)\n}\nfunction Get-MrsComponents {\n  $dirs = @()\n  foreach ($r in Get-MrsRoots) {\n    foreach ($sub in @('resources\\app\\resources\\win32\\components\\WCH', 'components\\WCH', 'toolchain')) {\n      $p = Join-Path $r $sub\n      if (Test-Path $p) { $dirs += $p }\n    }\n  }\n  return $dirs\n}\nfunction Find-InDirs($exe, $dirs) {\n  foreach ($d in $dirs) { if ($d -and (Test-Path (Join-Path $d $exe))) { return (Resolve-Path $d).Path } }\n  return $null\n}\nfunction Find-OnPath($exe) {\n  $c = Get-Command $exe -ErrorAction SilentlyContinue\n  if ($c) { return (Split-Path $c.Source) }\n  return $null\n}\nfunction Expand-7z($archive, $dest) {\n  New-Item -ItemType Directory -Force $dest | Out-Null\n  $sevenZip = @(\"$env:ProgramFiles\\7-Zip\\7z.exe\", \"${env:ProgramFiles(x86)}\\7-Zip\\7z.exe\") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1\n  if (-not $sevenZip) { $c = Get-Command 7z -ErrorAction SilentlyContinue; if ($c) { $sevenZip = $c.Source } }\n  Say \"Extracting $(Split-Path $archive -Leaf) (this takes a minute) ...\"\n  if ($sevenZip) { & $sevenZip x -y \"-o$dest\" $archive 2>&1 | Out-Null }\n  else { & tar.exe -xf $archive -C $dest 2>&1 | Out-Host }\n  if ($LASTEXITCODE -ne 0) { Die \"Could not extract $archive\" \"Install 7-Zip (winget install 7zip.7zip) and run 'WCH: Setup' again.\" }\n}\nfunction Find-Toolchain([bool]$AllowExtract = $false) {\n  $prefix = $Proj.prefix\n  $gcc = \"$prefix-gcc.exe\"\n  $set = Get-Setting $S 'wch.toolchainBin'\n  if ($set -and (Test-Path (Join-Path $set $gcc))) { return $set }\n  $p = Find-OnPath $gcc; if ($p) { return $p }\n  $names = if ($Proj.arch -eq 'arm') { @('arm-none-eabi-gcc') } else { @('RISC-V Embedded GCC12', 'RISC-V Embedded GCC15', 'RISC-V Embedded GCC') }\n  $cands = @()\n  foreach ($n in $names) { $cands += Join-Path (Join-Path $Cache $n) 'bin' }\n  foreach ($c in Get-MrsComponents) { foreach ($n in $names) { $cands += Join-Path (Join-Path (Join-Path $c 'Toolchain') $n) 'bin'; $cands += Join-Path (Join-Path $c $n) 'bin' } }\n  $p = Find-InDirs $gcc $cands; if ($p) { return $p }\n  # MounRiver Studio 2/3 ship the toolchains as .7z archives\n  foreach ($c in Get-MrsComponents) {\n    foreach ($n in $names) {\n      $arc = Join-Path (Join-Path $c 'Toolchain') \"$n.7z\"\n      if (Test-Path $arc) {\n        if (-not $AllowExtract) { $script:TcArchive = $arc; return $null }\n        if (-not (Confirm-Step \"Found '$n' inside MounRiver Studio as an archive. Extract it to $Cache?\")) { return $null }\n        $dest = Join-Path $Cache $n\n        Expand-7z $arc $dest\n        $p = Find-InDirs $gcc @((Join-Path $dest 'bin'))\n        if ($p) { return $p }\n      }\n    }\n  }\n  return $null\n}\nfunction Find-OpenOcd {\n  $set = Get-Setting $S 'wch.openocdBin'\n  if ($set -and (Test-Path (Join-Path $set 'openocd.exe'))) { return $set }\n  $cands = @()\n  foreach ($c in Get-MrsComponents) { $cands += Join-Path $c 'OpenOCD\\OpenOCD\\bin'; $cands += Join-Path $c 'OpenOCD\\bin' }\n  $p = Find-InDirs 'openocd.exe' $cands; if ($p) { return $p }\n  return (Find-OnPath 'openocd.exe')\n}\nfunction Find-Build-Tool($exe) {\n  $p = Find-OnPath $exe; if ($p) { return $p }\n  $cands = @(\"$env:ProgramFiles\\CMake\\bin\", \"$env:LOCALAPPDATA\\Microsoft\\WinGet\\Links\", (Join-Path $Cache 'pytools\\Scripts'))\n  $set = Get-Setting $S ('wch.' + ($exe -replace '\\.exe$', '') + 'Bin')\n  if ($set) { $cands = @($set) + $cands }\n  return (Find-InDirs $exe $cands)\n}\nfunction Install-BuildTools {\n  $winget = Get-Command winget -ErrorAction SilentlyContinue\n  if ($winget) {\n    if (-not (Confirm-Step \"Install CMake and Ninja with winget?\")) { return }\n    & winget install --id Kitware.CMake -e --silent --accept-source-agreements --accept-package-agreements | Out-Host\n    & winget install --id Ninja-build.Ninja -e --silent --accept-source-agreements --accept-package-agreements | Out-Host\n    return\n  }\n  $py = Get-Command python -ErrorAction SilentlyContinue\n  if ($py) {\n    if (-not (Confirm-Step \"winget is not available. Install CMake and Ninja into $Cache\\pytools with Python?\")) { return }\n    & python -m venv (Join-Path $Cache 'pytools') | Out-Host\n    & (Join-Path $Cache 'pytools\\Scripts\\python.exe') -m pip install --quiet cmake ninja | Out-Host\n    return\n  }\n  Warn \"Neither winget nor Python was found.\"\n  Hint \"Install CMake (https://cmake.org/download) and Ninja (https://github.com/ninja-build/ninja/releases) and add them to PATH.\"\n}\nfunction Get-EvtDir {\n  $set = Get-Setting $S 'wch.evtDir'\n  if ($set -and (Test-Path (Join-Path $set 'EXAM\\SRC'))) { return $set }\n  if ($Proj.evtRepo) {\n    $cached = Join-Path $Cache \"evt\\$($Proj.evtRepo)\\EVT\"\n    if (Test-Path (Join-Path $cached 'EXAM\\SRC')) { return $cached }\n  }\n  return $null\n}\nfunction Get-Evt {\n  if (-not $Proj.evtRepo) {\n    Warn \"WCH has no public GitHub repository with the $($Proj.chip) EVT.\"\n    Hint \"Download the $($Proj.chip) EVT zip from https://www.wch-ic.com/search?q=$($Proj.chip)&t=downloads (or wch.cn), unzip it and set wch.evtDir to the folder that contains EXAM\\SRC.\"\n    return $null\n  }\n  $git = Get-Command git -ErrorAction SilentlyContinue\n  if (-not $git) {\n    Warn \"git is not installed, so the EVT cannot be downloaded automatically.\"\n    Hint \"Install git (winget install Git.Git) and run 'WCH: Setup' again, or download https://github.com/openwch/$($Proj.evtRepo) as a zip and set wch.evtDir to its EVT folder.\"\n    return $null\n  }\n  if (-not (Confirm-Step \"Download the official $($Proj.chip) EVT (drivers, startup, linker script) from github.com/openwch/$($Proj.evtRepo)?\")) { return $null }\n  $dest = Join-Path $Cache \"evt\\$($Proj.evtRepo)\"\n  if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }\n  New-Item -ItemType Directory -Force (Split-Path $dest) | Out-Null\n  & git clone --quiet --depth 1 --filter=blob:none --sparse \"https://github.com/openwch/$($Proj.evtRepo).git\" $dest 2>&1 | Out-Host\n  if ($LASTEXITCODE -ne 0) { Die \"git clone of openwch/$($Proj.evtRepo) failed\" \"Check your internet connection or proxy, then run 'WCH: Setup' again.\" }\n  & git -C $dest sparse-checkout set EVT/EXAM/SRC EVT/EXAM/GPIO/GPIO_Toggle 2>&1 | Out-Host\n  if ($LASTEXITCODE -ne 0) { Die \"Downloading the EVT files failed\" \"Check your internet connection and run 'WCH: Setup' again.\" }\n  return (Join-Path $dest 'EVT')\n}\n\n# ---------- checks ----------\nfunction Test-Env([bool]$NeedFlash) {\n  $okAll = $true\n  $evt = Get-EvtDir\n  if ($evt) {\n    Ok \"EVT: $evt\"\n    $src = Join-Path $evt 'EXAM\\SRC'\n    if (-not (Test-Path (Join-Path $src 'Ld\\Link.ld')) -and $Proj.arch -ne 'arm') { Bad \"Link.ld missing in $src\\Ld\"; Hint \"wch.evtDir points to the wrong EVT. It must be the $($Proj.chip) EVT.\"; $okAll = $false }\n    $hdr = Get-ChildItem -Path $src -Recurse -Filter $Proj.header -ErrorAction SilentlyContinue | Select-Object -First 1\n    if (-not $hdr) { Bad \"$($Proj.header) not found in the EVT\"; Hint \"This EVT is not for $($Proj.chip). Point wch.evtDir to the right package.\"; $okAll = $false }\n  } else { Bad \"EVT package not found (wch.evtDir)\"; Hint \"Run the task 'WCH: Setup' or set wch.evtDir in .vscode/settings.json\"; $okAll = $false }\n\n  $tc = Find-Toolchain\n  if ($tc) {\n    $gcc = Join-Path $tc \"$($Proj.prefix)-gcc.exe\"\n    $ver = (& $gcc -dumpversion) 2>$null\n    Ok \"Toolchain: $gcc ($ver)\"\n    if ($Proj.arch -ne 'arm' -and $Proj.march) {\n      $ml = (& $gcc \"-march=$($Proj.march)\" \"-mabi=$($Proj.mabi)\" -print-multi-directory) 2>$null\n      if ($ml -eq '.' -and $Proj.march -match '_xw|^rv32e') { Warn \"This toolchain has no library build for -march=$($Proj.march)\"; Hint \"Use the GCC12 toolchain from MounRiver Studio, or set WCH_CPU_FLAGS to flags your toolchain supports.\" }\n    }\n  } elseif ($script:TcArchive) {\n    Bad \"$($Proj.prefix)-gcc is still packed inside MounRiver Studio ($(Split-Path $script:TcArchive -Leaf))\"; Hint \"Run the task 'WCH: Setup' to unpack it\"; $okAll = $false\n  } else { Bad \"$($Proj.prefix)-gcc not found\"; Hint \"Install MounRiver Studio (https://www.mounriver.com) and run 'WCH: Setup', or set wch.toolchainBin\"; $okAll = $false }\n\n  foreach ($t in @('cmake.exe', 'ninja.exe')) {\n    $p = Find-Build-Tool $t\n    if ($p) { Ok \"$($t -replace '\\.exe$','') : $p\" } else { Bad \"$($t -replace '\\.exe$','') not found\"; Hint \"Run the task 'WCH: Setup' (installs it with winget or Python)\"; $okAll = $false }\n  }\n\n  $ocd = Find-OpenOcd\n  if ($ocd) {\n    Ok \"OpenOCD: $ocd\"\n    $cfg = Get-Setting $S 'wch.openocdCfg'; if (-not $cfg) { $cfg = $Proj.openocdCfg }\n    if (-not (Test-Path (Join-Path $ocd $cfg))) { Bad \"OpenOCD config $cfg not found in $ocd\"; Hint \"Use the OpenOCD that comes with MounRiver Studio (it has the WCH-Link driver and wch-riscv.cfg).\"; if ($NeedFlash) { $okAll = $false } }\n  } else {\n    if ($NeedFlash) { Bad \"OpenOCD not found\"; $okAll = $false } else { Warn \"OpenOCD not found (needed only for flashing and debugging)\" }\n    Hint \"Install MounRiver Studio, or set wch.openocdBin to the folder that contains openocd.exe\"\n  }\n  if (Find-OnPath 'wlink.exe') { Ok \"wlink: found\" } else { Warn \"wlink not found (optional, alternative flasher: https://github.com/ch32-rs/wlink)\" }\n  return $okAll\n}\n\nfunction Use-Tools {\n  $script:EVT = Get-EvtDir\n  $script:TC = Find-Toolchain\n  $cm = Find-Build-Tool 'cmake.exe'; $nj = Find-Build-Tool 'ninja.exe'\n  $missing = @()\n  if (-not $script:EVT) { $missing += 'EVT package' }\n  if (-not $script:TC) { $missing += \"$($Proj.prefix)-gcc\" }\n  if (-not $cm) { $missing += 'cmake' }\n  if (-not $nj) { $missing += 'ninja' }\n  if ($missing.Count) { Die (\"Missing: \" + ($missing -join ', ')) @(\"Run the task 'WCH: Setup' (Terminal > Run Task > WCH: Setup).\", \"Run 'WCH: Doctor' for details.\") }\n  $env:PATH = \"$cm;$nj;$($script:TC);$env:PATH\"\n}\n\nfunction Show-BuildHints($log) {\n  $h = @()\n  if ($log -match 'mis-matched ISA') { $h += \"Library/ISA mismatch: use the GCC12 toolchain from MounRiver Studio, or change WCH_CPU_FLAGS in CMakeLists.txt.\" }\n  if ($log -match \"undeclared|implicit declaration of function\") { $h += \"A name used in src/ is not in this EVT version. Look up the right name in EXAM/SRC/*/inc/*.h of your EVT.\" }\n  if ($log -match 'fatal error: .*\\.h: No such file') { $h += \"A header is missing: wch.evtDir probably points to an EVT for another chip.\" }\n  if ($log -match \"region .*(FLASH|RAM).* overflowed\") { $h += \"The program does not fit in FLASH/RAM. Enable size optimisation or remove code.\" }\n  if ($log -match 'multiple definition of|redefinition of') { $h += \"A function (often an IRQ handler) is defined twice: once in src/ and once in the EVT *_it.c. Remove one of them.\" }\n  if ($log -match 'undefined reference to') { $h += \"A function is used but not compiled. Put the .c file in src/ (all src/*.c files are built) or link the right EVT library.\" }\n  if ($log -match 'is not able to compile a simple test program|CMAKE_C_COMPILER') { $h += \"The compiler cannot run. Run 'WCH: Doctor' and check wch.toolchainBin.\" }\n  if ($log -match 'Startup file not found') { $h += \"Set WCH_STARTUP to the startup_*.S file that matches your exact part (see EXAM/SRC/Startup).\" }\n  if (-not $h.Count) { $h += \"Read the first 'error:' line above. Run 'WCH: Clean' and build again if you changed paths or the toolchain.\" }\n  foreach ($x in $h) { Hint $x }\n}\n\nfunction Invoke-Logged([string]$exe, [string[]]$argv) {\n  $out = New-Object System.Collections.Generic.List[string]\n  $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'   # stderr lines are not errors here\n  & $exe @argv 2>&1 | ForEach-Object {\n    if ($_ -is [System.Management.Automation.ErrorRecord]) { $line = $_.Exception.Message } else { $line = \"$_\" }\n    if ($line -eq 'System.Management.Automation.RemoteException') { $line = '' }\n    $out.Add($line); Write-Host $line\n  }\n  $code = $LASTEXITCODE\n  $ErrorActionPreference = $old\n  return @{ code = $code; log = ($out -join \"`n\") }\n}\n\nfunction Invoke-Build {\n  Use-Tools\n  $cmake = Join-Path (Find-Build-Tool 'cmake.exe') 'cmake.exe'\n  Say \"Configuring $($Proj.name) for $($Proj.chip) ...\"\n  $cfgArgs = @('-S', $Root, '-B', $BuildDir, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Debug', \"-DWCH_EVT_DIR=$(Fwd $script:EVT)\", \"-DWCH_TOOLCHAIN_BIN=$(Fwd $script:TC)\")\n  $r = Invoke-Logged $cmake $cfgArgs\n  if ($r.code -ne 0) {\n    Write-Host \"\"; Bad \"CMake configure failed\"\n    if ($r.log -match 'generator' -or $r.log -match 'Ninja') { Hint \"The build folder was made with other settings. Run 'WCH: Clean' and try again.\" }\n    Show-BuildHints $r.log; exit 1\n  }\n  Say \"Building ...\"\n  $r = Invoke-Logged $cmake @('--build', $BuildDir)\n  if ($r.code -ne 0) { Write-Host \"\"; Bad \"Build failed\"; Show-BuildHints $r.log; exit 1 }\n  $hex = Join-Path $BuildDir \"$($Proj.name).hex\"\n  if (-not (Test-Path $hex)) { Die \"Build finished but $hex was not created\" \"Run 'WCH: Clean' and build again.\" }\n  Write-Host \"\"; Ok \"Build OK -> build/$($Proj.name).elf / .hex / .bin\"\n}\n\nfunction Show-FlashHints($log) {\n  $h = @()\n  if ($log -match 'WLink Open Error|Open Error|LIBUSB|libusb|open failed|No WCH-Link|unable to open|Error: no device') { $h += \"WCH-Link was not found: check the USB cable and install the WCH-Link driver (MounRiver Studio installs it; also in WCH-LinkUtility).\" }\n  if ($log -match 'WLink Open Error|mode') { $h += \"If the WCH-Link LED is not blue, switch it to RISC-V mode with WCH-LinkUtility (or hold its button while plugging it in).\" }\n  if ($log -match 'protect|locked|read out') { $h += \"The chip is read-protected. Remove protection with WCH-LinkUtility (Target > Remove Protect), then flash again.\" }\n  if ($log -match 'timeout|Timeout|failed to') { $h += \"Check the wiring: SWDIO/SWCLK (CH32V003: single wire SWIO), GND and 3.3 V. Hold the board in reset or power-cycle it and try again.\" }\n  if ($Proj.chip -like 'CH5*') { $h += \"CH5xx: if the debug pins were disabled by firmware, power the chip with the BOOT/download pin held, or use WCHISPTool over USB.\" }\n  if (-not $h.Count) { $h += \"Read the first 'Error:' line above. Run 'WCH: Doctor' to check the OpenOCD path and config.\" }\n  foreach ($x in $h) { Hint $x }\n}\n\nfunction Invoke-Flash([string]$how) {\n  Invoke-Build\n  $hex = Fwd (Join-Path $BuildDir \"$($Proj.name).hex\")\n  if ($how -eq 'wlink') {\n    $wl = Find-OnPath 'wlink.exe'\n    if (-not $wl) { Die \"wlink not found\" \"Install it from https://github.com/ch32-rs/wlink/releases and add it to PATH, or use 'WCH: Flash (OpenOCD)'.\" }\n    Say \"Flashing with wlink ...\"\n    $r = Invoke-Logged (Join-Path $wl 'wlink.exe') @('flash', $hex)\n    if ($r.code -ne 0) { Write-Host \"\"; Bad \"Flash failed\"; Show-FlashHints $r.log; exit 1 }\n  } else {\n    $ocd = Find-OpenOcd\n    if (-not $ocd) { Die \"OpenOCD not found\" @(\"Install MounRiver Studio and run 'WCH: Setup', or set wch.openocdBin.\") }\n    $cfg = Get-Setting $S 'wch.openocdCfg'; if (-not $cfg) { $cfg = $Proj.openocdCfg }\n    $cfgPath = Join-Path $ocd $cfg\n    if (-not (Test-Path $cfgPath)) { Die \"OpenOCD config $cfg not found in $ocd\" \"Use the OpenOCD from MounRiver Studio, or set wch.openocdCfg.\" }\n    $reset = if ($Proj.arch -eq 'arm') { 'reset' } else { 'wlreset' }\n    Say \"Flashing $($Proj.chip) with WCH-Link (OpenOCD) ...\"\n    $r = Invoke-Logged (Join-Path $ocd 'openocd.exe') @('-f', (Fwd $cfgPath), '-c', 'init', '-c', 'halt', '-c', \"program $hex verify\", '-c', $reset, '-c', 'exit')\n    if ($r.code -ne 0) { Write-Host \"\"; Bad \"Flash failed\"; Show-FlashHints $r.log; exit 1 }\n  }\n  Write-Host \"\"; Ok \"Flash OK\"\n}\n\nfunction Invoke-Setup {\n  Say \"Setting up $($Proj.chip) project ($($Proj.name)) ...\"\n  if (-not (Find-Build-Tool 'cmake.exe') -or -not (Find-Build-Tool 'ninja.exe')) { Install-BuildTools }\n  $tc = Find-Toolchain $true\n  if (-not $tc) {\n    Warn \"No $($Proj.prefix) toolchain was found.\"\n    if ($Proj.arch -eq 'arm') { Hint \"Install the Arm GNU Toolchain (winget install Arm.GnuArmEmbeddedToolchain) or MounRiver Studio.\" }\n    else { Hint \"Install MounRiver Studio from https://www.mounriver.com (it contains the WCH RISC-V GCC and OpenOCD), then run 'WCH: Setup' again.\" }\n  }\n  $evt = Get-EvtDir; if (-not $evt) { $evt = Get-Evt }\n  $ocd = Find-OpenOcd\n  if ($tc) { Set-Setting $S 'wch.toolchainBin' (Fwd $tc) }\n  if ($evt) { Set-Setting $S 'wch.evtDir' (Fwd $evt) }\n  if ($ocd) { Set-Setting $S 'wch.openocdBin' (Fwd $ocd) }\n  foreach ($t in @('cmake', 'ninja')) { $p = Find-Build-Tool \"$t.exe\"; if ($p) { Set-Setting $S \"wch.${t}Bin\" (Fwd $p) } }\n  if (-not (Get-Setting $S 'wch.openocdCfg')) { Set-Setting $S 'wch.openocdCfg' $Proj.openocdCfg }\n  Save-Settings $S\n  Say \"Saved paths to .vscode/settings.json\"\n  Write-Host \"\"\n  Say \"Checking the environment:\"\n  if (Test-Env $false) { Write-Host \"\"; Ok \"Ready. Press Ctrl+Shift+B to build, F5 to debug.\" }\n  else { Write-Host \"\"; Warn \"Some items are still missing (see above). Fix them and run 'WCH: Setup' again.\" ; exit 1 }\n}\n\nswitch ($Command.ToLower()) {\n  'setup'  { Invoke-Setup }\n  'doctor' { Say \"Checking the environment for $($Proj.chip):\"; if (-not (Test-Env $true)) { exit 1 } }\n  'build'  { Invoke-Build }\n  'flash'  { Invoke-Flash 'openocd' }\n  'wlink'  { Invoke-Flash 'wlink' }\n  'clean'  { if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }; Ok \"build folder removed\" }\n  default  { Write-Host \"Usage: tools/wch.ps1 setup|doctor|build|flash|wlink|clean [-Yes]\" }\n}\n", "wch.sh": "#!/usr/bin/env bash\n# WCH project helper for VS Code (Linux / macOS)\n# Exported by WCH Configurator - original tool by Amir1387aht (Another)\n# https://github.com/amir1387aht/WCH-Resources\n#\n# Usage: bash tools/wch.sh <setup|doctor|build|flash|wlink|clean> [-y]\nset -u\nROOT=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"\nPROJ=\"$ROOT/wch-project.json\"\nSETTINGS=\"$ROOT/.vscode/settings.json\"\nBUILD=\"$ROOT/build\"\nCACHE=\"${XDG_CACHE_HOME:-$HOME/.cache}/wch-tools\"\nCMD=\"${1:-help}\"; YES=0; [ \"${2:-}\" = \"-y\" ] && YES=1\n\nc() { printf '\\033[%sm%s\\033[0m\\n' \"$1\" \"$2\"; }\nsay()  { c 36 \"[wch] $1\"; }\nok()   { c 32 \"  [ OK ] $1\"; }\nwarn() { c 33 \"  [WARN] $1\"; }\nbad()  { c 31 \"  [FAIL] $1\"; }\nhint() { c 33 \"         -> $1\"; }\ndie()  { echo; c 31 \"[wch] ERROR: $1\"; shift; for h in \"$@\"; do hint \"$h\"; done; exit 1; }\nconfirm() { [ $YES = 1 ] && return 0; read -r -p \"$1 [Y/n] \" a; [ -z \"$a\" ] || [[ \"$a\" =~ ^[Yy] ]]; }\n\nPY=\"\"\nfor cand in python3 python; do\n  p=\"$(command -v \"$cand\" 2>/dev/null)\" || continue\n  \"$p\" -c 'import json,sys; sys.exit(0 if sys.version_info[0]==3 else 1)' >/dev/null 2>&1 && { PY=\"$p\"; break; }\ndone\n[ -n \"$PY\" ] || die \"python3 is required by this helper (to read the JSON settings)\" \"Install python3 (apt install python3 / brew install python).\"\n[ -f \"$PROJ\" ] || die \"wch-project.json not found in $ROOT\" \"Open the exported project folder itself in VS Code.\"\n\npj() { \"$PY\" -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2]) or \"\")' \"$PROJ\" \"$1\"; }\nCHIP=\"$(pj chip)\"; NAME=\"$(pj name)\"; PREFIX=\"$(pj prefix)\"; ARCH=\"$(pj arch)\"; REPO=\"$(pj evtRepo)\"\nMARCH=\"$(pj march)\"; MABI=\"$(pj mabi)\"; HEADER=\"$(pj header)\"; OCDCFG_DEF=\"$(pj openocdCfg)\"\n\n# settings.json may contain comments / trailing commas (VS Code style)\ngs() { [ -f \"$SETTINGS\" ] || { echo \"\"; return; }; \"$PY\" - \"$SETTINGS\" \"$1\" <<'EOF'\nimport json,re,sys\nt=open(sys.argv[1],encoding='utf-8').read()\nt=re.sub(r'(?m)^\\s*//.*$','',t); t=re.sub(r'/\\*[\\s\\S]*?\\*/','',t); t=re.sub(r',(\\s*[}\\]])',r'\\1',t)\ntry: print(json.loads(t).get(sys.argv[2]) or \"\")\nexcept Exception as e: print(\"__BADJSON__\"+str(e))\nEOF\n}\nss() { mkdir -p \"$(dirname \"$SETTINGS\")\"; \"$PY\" - \"$SETTINGS\" \"$1\" \"$2\" <<'EOF'\nimport json,re,sys,os\np,k,v=sys.argv[1:4]; d={}\nif os.path.exists(p):\n    t=open(p,encoding='utf-8').read()\n    t=re.sub(r'(?m)^\\s*//.*$','',t); t=re.sub(r'/\\*[\\s\\S]*?\\*/','',t); t=re.sub(r',(\\s*[}\\]])',r'\\1',t)\n    d=json.loads(t)\nd[k]=v; open(p,'w',encoding='utf-8').write(json.dumps(d,indent=2)+\"\\n\")\nEOF\n}\ncase \"$(gs wch.evtDir)\" in __BADJSON__*) die \".vscode/settings.json could not be parsed\" \"Fix the JSON syntax or delete the file and run 'WCH: Setup' again.\";; esac\n\nmrs_dirs() {\n  for b in /opt \"$HOME\" \"$HOME/Applications\" /Applications /usr/local; do\n    for r in \"$b\"/MounRiver* \"$b\"/MounRiver*/MounRiver*; do\n      [ -d \"$r\" ] || continue\n      for s in \"resources/app/resources/linux/components/WCH\" \"resources/app/resources/darwin/components/WCH\" \"toolchain\" \"components/WCH\"; do\n        [ -d \"$r/$s\" ] && echo \"$r/$s\"\n      done\n    done\n  done\n}\nfind_tc() {\n  local set; set=\"$(gs wch.toolchainBin)\"\n  [ -n \"$set\" ] && [ -x \"$set/$PREFIX-gcc\" ] && { echo \"$set\"; return; }\n  command -v \"$PREFIX-gcc\" >/dev/null 2>&1 && { dirname \"$(command -v \"$PREFIX-gcc\")\"; return; }\n  local names=(\"RISC-V Embedded GCC12\" \"RISC-V Embedded GCC15\" \"RISC-V Embedded GCC\"); [ \"$ARCH\" = arm ] && names=(\"arm-none-eabi-gcc\")\n  for n in \"${names[@]}\"; do [ -x \"$CACHE/$n/bin/$PREFIX-gcc\" ] && { echo \"$CACHE/$n/bin\"; return; }; done\n  local d n\n  while read -r d; do for n in \"${names[@]}\"; do\n    for cand in \"$d/Toolchain/$n/bin\" \"$d/$n/bin\"; do [ -x \"$cand/$PREFIX-gcc\" ] && { echo \"$cand\"; return; }; done\n  done; done < <(mrs_dirs)\n  echo \"\"\n}\nfind_ocd() {\n  local set; set=\"$(gs wch.openocdBin)\"\n  [ -n \"$set\" ] && [ -x \"$set/openocd\" ] && { echo \"$set\"; return; }\n  local d; while read -r d; do for cand in \"$d/OpenOCD/OpenOCD/bin\" \"$d/OpenOCD/bin\"; do [ -x \"$cand/openocd\" ] && { echo \"$cand\"; return; }; done; done < <(mrs_dirs)\n  command -v openocd >/dev/null 2>&1 && { dirname \"$(command -v openocd)\"; return; }\n  echo \"\"\n}\nfind_tool() { command -v \"$1\" >/dev/null 2>&1 && { dirname \"$(command -v \"$1\")\"; return; }; [ -x \"$CACHE/pytools/bin/$1\" ] && { echo \"$CACHE/pytools/bin\"; return; }; echo \"\"; }\nevt_dir() {\n  local set; set=\"$(gs wch.evtDir)\"\n  [ -n \"$set\" ] && [ -d \"$set/EXAM/SRC\" ] && { echo \"$set\"; return; }\n  [ -n \"$REPO\" ] && [ -d \"$CACHE/evt/$REPO/EVT/EXAM/SRC\" ] && { echo \"$CACHE/evt/$REPO/EVT\"; return; }\n  echo \"\"\n}\nget_evt() {\n  if [ -z \"$REPO\" ]; then warn \"WCH has no public GitHub repository with the $CHIP EVT.\"; hint \"Download the $CHIP EVT from wch-ic.com / wch.cn, unzip it and set wch.evtDir to the folder that contains EXAM/SRC.\"; return; fi\n  command -v git >/dev/null 2>&1 || { warn \"git is not installed\"; hint \"Install git and run 'WCH: Setup' again.\"; return; }\n  confirm \"Download the official $CHIP EVT from github.com/openwch/$REPO?\" || return\n  local dest=\"$CACHE/evt/$REPO\"; rm -rf \"$dest\"; mkdir -p \"$(dirname \"$dest\")\"\n  git clone --quiet --depth 1 --filter=blob:none --sparse \"https://github.com/openwch/$REPO.git\" \"$dest\" || die \"git clone of openwch/$REPO failed\" \"Check your internet connection or proxy.\"\n  git -C \"$dest\" sparse-checkout set EVT/EXAM/SRC EVT/EXAM/GPIO/GPIO_Toggle || die \"Downloading the EVT files failed\"\n}\ninstall_build_tools() {\n  if command -v brew >/dev/null 2>&1; then confirm \"Install cmake and ninja with Homebrew?\" && brew install cmake ninja; return; fi\n  if command -v apt-get >/dev/null 2>&1; then confirm \"Install cmake and ninja with apt (needs sudo)?\" && sudo apt-get install -y cmake ninja-build; return; fi\n  if command -v dnf >/dev/null 2>&1; then confirm \"Install cmake and ninja with dnf (needs sudo)?\" && sudo dnf install -y cmake ninja-build; return; fi\n  confirm \"Install cmake and ninja into $CACHE/pytools with Python?\" && \"$PY\" -m venv \"$CACHE/pytools\" && \"$CACHE/pytools/bin/python\" -m pip install --quiet cmake ninja\n}\n\ncheck_env() {\n  local need_flash=$1 all=0 evt tc gcc ocd cfg\n  evt=\"$(evt_dir)\"\n  if [ -n \"$evt\" ]; then ok \"EVT: $evt\"\n    if [ -z \"$(find \"$evt/EXAM/SRC\" -name \"$HEADER\" 2>/dev/null | head -1)\" ]; then bad \"$HEADER not found in the EVT\"; hint \"This EVT is not for $CHIP.\"; all=1; fi\n  else bad \"EVT package not found (wch.evtDir)\"; hint \"Run the task 'WCH: Setup' or set wch.evtDir\"; all=1; fi\n  tc=\"$(find_tc)\"\n  if [ -n \"$tc\" ]; then gcc=\"$tc/$PREFIX-gcc\"; ok \"Toolchain: $gcc ($(\"$gcc\" -dumpversion 2>/dev/null))\"\n    if [ \"$ARCH\" != arm ] && [ \"$(\"$gcc\" -march=\"$MARCH\" -mabi=\"$MABI\" -print-multi-directory 2>/dev/null)\" = \".\" ] && [[ \"$MARCH\" == *_xw* || \"$MARCH\" == rv32e* ]]; then\n      warn \"This toolchain has no library build for -march=$MARCH\"; hint \"Use the GCC12 toolchain from MounRiver Studio, or change WCH_CPU_FLAGS.\"; fi\n  else bad \"$PREFIX-gcc not found\"; hint \"Install MounRiver Studio (Linux/macOS build) from https://www.mounriver.com, or set wch.toolchainBin\"; all=1; fi\n  for t in cmake ninja; do local p; p=\"$(find_tool $t)\"; if [ -n \"$p\" ]; then ok \"$t: $p\"; else bad \"$t not found\"; hint \"Run the task 'WCH: Setup'\"; all=1; fi; done\n  ocd=\"$(find_ocd)\"\n  if [ -n \"$ocd\" ]; then ok \"OpenOCD: $ocd\"; cfg=\"$(gs wch.openocdCfg)\"; cfg=\"${cfg:-$OCDCFG_DEF}\"\n    [ -f \"$ocd/$cfg\" ] || { bad \"OpenOCD config $cfg not found in $ocd\"; hint \"Use the OpenOCD from MounRiver Studio.\"; [ \"$need_flash\" = 1 ] && all=1; }\n  else if [ \"$need_flash\" = 1 ]; then bad \"OpenOCD not found\"; all=1; else warn \"OpenOCD not found (needed only for flashing/debugging)\"; fi; hint \"Install MounRiver Studio or set wch.openocdBin\"; fi\n  command -v wlink >/dev/null 2>&1 && ok \"wlink: found\" || warn \"wlink not found (optional)\"\n  return $all\n}\n\nbuild_hints() {\n  local log=\"$1\" any=0\n  grep -q 'mis-matched ISA' <<<\"$log\" && { hint \"Library/ISA mismatch: use the MounRiver GCC12 toolchain or change WCH_CPU_FLAGS.\"; any=1; }\n  grep -Eq 'undeclared|implicit declaration' <<<\"$log\" && { hint \"A name used in src/ is not in this EVT version. Check EXAM/SRC/*/inc/*.h.\"; any=1; }\n  grep -Eq 'fatal error: .*\\.h: No such file' <<<\"$log\" && { hint \"A header is missing: wch.evtDir probably points to an EVT for another chip.\"; any=1; }\n  grep -Eq \"region .*(FLASH|RAM).* overflowed\" <<<\"$log\" && { hint \"The program does not fit in FLASH/RAM.\"; any=1; }\n  grep -Eq 'multiple definition of|redefinition of' <<<\"$log\" && { hint \"A function (often an IRQ handler) is defined twice: in src/ and in the EVT *_it.c.\"; any=1; }\n  grep -q 'undefined reference to' <<<\"$log\" && { hint \"A function is used but not compiled. Put the .c file in src/.\"; any=1; }\n  [ $any = 0 ] && hint \"Read the first 'error:' line above. Run 'WCH: Clean' and build again if you changed paths.\"\n}\nuse_tools() {\n  EVT=\"$(evt_dir)\"; TC=\"$(find_tc)\"; CM=\"$(find_tool cmake)\"; NJ=\"$(find_tool ninja)\"; local m=\"\"\n  [ -n \"$EVT\" ] || m=\"$m EVT\"; [ -n \"$TC\" ] || m=\"$m $PREFIX-gcc\"; [ -n \"$CM\" ] || m=\"$m cmake\"; [ -n \"$NJ\" ] || m=\"$m ninja\"\n  [ -z \"$m\" ] || die \"Missing:$m\" \"Run the task 'WCH: Setup'.\" \"Run 'WCH: Doctor' for details.\"\n  export PATH=\"$CM:$NJ:$TC:$PATH\"\n}\ndo_build() {\n  use_tools; local log rc\n  say \"Configuring $NAME for $CHIP ...\"\n  log=\"$(cmake -S \"$ROOT\" -B \"$BUILD\" -G Ninja -DCMAKE_BUILD_TYPE=Debug -DWCH_EVT_DIR=\"$EVT\" -DWCH_TOOLCHAIN_BIN=\"$TC\" 2>&1)\"; rc=$?; echo \"$log\"\n  [ $rc = 0 ] || { echo; bad \"CMake configure failed\"; build_hints \"$log\"; exit 1; }\n  say \"Building ...\"\n  log=\"$(cmake --build \"$BUILD\" 2>&1)\"; rc=$?; echo \"$log\"\n  [ $rc = 0 ] || { echo; bad \"Build failed\"; build_hints \"$log\"; exit 1; }\n  [ -f \"$BUILD/$NAME.hex\" ] || die \"Build finished but build/$NAME.hex was not created\" \"Run 'WCH: Clean' and build again.\"\n  echo; ok \"Build OK -> build/$NAME.elf / .hex / .bin\"\n}\nflash_hints() {\n  local log=\"$1\"\n  grep -Eiq 'wlink open error|open error|libusb|open failed|no device|unable to open|permission' <<<\"$log\" && { hint \"WCH-Link not found: check the cable. On Linux add the WCH-Link udev rule (see MounRiver's beforeinstall/ or wlink docs) and replug.\"; }\n  grep -Eiq 'protect|locked' <<<\"$log\" && hint \"The chip is read-protected: remove protection with WCH-LinkUtility or 'wlink unprotect'.\"\n  grep -Eiq 'timeout|failed to' <<<\"$log\" && hint \"Check wiring (SWDIO/SWCLK, CH32V003: SWIO), GND and 3.3 V, then power-cycle the board.\"\n  hint \"Run 'WCH: Doctor' to check the OpenOCD path and config.\"\n}\ndo_flash() {\n  do_build; local hex=\"$BUILD/$NAME.hex\" log rc\n  if [ \"$1\" = wlink ]; then\n    command -v wlink >/dev/null 2>&1 || die \"wlink not found\" \"Install it from https://github.com/ch32-rs/wlink/releases or use 'WCH: Flash (OpenOCD)'.\"\n    say \"Flashing with wlink ...\"; log=\"$(wlink flash \"$hex\" 2>&1)\"; rc=$?\n  else\n    local ocd cfg reset=wlreset; ocd=\"$(find_ocd)\"; [ -n \"$ocd\" ] || die \"OpenOCD not found\" \"Install MounRiver Studio and run 'WCH: Setup', or set wch.openocdBin.\"\n    cfg=\"$(gs wch.openocdCfg)\"; cfg=\"${cfg:-$OCDCFG_DEF}\"; [ -f \"$ocd/$cfg\" ] || die \"OpenOCD config $cfg not found in $ocd\"\n    [ \"$ARCH\" = arm ] && reset=reset\n    say \"Flashing $CHIP with WCH-Link (OpenOCD) ...\"\n    log=\"$(\"$ocd/openocd\" -f \"$ocd/$cfg\" -c init -c halt -c \"program $hex verify\" -c $reset -c exit 2>&1)\"; rc=$?\n  fi\n  echo \"$log\"; [ $rc = 0 ] || { echo; bad \"Flash failed\"; flash_hints \"$log\"; exit 1; }\n  echo; ok \"Flash OK\"\n}\ndo_setup() {\n  say \"Setting up $CHIP project ($NAME) ...\"\n  { [ -n \"$(find_tool cmake)\" ] && [ -n \"$(find_tool ninja)\" ]; } || install_build_tools\n  local tc evt ocd; tc=\"$(find_tc)\"\n  [ -n \"$tc\" ] || { warn \"No $PREFIX toolchain found.\"; hint \"Install MounRiver Studio from https://www.mounriver.com (Linux/macOS builds include the WCH GCC and OpenOCD), then run setup again.\"; }\n  evt=\"$(evt_dir)\"; [ -n \"$evt\" ] || { get_evt; evt=\"$(evt_dir)\"; }\n  ocd=\"$(find_ocd)\"\n  [ -n \"$tc\" ] && ss wch.toolchainBin \"$tc\"; [ -n \"$evt\" ] && ss wch.evtDir \"$evt\"; [ -n \"$ocd\" ] && ss wch.openocdBin \"$ocd\"\n  [ -n \"$(gs wch.openocdCfg)\" ] || ss wch.openocdCfg \"$OCDCFG_DEF\"\n  say \"Saved paths to .vscode/settings.json\"; echo; say \"Checking the environment:\"\n  if check_env 0; then echo; ok \"Ready. Press Ctrl+Shift+B to build, F5 to debug.\"; else echo; warn \"Some items are still missing (see above).\"; exit 1; fi\n}\n\ncase \"$CMD\" in\n  setup) do_setup ;;\n  doctor) say \"Checking the environment for $CHIP:\"; check_env 1 || exit 1 ;;\n  build) do_build ;;\n  flash) do_flash openocd ;;\n  wlink) do_flash wlink ;;\n  clean) rm -rf \"$BUILD\"; ok \"build folder removed\" ;;\n  *) echo \"Usage: tools/wch.sh setup|doctor|build|flash|wlink|clean [-y]\" ;;\nesac\n"};
+const VSC_TOOLS = {"wch.ps1": "<#\n  WCH project helper for VS Code (Windows / PowerShell 5.1+)\n  Exported by WCH Configurator - original tool by Amir1387aht (Another)\n  https://github.com/amir1387aht/WCH-Resources\n\n  Usage:  powershell -ExecutionPolicy Bypass -File tools/wch.ps1 <command> [-Yes]\n  Commands:\n    setup    find or install everything this project needs and save the paths in .vscode/settings.json\n    doctor   check the environment and explain what is missing\n    build    configure + build (build/<name>.elf/.hex/.bin)\n    flash    build, then program the chip with WCH-Link through OpenOCD\n    wlink    build, then program the chip with wlink\n    clean    delete the build folder\n#>\nparam(\n  [Parameter(Position = 0)][string]$Command = 'help',\n  [switch]$Yes\n)\n$ErrorActionPreference = 'Continue'   # native tools write progress to stderr; every step checks its own result\n$Root = Split-Path -Parent $PSScriptRoot\n$ProjFile = Join-Path $Root 'wch-project.json'\n$SettingsFile = Join-Path $Root '.vscode\\settings.json'\n$BuildDir = Join-Path $Root 'build'\n$Cache = Join-Path $env:LOCALAPPDATA 'wch-tools'\n\nfunction Say($m) { Write-Host \"[wch] $m\" -ForegroundColor Cyan }\nfunction Ok($m) { Write-Host \"  [ OK ] $m\" -ForegroundColor Green }\nfunction Warn($m) { Write-Host \"  [WARN] $m\" -ForegroundColor Yellow }\nfunction Bad($m) { Write-Host \"  [FAIL] $m\" -ForegroundColor Red }\nfunction Hint($m) { Write-Host \"         -> $m\" -ForegroundColor Yellow }\nfunction Die($m, $hint) {\n  Write-Host \"\"\n  Write-Host \"[wch] ERROR: $m\" -ForegroundColor Red\n  if ($hint) { foreach ($h in @($hint)) { Hint $h } }\n  exit 1\n}\nfunction Fwd($p) { if ($p) { return ($p -replace '\\\\', '/') } return '' }\nfunction Confirm-Step($q) {\n  if ($Yes) { return $true }\n  $a = Read-Host \"$q [Y/n]\"\n  return ($a -eq '' -or $a -match '^[Yy]')\n}\n\n# ---------- project + settings ----------\nif (-not (Test-Path $ProjFile)) { Die \"wch-project.json not found in $Root\" \"Open the exported project folder itself in VS Code (File > Open Folder).\" }\ntry { $Proj = Get-Content $ProjFile -Raw | ConvertFrom-Json } catch { Die \"wch-project.json is not valid JSON: $($_.Exception.Message)\" }\n\nfunction Read-Settings {\n  if (-not (Test-Path $SettingsFile)) { return [pscustomobject]@{} }\n  $raw = Get-Content $SettingsFile -Raw\n  # VS Code allows comments and trailing commas in settings.json\n  $raw = [regex]::Replace($raw, '(?m)^\\s*//.*$', '')\n  $raw = [regex]::Replace($raw, '/\\*[\\s\\S]*?\\*/', '')\n  $raw = [regex]::Replace($raw, ',(\\s*[}\\]])', '$1')\n  try { return ($raw | ConvertFrom-Json) }\n  catch { Die \".vscode/settings.json could not be parsed: $($_.Exception.Message)\" \"Fix the JSON syntax (missing comma or quote) or delete the file and run the 'WCH: Setup' task again.\" }\n}\nfunction Get-Setting($s, $k) { $p = $s.PSObject.Properties[$k]; if ($p) { return [string]$p.Value } return '' }\nfunction Save-Settings($s) {\n  $dir = Split-Path $SettingsFile\n  if (-not (Test-Path $dir)) { New-Item -ItemType Directory $dir | Out-Null }\n  $json = $s | ConvertTo-Json -Depth 10\n  [IO.File]::WriteAllText($SettingsFile, $json + \"`n\", (New-Object Text.UTF8Encoding($false)))\n}\nfunction Set-Setting($s, $k, $v) {\n  if ($s.PSObject.Properties[$k]) { $s.$k = $v } else { $s | Add-Member -NotePropertyName $k -NotePropertyValue $v }\n}\n$S = Read-Settings\n\n# ---------- tool discovery ----------\nfunction Get-MrsRoots {\n  $bases = @('C:\\MounRiver', 'D:\\MounRiver', \"$env:ProgramFiles\", \"${env:ProgramFiles(x86)}\", \"$env:LOCALAPPDATA\\Programs\", \"$env:USERPROFILE\")\n  $roots = @()\n  foreach ($b in $bases) {\n    if ($b -and (Test-Path $b)) {\n      $roots += Get-ChildItem -Path $b -Directory -Filter 'MounRiver*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }\n      if ((Split-Path $b -Leaf) -like 'MounRiver*') { $roots += $b }\n    }\n  }\n  $more = @()\n  foreach ($r in $roots) { $more += Get-ChildItem -Path $r -Directory -Filter 'MounRiver*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName } }\n  return @($roots + $more | Select-Object -Unique)\n}\nfunction Get-MrsComponents {\n  $dirs = @()\n  foreach ($r in Get-MrsRoots) {\n    foreach ($sub in @('resources\\app\\resources\\win32\\components\\WCH', 'components\\WCH', 'toolchain')) {\n      $p = Join-Path $r $sub\n      if (Test-Path $p) { $dirs += $p }\n    }\n  }\n  return $dirs\n}\nfunction Find-InDirs($exe, $dirs) {\n  foreach ($d in $dirs) { if ($d -and (Test-Path (Join-Path $d $exe))) { return (Resolve-Path $d).Path } }\n  return $null\n}\nfunction Find-OnPath($exe) {\n  $c = Get-Command $exe -ErrorAction SilentlyContinue\n  if ($c) { return (Split-Path $c.Source) }\n  return $null\n}\nfunction Expand-7z($archive, $dest) {\n  New-Item -ItemType Directory -Force $dest | Out-Null\n  $sevenZip = @(\"$env:ProgramFiles\\7-Zip\\7z.exe\", \"${env:ProgramFiles(x86)}\\7-Zip\\7z.exe\") | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1\n  if (-not $sevenZip) { $c = Get-Command 7z -ErrorAction SilentlyContinue; if ($c) { $sevenZip = $c.Source } }\n  Say \"Extracting $(Split-Path $archive -Leaf) (this takes a minute) ...\"\n  if ($sevenZip) { & $sevenZip x -y \"-o$dest\" $archive 2>&1 | Out-Null }\n  else { & tar.exe -xf $archive -C $dest 2>&1 | Out-Host }\n  if ($LASTEXITCODE -ne 0) { Die \"Could not extract $archive\" \"Install 7-Zip (winget install 7zip.7zip) and run 'WCH: Setup' again.\" }\n}\nfunction Find-Toolchain([bool]$AllowExtract = $false) {\n  $prefix = $Proj.prefix\n  $gcc = \"$prefix-gcc.exe\"\n  $set = Get-Setting $S 'wch.toolchainBin'\n  if ($set -and (Test-Path (Join-Path $set $gcc))) { return $set }\n  $p = Find-OnPath $gcc; if ($p) { return $p }\n  $names = if ($Proj.arch -eq 'arm') { @('arm-none-eabi-gcc') } else { @('RISC-V Embedded GCC12', 'RISC-V Embedded GCC15', 'RISC-V Embedded GCC') }\n  $cands = @()\n  foreach ($n in $names) { $cands += Join-Path (Join-Path $Cache $n) 'bin' }\n  foreach ($c in Get-MrsComponents) { foreach ($n in $names) { $cands += Join-Path (Join-Path (Join-Path $c 'Toolchain') $n) 'bin'; $cands += Join-Path (Join-Path $c $n) 'bin' } }\n  $p = Find-InDirs $gcc $cands; if ($p) { return $p }\n  # MounRiver Studio 2/3 ship the toolchains as .7z archives\n  foreach ($c in Get-MrsComponents) {\n    foreach ($n in $names) {\n      $arc = Join-Path (Join-Path $c 'Toolchain') \"$n.7z\"\n      if (Test-Path $arc) {\n        if (-not $AllowExtract) { $script:TcArchive = $arc; return $null }\n        if (-not (Confirm-Step \"Found '$n' inside MounRiver Studio as an archive. Extract it to $Cache?\")) { return $null }\n        $dest = Join-Path $Cache $n\n        Expand-7z $arc $dest\n        $p = Find-InDirs $gcc @((Join-Path $dest 'bin'))\n        if ($p) { return $p }\n      }\n    }\n  }\n  return $null\n}\nfunction Find-OpenOcd {\n  $set = Get-Setting $S 'wch.openocdBin'\n  if ($set -and (Test-Path (Join-Path $set 'openocd.exe'))) { return $set }\n  $cands = @()\n  foreach ($c in Get-MrsComponents) { $cands += Join-Path $c 'OpenOCD\\OpenOCD\\bin'; $cands += Join-Path $c 'OpenOCD\\bin' }\n  $p = Find-InDirs 'openocd.exe' $cands; if ($p) { return $p }\n  return (Find-OnPath 'openocd.exe')\n}\nfunction Find-Build-Tool($exe) {\n  $p = Find-OnPath $exe; if ($p) { return $p }\n  $cands = @(\"$env:ProgramFiles\\CMake\\bin\", \"$env:LOCALAPPDATA\\Microsoft\\WinGet\\Links\", (Join-Path $Cache 'pytools\\Scripts'))\n  $set = Get-Setting $S ('wch.' + ($exe -replace '\\.exe$', '') + 'Bin')\n  if ($set) { $cands = @($set) + $cands }\n  return (Find-InDirs $exe $cands)\n}\nfunction Install-BuildTools {\n  $winget = Get-Command winget -ErrorAction SilentlyContinue\n  if ($winget) {\n    if (-not (Confirm-Step \"Install CMake and Ninja with winget?\")) { return }\n    & winget install --id Kitware.CMake -e --silent --accept-source-agreements --accept-package-agreements | Out-Host\n    & winget install --id Ninja-build.Ninja -e --silent --accept-source-agreements --accept-package-agreements | Out-Host\n    return\n  }\n  $py = Get-Command python -ErrorAction SilentlyContinue\n  if ($py) {\n    if (-not (Confirm-Step \"winget is not available. Install CMake and Ninja into $Cache\\pytools with Python?\")) { return }\n    & python -m venv (Join-Path $Cache 'pytools') | Out-Host\n    & (Join-Path $Cache 'pytools\\Scripts\\python.exe') -m pip install --quiet cmake ninja | Out-Host\n    return\n  }\n  Warn \"Neither winget nor Python was found.\"\n  Hint \"Install CMake (https://cmake.org/download) and Ninja (https://github.com/ninja-build/ninja/releases) and add them to PATH.\"\n}\nfunction Get-EvtDir {\n  $set = Get-Setting $S 'wch.evtDir'\n  if ($set -and (Test-Path (Join-Path $set 'EXAM\\SRC'))) { return $set }\n  if ($Proj.evtRepo) {\n    $cached = Join-Path $Cache \"evt\\$($Proj.evtRepo)\\EVT\"\n    if (Test-Path (Join-Path $cached 'EXAM\\SRC')) { return $cached }\n  }\n  return $null\n}\nfunction Get-Evt {\n  if (-not $Proj.evtRepo) {\n    Warn \"WCH has no public GitHub repository with the $($Proj.chip) EVT.\"\n    Hint \"Download the $($Proj.chip) EVT zip from https://www.wch-ic.com/search?q=$($Proj.chip)&t=downloads (or wch.cn), unzip it and set wch.evtDir to the folder that contains EXAM\\SRC.\"\n    return $null\n  }\n  $git = Get-Command git -ErrorAction SilentlyContinue\n  if (-not $git) {\n    Warn \"git is not installed, so the EVT cannot be downloaded automatically.\"\n    Hint \"Install git (winget install Git.Git) and run 'WCH: Setup' again, or download https://github.com/openwch/$($Proj.evtRepo) as a zip and set wch.evtDir to its EVT folder.\"\n    return $null\n  }\n  if (-not (Confirm-Step \"Download the official $($Proj.chip) EVT (drivers, startup, linker script) from github.com/openwch/$($Proj.evtRepo)?\")) { return $null }\n  $dest = Join-Path $Cache \"evt\\$($Proj.evtRepo)\"\n  if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }\n  New-Item -ItemType Directory -Force (Split-Path $dest) | Out-Null\n  & git clone --quiet --depth 1 --filter=blob:none --sparse \"https://github.com/openwch/$($Proj.evtRepo).git\" $dest 2>&1 | Out-Host\n  if ($LASTEXITCODE -ne 0) { Die \"git clone of openwch/$($Proj.evtRepo) failed\" \"Check your internet connection or proxy, then run 'WCH: Setup' again.\" }\n  & git -C $dest sparse-checkout set EVT/EXAM/SRC EVT/EXAM/GPIO/GPIO_Toggle EVT/EXAM/BLE/HAL EVT/EXAM/BLE/LIB 2>&1 | Out-Host\n  if ($LASTEXITCODE -ne 0) { Die \"Downloading the EVT files failed\" \"Check your internet connection and run 'WCH: Setup' again.\" }\n  return (Join-Path $dest 'EVT')\n}\n\n# ---------- checks ----------\nfunction Test-Env([bool]$NeedFlash) {\n  $okAll = $true\n  $evt = Get-EvtDir\n  if ($evt) {\n    Ok \"EVT: $evt\"\n    $src = Join-Path $evt 'EXAM\\SRC'\n    if (-not (Test-Path (Join-Path $src 'Ld\\Link.ld')) -and $Proj.arch -ne 'arm') { Bad \"Link.ld missing in $src\\Ld\"; Hint \"wch.evtDir points to the wrong EVT. It must be the $($Proj.chip) EVT.\"; $okAll = $false }\n    $hdr = Get-ChildItem -Path $src -Recurse -Filter $Proj.header -ErrorAction SilentlyContinue | Select-Object -First 1\n    if (-not $hdr) { Bad \"$($Proj.header) not found in the EVT\"; Hint \"This EVT is not for $($Proj.chip). Point wch.evtDir to the right package.\"; $okAll = $false }\n    if ($Proj.ble) {\n      if (Test-Path (Join-Path $evt 'EXAM\\BLE\\HAL\\include\\CONFIG.h')) { Ok \"BLE stack: $evt\\EXAM\\BLE\" }\n      else { Bad \"BLE stack files missing (EXAM\\BLE\\HAL and EXAM\\BLE\\LIB)\"; Hint \"Run the task 'WCH: Setup' again, or use a full EVT package\"; $okAll = $false }\n    }\n  } else { Bad \"EVT package not found (wch.evtDir)\"; Hint \"Run the task 'WCH: Setup' or set wch.evtDir in .vscode/settings.json\"; $okAll = $false }\n\n  $tc = Find-Toolchain\n  if ($tc) {\n    $gcc = Join-Path $tc \"$($Proj.prefix)-gcc.exe\"\n    $ver = (& $gcc -dumpversion) 2>$null\n    Ok \"Toolchain: $gcc ($ver)\"\n    if ($Proj.arch -ne 'arm' -and $Proj.march) {\n      $ml = (& $gcc \"-march=$($Proj.march)\" \"-mabi=$($Proj.mabi)\" -print-multi-directory) 2>$null\n      if ($ml -eq '.' -and $Proj.march -match '_xw|^rv32e') { Warn \"This toolchain has no library build for -march=$($Proj.march)\"; Hint \"Use the GCC12 toolchain from MounRiver Studio, or set WCH_CPU_FLAGS to flags your toolchain supports.\" }\n    }\n  } elseif ($script:TcArchive) {\n    Bad \"$($Proj.prefix)-gcc is still packed inside MounRiver Studio ($(Split-Path $script:TcArchive -Leaf))\"; Hint \"Run the task 'WCH: Setup' to unpack it\"; $okAll = $false\n  } else { Bad \"$($Proj.prefix)-gcc not found\"; Hint \"Install MounRiver Studio (https://www.mounriver.com) and run 'WCH: Setup', or set wch.toolchainBin\"; $okAll = $false }\n\n  foreach ($t in @('cmake.exe', 'ninja.exe')) {\n    $p = Find-Build-Tool $t\n    if ($p) { Ok \"$($t -replace '\\.exe$','') : $p\" } else { Bad \"$($t -replace '\\.exe$','') not found\"; Hint \"Run the task 'WCH: Setup' (installs it with winget or Python)\"; $okAll = $false }\n  }\n\n  $ocd = Find-OpenOcd\n  if ($ocd) {\n    Ok \"OpenOCD: $ocd\"\n    $cfg = Get-Setting $S 'wch.openocdCfg'; if (-not $cfg) { $cfg = $Proj.openocdCfg }\n    if (-not (Test-Path (Join-Path $ocd $cfg))) { Bad \"OpenOCD config $cfg not found in $ocd\"; Hint \"Use the OpenOCD that comes with MounRiver Studio (it has the WCH-Link driver and wch-riscv.cfg).\"; if ($NeedFlash) { $okAll = $false } }\n  } else {\n    if ($NeedFlash) { Bad \"OpenOCD not found\"; $okAll = $false } else { Warn \"OpenOCD not found (needed only for flashing and debugging)\" }\n    Hint \"Install MounRiver Studio, or set wch.openocdBin to the folder that contains openocd.exe\"\n  }\n  if (Find-OnPath 'wlink.exe') { Ok \"wlink: found\" } else { Warn \"wlink not found (optional, alternative flasher: https://github.com/ch32-rs/wlink)\" }\n  return $okAll\n}\n\nfunction Use-Tools {\n  $script:EVT = Get-EvtDir\n  $script:TC = Find-Toolchain\n  $cm = Find-Build-Tool 'cmake.exe'; $nj = Find-Build-Tool 'ninja.exe'\n  $missing = @()\n  if (-not $script:EVT) { $missing += 'EVT package' }\n  if (-not $script:TC) { $missing += \"$($Proj.prefix)-gcc\" }\n  if (-not $cm) { $missing += 'cmake' }\n  if (-not $nj) { $missing += 'ninja' }\n  if ($missing.Count) { Die (\"Missing: \" + ($missing -join ', ')) @(\"Run the task 'WCH: Setup' (Terminal > Run Task > WCH: Setup).\", \"Run 'WCH: Doctor' for details.\") }\n  $env:PATH = \"$cm;$nj;$($script:TC);$env:PATH\"\n}\n\nfunction Show-BuildHints($log) {\n  $h = @()\n  if ($log -match 'mis-matched ISA') { $h += \"Library/ISA mismatch: use the GCC12 toolchain from MounRiver Studio, or change WCH_CPU_FLAGS in CMakeLists.txt.\" }\n  if ($log -match \"undeclared|implicit declaration of function\") { $h += \"A name used in src/ is not in this EVT version. Look up the right name in EXAM/SRC/*/inc/*.h of your EVT.\" }\n  if ($log -match 'fatal error: .*\\.h: No such file') { $h += \"A header is missing: wch.evtDir probably points to an EVT for another chip.\" }\n  if ($log -match \"region .*(FLASH|RAM).* overflowed\") { $h += \"The program does not fit in FLASH/RAM. Enable size optimisation or remove code.\" }\n  if ($log -match 'multiple definition of|redefinition of') { $h += \"A function (often an IRQ handler) is defined twice: once in src/ and once in the EVT *_it.c. Remove one of them.\" }\n  if ($log -match 'undefined reference to') { $h += \"A function is used but not compiled. Put the .c file in src/ (all src/*.c files are built) or link the right EVT library.\" }\n  if ($log -match 'is not able to compile a simple test program|CMAKE_C_COMPILER') { $h += \"The compiler cannot run. Run 'WCH: Doctor' and check wch.toolchainBin.\" }\n  if ($log -match 'Startup file not found') { $h += \"Set WCH_STARTUP to the startup_*.S file that matches your exact part (see EXAM/SRC/Startup).\" }\n  if (-not $h.Count) { $h += \"Read the first 'error:' line above. Run 'WCH: Clean' and build again if you changed paths or the toolchain.\" }\n  foreach ($x in $h) { Hint $x }\n}\n\nfunction Invoke-Logged([string]$exe, [string[]]$argv) {\n  $out = New-Object System.Collections.Generic.List[string]\n  $old = $ErrorActionPreference; $ErrorActionPreference = 'Continue'   # stderr lines are not errors here\n  & $exe @argv 2>&1 | ForEach-Object {\n    if ($_ -is [System.Management.Automation.ErrorRecord]) { $line = $_.Exception.Message } else { $line = \"$_\" }\n    if ($line -eq 'System.Management.Automation.RemoteException') { $line = '' }\n    $out.Add($line); Write-Host $line\n  }\n  $code = $LASTEXITCODE\n  $ErrorActionPreference = $old\n  return @{ code = $code; log = ($out -join \"`n\") }\n}\n\nfunction Invoke-Build {\n  Use-Tools\n  $cmake = Join-Path (Find-Build-Tool 'cmake.exe') 'cmake.exe'\n  Say \"Configuring $($Proj.name) for $($Proj.chip) ...\"\n  $cfgArgs = @('-S', $Root, '-B', $BuildDir, '-G', 'Ninja', '-DCMAKE_BUILD_TYPE=Debug', \"-DWCH_EVT_DIR=$(Fwd $script:EVT)\", \"-DWCH_TOOLCHAIN_BIN=$(Fwd $script:TC)\")\n  $r = Invoke-Logged $cmake $cfgArgs\n  if ($r.code -ne 0) {\n    Write-Host \"\"; Bad \"CMake configure failed\"\n    if ($r.log -match 'generator' -or $r.log -match 'Ninja') { Hint \"The build folder was made with other settings. Run 'WCH: Clean' and try again.\" }\n    Show-BuildHints $r.log; exit 1\n  }\n  Say \"Building ...\"\n  $r = Invoke-Logged $cmake @('--build', $BuildDir)\n  if ($r.code -ne 0) { Write-Host \"\"; Bad \"Build failed\"; Show-BuildHints $r.log; exit 1 }\n  $hex = Join-Path $BuildDir \"$($Proj.name).hex\"\n  if (-not (Test-Path $hex)) { Die \"Build finished but $hex was not created\" \"Run 'WCH: Clean' and build again.\" }\n  Write-Host \"\"; Ok \"Build OK -> build/$($Proj.name).elf / .hex / .bin\"\n}\n\nfunction Show-FlashHints($log) {\n  $h = @()\n  if ($log -match 'WLink Open Error|Open Error|LIBUSB|libusb|open failed|No WCH-Link|unable to open|Error: no device') { $h += \"WCH-Link was not found: check the USB cable and install the WCH-Link driver (MounRiver Studio installs it; also in WCH-LinkUtility).\" }\n  if ($log -match 'WLink Open Error|mode') { $h += \"If the WCH-Link LED is not blue, switch it to RISC-V mode with WCH-LinkUtility (or hold its button while plugging it in).\" }\n  if ($log -match 'protect|locked|read out') { $h += \"The chip is read-protected. Remove protection with WCH-LinkUtility (Target > Remove Protect), then flash again.\" }\n  if ($log -match 'timeout|Timeout|failed to') { $h += \"Check the wiring: SWDIO/SWCLK (CH32V003: single wire SWIO), GND and 3.3 V. Hold the board in reset or power-cycle it and try again.\" }\n  if ($Proj.chip -like 'CH5*') { $h += \"CH5xx: if the debug pins were disabled by firmware, power the chip with the BOOT/download pin held, or use WCHISPTool over USB.\" }\n  if (-not $h.Count) { $h += \"Read the first 'Error:' line above. Run 'WCH: Doctor' to check the OpenOCD path and config.\" }\n  foreach ($x in $h) { Hint $x }\n}\n\nfunction Invoke-Flash([string]$how) {\n  Invoke-Build\n  $hex = Fwd (Join-Path $BuildDir \"$($Proj.name).hex\")\n  if ($how -eq 'wlink') {\n    $wl = Find-OnPath 'wlink.exe'\n    if (-not $wl) { Die \"wlink not found\" \"Install it from https://github.com/ch32-rs/wlink/releases and add it to PATH, or use 'WCH: Flash (OpenOCD)'.\" }\n    Say \"Flashing with wlink ...\"\n    $r = Invoke-Logged (Join-Path $wl 'wlink.exe') @('flash', $hex)\n    if ($r.code -ne 0) { Write-Host \"\"; Bad \"Flash failed\"; Show-FlashHints $r.log; exit 1 }\n  } else {\n    $ocd = Find-OpenOcd\n    if (-not $ocd) { Die \"OpenOCD not found\" @(\"Install MounRiver Studio and run 'WCH: Setup', or set wch.openocdBin.\") }\n    $cfg = Get-Setting $S 'wch.openocdCfg'; if (-not $cfg) { $cfg = $Proj.openocdCfg }\n    $cfgPath = Join-Path $ocd $cfg\n    if (-not (Test-Path $cfgPath)) { Die \"OpenOCD config $cfg not found in $ocd\" \"Use the OpenOCD from MounRiver Studio, or set wch.openocdCfg.\" }\n    $reset = if ($Proj.arch -eq 'arm') { 'reset' } else { 'wlreset' }\n    Say \"Flashing $($Proj.chip) with WCH-Link (OpenOCD) ...\"\n    $r = Invoke-Logged (Join-Path $ocd 'openocd.exe') @('-f', (Fwd $cfgPath), '-c', 'init', '-c', 'halt', '-c', \"program $hex verify\", '-c', $reset, '-c', 'exit')\n    if ($r.code -ne 0) { Write-Host \"\"; Bad \"Flash failed\"; Show-FlashHints $r.log; exit 1 }\n  }\n  Write-Host \"\"; Ok \"Flash OK\"\n}\n\nfunction Invoke-Setup {\n  Say \"Setting up $($Proj.chip) project ($($Proj.name)) ...\"\n  if (-not (Find-Build-Tool 'cmake.exe') -or -not (Find-Build-Tool 'ninja.exe')) { Install-BuildTools }\n  $tc = Find-Toolchain $true\n  if (-not $tc) {\n    Warn \"No $($Proj.prefix) toolchain was found.\"\n    if ($Proj.arch -eq 'arm') { Hint \"Install the Arm GNU Toolchain (winget install Arm.GnuArmEmbeddedToolchain) or MounRiver Studio.\" }\n    else { Hint \"Install MounRiver Studio from https://www.mounriver.com (it contains the WCH RISC-V GCC and OpenOCD), then run 'WCH: Setup' again.\" }\n  }\n  $evt = Get-EvtDir; if (-not $evt) { $evt = Get-Evt }\n  if ($evt -and $Proj.ble -and -not (Test-Path (Join-Path $evt 'EXAM\\BLE\\HAL'))) {\n    $repoDir = Split-Path $evt\n    if (Test-Path (Join-Path $repoDir '.git')) {\n      Say \"Adding the BLE stack files (EXAM/BLE/HAL, LIB) to the EVT ...\"\n      & git -C $repoDir sparse-checkout set EVT/EXAM/SRC EVT/EXAM/GPIO/GPIO_Toggle EVT/EXAM/BLE/HAL EVT/EXAM/BLE/LIB 2>&1 | Out-Host\n    }\n  }\n  $ocd = Find-OpenOcd\n  if ($tc) { Set-Setting $S 'wch.toolchainBin' (Fwd $tc) }\n  if ($evt) { Set-Setting $S 'wch.evtDir' (Fwd $evt) }\n  if ($ocd) { Set-Setting $S 'wch.openocdBin' (Fwd $ocd) }\n  foreach ($t in @('cmake', 'ninja')) { $p = Find-Build-Tool \"$t.exe\"; if ($p) { Set-Setting $S \"wch.${t}Bin\" (Fwd $p) } }\n  if (-not (Get-Setting $S 'wch.openocdCfg')) { Set-Setting $S 'wch.openocdCfg' $Proj.openocdCfg }\n  Save-Settings $S\n  Say \"Saved paths to .vscode/settings.json\"\n  Write-Host \"\"\n  Say \"Checking the environment:\"\n  if (Test-Env $false) { Write-Host \"\"; Ok \"Ready. Press Ctrl+Shift+B to build, F5 to debug.\" }\n  else { Write-Host \"\"; Warn \"Some items are still missing (see above). Fix them and run 'WCH: Setup' again.\" ; exit 1 }\n}\n\nswitch ($Command.ToLower()) {\n  'setup'  { Invoke-Setup }\n  'doctor' { Say \"Checking the environment for $($Proj.chip):\"; if (-not (Test-Env $true)) { exit 1 } }\n  'build'  { Invoke-Build }\n  'flash'  { Invoke-Flash 'openocd' }\n  'wlink'  { Invoke-Flash 'wlink' }\n  'clean'  { if (Test-Path $BuildDir) { Remove-Item -Recurse -Force $BuildDir }; Ok \"build folder removed\" }\n  default  { Write-Host \"Usage: tools/wch.ps1 setup|doctor|build|flash|wlink|clean [-Yes]\" }\n}\n", "wch.sh": "#!/usr/bin/env bash\n# WCH project helper for VS Code (Linux / macOS)\n# Exported by WCH Configurator - original tool by Amir1387aht (Another)\n# https://github.com/amir1387aht/WCH-Resources\n#\n# Usage: bash tools/wch.sh <setup|doctor|build|flash|wlink|clean> [-y]\nset -u\nROOT=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\" && pwd)\"\nPROJ=\"$ROOT/wch-project.json\"\nSETTINGS=\"$ROOT/.vscode/settings.json\"\nBUILD=\"$ROOT/build\"\nCACHE=\"${XDG_CACHE_HOME:-$HOME/.cache}/wch-tools\"\nCMD=\"${1:-help}\"; YES=0; [ \"${2:-}\" = \"-y\" ] && YES=1\n\nc() { printf '\\033[%sm%s\\033[0m\\n' \"$1\" \"$2\"; }\nsay()  { c 36 \"[wch] $1\"; }\nok()   { c 32 \"  [ OK ] $1\"; }\nwarn() { c 33 \"  [WARN] $1\"; }\nbad()  { c 31 \"  [FAIL] $1\"; }\nhint() { c 33 \"         -> $1\"; }\ndie()  { echo; c 31 \"[wch] ERROR: $1\"; shift; for h in \"$@\"; do hint \"$h\"; done; exit 1; }\nconfirm() { [ $YES = 1 ] && return 0; read -r -p \"$1 [Y/n] \" a; [ -z \"$a\" ] || [[ \"$a\" =~ ^[Yy] ]]; }\n\nPY=\"\"\nfor cand in python3 python; do\n  p=\"$(command -v \"$cand\" 2>/dev/null)\" || continue\n  \"$p\" -c 'import json,sys; sys.exit(0 if sys.version_info[0]==3 else 1)' >/dev/null 2>&1 && { PY=\"$p\"; break; }\ndone\n[ -n \"$PY\" ] || die \"python3 is required by this helper (to read the JSON settings)\" \"Install python3 (apt install python3 / brew install python).\"\n[ -f \"$PROJ\" ] || die \"wch-project.json not found in $ROOT\" \"Open the exported project folder itself in VS Code.\"\n\npj() { \"$PY\" -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2]) or \"\")' \"$PROJ\" \"$1\"; }\nCHIP=\"$(pj chip)\"; NAME=\"$(pj name)\"; PREFIX=\"$(pj prefix)\"; ARCH=\"$(pj arch)\"; REPO=\"$(pj evtRepo)\"\nMARCH=\"$(pj march)\"; MABI=\"$(pj mabi)\"; HEADER=\"$(pj header)\"; OCDCFG_DEF=\"$(pj openocdCfg)\"; BLE=\"$(pj ble)\"\n\n# settings.json may contain comments / trailing commas (VS Code style)\ngs() { [ -f \"$SETTINGS\" ] || { echo \"\"; return; }; \"$PY\" - \"$SETTINGS\" \"$1\" <<'EOF'\nimport json,re,sys\nt=open(sys.argv[1],encoding='utf-8').read()\nt=re.sub(r'(?m)^\\s*//.*$','',t); t=re.sub(r'/\\*[\\s\\S]*?\\*/','',t); t=re.sub(r',(\\s*[}\\]])',r'\\1',t)\ntry: print(json.loads(t).get(sys.argv[2]) or \"\")\nexcept Exception as e: print(\"__BADJSON__\"+str(e))\nEOF\n}\nss() { mkdir -p \"$(dirname \"$SETTINGS\")\"; \"$PY\" - \"$SETTINGS\" \"$1\" \"$2\" <<'EOF'\nimport json,re,sys,os\np,k,v=sys.argv[1:4]; d={}\nif os.path.exists(p):\n    t=open(p,encoding='utf-8').read()\n    t=re.sub(r'(?m)^\\s*//.*$','',t); t=re.sub(r'/\\*[\\s\\S]*?\\*/','',t); t=re.sub(r',(\\s*[}\\]])',r'\\1',t)\n    d=json.loads(t)\nd[k]=v; open(p,'w',encoding='utf-8').write(json.dumps(d,indent=2)+\"\\n\")\nEOF\n}\ncase \"$(gs wch.evtDir)\" in __BADJSON__*) die \".vscode/settings.json could not be parsed\" \"Fix the JSON syntax or delete the file and run 'WCH: Setup' again.\";; esac\n\nmrs_dirs() {\n  for b in /opt \"$HOME\" \"$HOME/Applications\" /Applications /usr/local; do\n    for r in \"$b\"/MounRiver* \"$b\"/MounRiver*/MounRiver*; do\n      [ -d \"$r\" ] || continue\n      for s in \"resources/app/resources/linux/components/WCH\" \"resources/app/resources/darwin/components/WCH\" \"toolchain\" \"components/WCH\"; do\n        [ -d \"$r/$s\" ] && echo \"$r/$s\"\n      done\n    done\n  done\n}\nfind_tc() {\n  local set; set=\"$(gs wch.toolchainBin)\"\n  [ -n \"$set\" ] && [ -x \"$set/$PREFIX-gcc\" ] && { echo \"$set\"; return; }\n  command -v \"$PREFIX-gcc\" >/dev/null 2>&1 && { dirname \"$(command -v \"$PREFIX-gcc\")\"; return; }\n  local names=(\"RISC-V Embedded GCC12\" \"RISC-V Embedded GCC15\" \"RISC-V Embedded GCC\"); [ \"$ARCH\" = arm ] && names=(\"arm-none-eabi-gcc\")\n  for n in \"${names[@]}\"; do [ -x \"$CACHE/$n/bin/$PREFIX-gcc\" ] && { echo \"$CACHE/$n/bin\"; return; }; done\n  local d n\n  while read -r d; do for n in \"${names[@]}\"; do\n    for cand in \"$d/Toolchain/$n/bin\" \"$d/$n/bin\"; do [ -x \"$cand/$PREFIX-gcc\" ] && { echo \"$cand\"; return; }; done\n  done; done < <(mrs_dirs)\n  echo \"\"\n}\nfind_ocd() {\n  local set; set=\"$(gs wch.openocdBin)\"\n  [ -n \"$set\" ] && [ -x \"$set/openocd\" ] && { echo \"$set\"; return; }\n  local d; while read -r d; do for cand in \"$d/OpenOCD/OpenOCD/bin\" \"$d/OpenOCD/bin\"; do [ -x \"$cand/openocd\" ] && { echo \"$cand\"; return; }; done; done < <(mrs_dirs)\n  command -v openocd >/dev/null 2>&1 && { dirname \"$(command -v openocd)\"; return; }\n  echo \"\"\n}\nfind_tool() { command -v \"$1\" >/dev/null 2>&1 && { dirname \"$(command -v \"$1\")\"; return; }; [ -x \"$CACHE/pytools/bin/$1\" ] && { echo \"$CACHE/pytools/bin\"; return; }; echo \"\"; }\nevt_dir() {\n  local set; set=\"$(gs wch.evtDir)\"\n  [ -n \"$set\" ] && [ -d \"$set/EXAM/SRC\" ] && { echo \"$set\"; return; }\n  [ -n \"$REPO\" ] && [ -d \"$CACHE/evt/$REPO/EVT/EXAM/SRC\" ] && { echo \"$CACHE/evt/$REPO/EVT\"; return; }\n  echo \"\"\n}\nget_evt() {\n  if [ -z \"$REPO\" ]; then warn \"WCH has no public GitHub repository with the $CHIP EVT.\"; hint \"Download the $CHIP EVT from wch-ic.com / wch.cn, unzip it and set wch.evtDir to the folder that contains EXAM/SRC.\"; return; fi\n  command -v git >/dev/null 2>&1 || { warn \"git is not installed\"; hint \"Install git and run 'WCH: Setup' again.\"; return; }\n  confirm \"Download the official $CHIP EVT from github.com/openwch/$REPO?\" || return\n  local dest=\"$CACHE/evt/$REPO\"; rm -rf \"$dest\"; mkdir -p \"$(dirname \"$dest\")\"\n  git clone --quiet --depth 1 --filter=blob:none --sparse \"https://github.com/openwch/$REPO.git\" \"$dest\" || die \"git clone of openwch/$REPO failed\" \"Check your internet connection or proxy.\"\n  git -C \"$dest\" sparse-checkout set EVT/EXAM/SRC EVT/EXAM/GPIO/GPIO_Toggle EVT/EXAM/BLE/HAL EVT/EXAM/BLE/LIB || die \"Downloading the EVT files failed\"\n}\ninstall_build_tools() {\n  if command -v brew >/dev/null 2>&1; then confirm \"Install cmake and ninja with Homebrew?\" && brew install cmake ninja; return; fi\n  if command -v apt-get >/dev/null 2>&1; then confirm \"Install cmake and ninja with apt (needs sudo)?\" && sudo apt-get install -y cmake ninja-build; return; fi\n  if command -v dnf >/dev/null 2>&1; then confirm \"Install cmake and ninja with dnf (needs sudo)?\" && sudo dnf install -y cmake ninja-build; return; fi\n  confirm \"Install cmake and ninja into $CACHE/pytools with Python?\" && \"$PY\" -m venv \"$CACHE/pytools\" && \"$CACHE/pytools/bin/python\" -m pip install --quiet cmake ninja\n}\n\ncheck_env() {\n  local need_flash=$1 all=0 evt tc gcc ocd cfg\n  evt=\"$(evt_dir)\"\n  if [ -n \"$evt\" ]; then ok \"EVT: $evt\"\n    if [ -z \"$(find \"$evt/EXAM/SRC\" -name \"$HEADER\" 2>/dev/null | head -1)\" ]; then bad \"$HEADER not found in the EVT\"; hint \"This EVT is not for $CHIP.\"; all=1; fi\n    if [ \"$BLE\" = \"True\" ]; then\n      if [ -f \"$evt/EXAM/BLE/HAL/include/CONFIG.h\" ]; then ok \"BLE stack: $evt/EXAM/BLE\"; else bad \"BLE stack files missing (EXAM/BLE/HAL, EXAM/BLE/LIB)\"; hint \"Run the task 'WCH: Setup' again, or use a full EVT package\"; all=1; fi\n    fi\n  else bad \"EVT package not found (wch.evtDir)\"; hint \"Run the task 'WCH: Setup' or set wch.evtDir\"; all=1; fi\n  tc=\"$(find_tc)\"\n  if [ -n \"$tc\" ]; then gcc=\"$tc/$PREFIX-gcc\"; ok \"Toolchain: $gcc ($(\"$gcc\" -dumpversion 2>/dev/null))\"\n    if [ \"$ARCH\" != arm ] && [ \"$(\"$gcc\" -march=\"$MARCH\" -mabi=\"$MABI\" -print-multi-directory 2>/dev/null)\" = \".\" ] && [[ \"$MARCH\" == *_xw* || \"$MARCH\" == rv32e* ]]; then\n      warn \"This toolchain has no library build for -march=$MARCH\"; hint \"Use the GCC12 toolchain from MounRiver Studio, or change WCH_CPU_FLAGS.\"; fi\n  else bad \"$PREFIX-gcc not found\"; hint \"Install MounRiver Studio (Linux/macOS build) from https://www.mounriver.com, or set wch.toolchainBin\"; all=1; fi\n  for t in cmake ninja; do local p; p=\"$(find_tool $t)\"; if [ -n \"$p\" ]; then ok \"$t: $p\"; else bad \"$t not found\"; hint \"Run the task 'WCH: Setup'\"; all=1; fi; done\n  ocd=\"$(find_ocd)\"\n  if [ -n \"$ocd\" ]; then ok \"OpenOCD: $ocd\"; cfg=\"$(gs wch.openocdCfg)\"; cfg=\"${cfg:-$OCDCFG_DEF}\"\n    [ -f \"$ocd/$cfg\" ] || { bad \"OpenOCD config $cfg not found in $ocd\"; hint \"Use the OpenOCD from MounRiver Studio.\"; [ \"$need_flash\" = 1 ] && all=1; }\n  else if [ \"$need_flash\" = 1 ]; then bad \"OpenOCD not found\"; all=1; else warn \"OpenOCD not found (needed only for flashing/debugging)\"; fi; hint \"Install MounRiver Studio or set wch.openocdBin\"; fi\n  command -v wlink >/dev/null 2>&1 && ok \"wlink: found\" || warn \"wlink not found (optional)\"\n  return $all\n}\n\nbuild_hints() {\n  local log=\"$1\" any=0\n  grep -q 'mis-matched ISA' <<<\"$log\" && { hint \"Library/ISA mismatch: use the MounRiver GCC12 toolchain or change WCH_CPU_FLAGS.\"; any=1; }\n  grep -Eq 'undeclared|implicit declaration' <<<\"$log\" && { hint \"A name used in src/ is not in this EVT version. Check EXAM/SRC/*/inc/*.h.\"; any=1; }\n  grep -Eq 'fatal error: .*\\.h: No such file' <<<\"$log\" && { hint \"A header is missing: wch.evtDir probably points to an EVT for another chip.\"; any=1; }\n  grep -Eq \"region .*(FLASH|RAM).* overflowed\" <<<\"$log\" && { hint \"The program does not fit in FLASH/RAM.\"; any=1; }\n  grep -Eq 'multiple definition of|redefinition of' <<<\"$log\" && { hint \"A function (often an IRQ handler) is defined twice: in src/ and in the EVT *_it.c.\"; any=1; }\n  grep -q 'undefined reference to' <<<\"$log\" && { hint \"A function is used but not compiled. Put the .c file in src/.\"; any=1; }\n  [ $any = 0 ] && hint \"Read the first 'error:' line above. Run 'WCH: Clean' and build again if you changed paths.\"\n}\nuse_tools() {\n  EVT=\"$(evt_dir)\"; TC=\"$(find_tc)\"; CM=\"$(find_tool cmake)\"; NJ=\"$(find_tool ninja)\"; local m=\"\"\n  [ -n \"$EVT\" ] || m=\"$m EVT\"; [ -n \"$TC\" ] || m=\"$m $PREFIX-gcc\"; [ -n \"$CM\" ] || m=\"$m cmake\"; [ -n \"$NJ\" ] || m=\"$m ninja\"\n  [ -z \"$m\" ] || die \"Missing:$m\" \"Run the task 'WCH: Setup'.\" \"Run 'WCH: Doctor' for details.\"\n  export PATH=\"$CM:$NJ:$TC:$PATH\"\n}\ndo_build() {\n  use_tools; local log rc\n  say \"Configuring $NAME for $CHIP ...\"\n  log=\"$(cmake -S \"$ROOT\" -B \"$BUILD\" -G Ninja -DCMAKE_BUILD_TYPE=Debug -DWCH_EVT_DIR=\"$EVT\" -DWCH_TOOLCHAIN_BIN=\"$TC\" 2>&1)\"; rc=$?; echo \"$log\"\n  [ $rc = 0 ] || { echo; bad \"CMake configure failed\"; build_hints \"$log\"; exit 1; }\n  say \"Building ...\"\n  log=\"$(cmake --build \"$BUILD\" 2>&1)\"; rc=$?; echo \"$log\"\n  [ $rc = 0 ] || { echo; bad \"Build failed\"; build_hints \"$log\"; exit 1; }\n  [ -f \"$BUILD/$NAME.hex\" ] || die \"Build finished but build/$NAME.hex was not created\" \"Run 'WCH: Clean' and build again.\"\n  echo; ok \"Build OK -> build/$NAME.elf / .hex / .bin\"\n}\nflash_hints() {\n  local log=\"$1\"\n  grep -Eiq 'wlink open error|open error|libusb|open failed|no device|unable to open|permission' <<<\"$log\" && { hint \"WCH-Link not found: check the cable. On Linux add the WCH-Link udev rule (see MounRiver's beforeinstall/ or wlink docs) and replug.\"; }\n  grep -Eiq 'protect|locked' <<<\"$log\" && hint \"The chip is read-protected: remove protection with WCH-LinkUtility or 'wlink unprotect'.\"\n  grep -Eiq 'timeout|failed to' <<<\"$log\" && hint \"Check wiring (SWDIO/SWCLK, CH32V003: SWIO), GND and 3.3 V, then power-cycle the board.\"\n  hint \"Run 'WCH: Doctor' to check the OpenOCD path and config.\"\n}\ndo_flash() {\n  do_build; local hex=\"$BUILD/$NAME.hex\" log rc\n  if [ \"$1\" = wlink ]; then\n    command -v wlink >/dev/null 2>&1 || die \"wlink not found\" \"Install it from https://github.com/ch32-rs/wlink/releases or use 'WCH: Flash (OpenOCD)'.\"\n    say \"Flashing with wlink ...\"; log=\"$(wlink flash \"$hex\" 2>&1)\"; rc=$?\n  else\n    local ocd cfg reset=wlreset; ocd=\"$(find_ocd)\"; [ -n \"$ocd\" ] || die \"OpenOCD not found\" \"Install MounRiver Studio and run 'WCH: Setup', or set wch.openocdBin.\"\n    cfg=\"$(gs wch.openocdCfg)\"; cfg=\"${cfg:-$OCDCFG_DEF}\"; [ -f \"$ocd/$cfg\" ] || die \"OpenOCD config $cfg not found in $ocd\"\n    [ \"$ARCH\" = arm ] && reset=reset\n    say \"Flashing $CHIP with WCH-Link (OpenOCD) ...\"\n    log=\"$(\"$ocd/openocd\" -f \"$ocd/$cfg\" -c init -c halt -c \"program $hex verify\" -c $reset -c exit 2>&1)\"; rc=$?\n  fi\n  echo \"$log\"; [ $rc = 0 ] || { echo; bad \"Flash failed\"; flash_hints \"$log\"; exit 1; }\n  echo; ok \"Flash OK\"\n}\ndo_setup() {\n  say \"Setting up $CHIP project ($NAME) ...\"\n  { [ -n \"$(find_tool cmake)\" ] && [ -n \"$(find_tool ninja)\" ]; } || install_build_tools\n  local tc evt ocd; tc=\"$(find_tc)\"\n  [ -n \"$tc\" ] || { warn \"No $PREFIX toolchain found.\"; hint \"Install MounRiver Studio from https://www.mounriver.com (Linux/macOS builds include the WCH GCC and OpenOCD), then run setup again.\"; }\n  evt=\"$(evt_dir)\"; [ -n \"$evt\" ] || { get_evt; evt=\"$(evt_dir)\"; }\n  if [ -n \"$evt\" ] && [ \"$BLE\" = \"True\" ] && [ ! -d \"$evt/EXAM/BLE/HAL\" ] && [ -d \"$(dirname \"$evt\")/.git\" ]; then\n    say \"Adding the BLE stack files (EXAM/BLE/HAL, LIB) to the EVT ...\"\n    git -C \"$(dirname \"$evt\")\" sparse-checkout set EVT/EXAM/SRC EVT/EXAM/GPIO/GPIO_Toggle EVT/EXAM/BLE/HAL EVT/EXAM/BLE/LIB\n  fi\n  ocd=\"$(find_ocd)\"\n  [ -n \"$tc\" ] && ss wch.toolchainBin \"$tc\"; [ -n \"$evt\" ] && ss wch.evtDir \"$evt\"; [ -n \"$ocd\" ] && ss wch.openocdBin \"$ocd\"\n  [ -n \"$(gs wch.openocdCfg)\" ] || ss wch.openocdCfg \"$OCDCFG_DEF\"\n  say \"Saved paths to .vscode/settings.json\"; echo; say \"Checking the environment:\"\n  if check_env 0; then echo; ok \"Ready. Press Ctrl+Shift+B to build, F5 to debug.\"; else echo; warn \"Some items are still missing (see above).\"; exit 1; fi\n}\n\ncase \"$CMD\" in\n  setup) do_setup ;;\n  doctor) say \"Checking the environment for $CHIP:\"; check_env 1 || exit 1 ;;\n  build) do_build ;;\n  flash) do_flash openocd ;;\n  wlink) do_flash wlink ;;\n  clean) rm -rf \"$BUILD\"; ok \"build folder removed\" ;;\n  *) echo \"Usage: tools/wch.sh setup|doctor|build|flash|wlink|clean [-y]\" ;;\nesac\n"};
 
 function vscProjectFiles(){
   const fam = FAMILIES[state.family];
@@ -1618,13 +3050,14 @@ function vscProjectFiles(){
   const ocdCfg = isArm ? 'wch-arm.cfg' : 'wch-riscv.cfg';
   const D = '$';   /* keeps CMake ${...} out of JS template interpolation */
   const files = {};
-  files['src/main.c'] = generateCode();
+  Object.assign(files, generateFiles());
+  const hasBle = bleEnabled();
 
   const json = o => JSON.stringify(o, null, 2) + '\n';
   files['wch-project.json'] = json({
     chip: v.id, name, family: state.family, arch: isArm ? 'arm' : 'riscv', prefix,
     march: core.march || '', mabi: core.mabi || '', header: v.header,
-    evtRepo: core.evt || '', openocdCfg: ocdCfg,
+    evtRepo: core.evt || '', openocdCfg: ocdCfg, ble: hasBle,
   });
   files['tools/wch.ps1'] = VSC_TOOLS['wch.ps1'].replace(/\r?\n/g, '\r\n');
   files['tools/wch.sh'] = VSC_TOOLS['wch.sh'];
@@ -1705,6 +3138,28 @@ endif()
 # every .c / .S file in src/ is part of the build - just add files there
 file(GLOB APP_SRC CONFIGURE_DEPENDS "${D}{CMAKE_CURRENT_SOURCE_DIR}/src/*.c" "${D}{CMAKE_CURRENT_SOURCE_DIR}/src/*.S")
 
+# ---- Bluetooth LE: used when src/app_config.h exists (BLE enabled in the configurator) ----
+if(EXISTS "${D}{CMAKE_CURRENT_SOURCE_DIR}/src/app_config.h")
+  set(BLE_DIR "${D}{WCH_EVT_DIR}/EXAM/BLE")
+  if(NOT EXISTS "${D}{BLE_DIR}/HAL/include/CONFIG.h")
+    message(FATAL_ERROR "BLE files not found in ${D}{BLE_DIR} (HAL and LIB folders)\\n-> run the VS Code task 'WCH: Setup' again (it adds EXAM/BLE to the EVT download) or point wch.evtDir to a full EVT package")
+  endif()
+  file(GLOB BLE_SRC "${D}{BLE_DIR}/HAL/*.c" "${D}{BLE_DIR}/LIB/*.S")
+  file(GLOB BLE_LIBS "${D}{BLE_DIR}/LIB/*.a")
+  set(_full ${D}{BLE_LIBS})
+  list(FILTER _full EXCLUDE REGEX "_PERI[.]a$")      # prefer the full library when the EVT has both
+  if(_full)
+    set(BLE_LIBS ${D}{_full})
+  endif()
+  if(NOT BLE_LIBS)
+    message(FATAL_ERROR "No BLE library (*.a) in ${D}{BLE_DIR}/LIB")
+  endif()
+  list(APPEND APP_SRC ${D}{BLE_SRC})
+  list(APPEND INC_DIRS "${D}{BLE_DIR}/HAL/include" "${D}{BLE_DIR}/LIB")
+  list(PREPEND DRIVER_LIB ${D}{BLE_LIBS})
+  set(WCH_FORCE_INCLUDE "${D}{CMAKE_CURRENT_SOURCE_DIR}/src/app_config.h")
+endif()
+
 add_executable(${D}{PROJECT_NAME} ${D}{APP_SRC} ${D}{USER_SRC} ${D}{DRIVER_SRC} ${D}{WCH_STARTUP})
 set_target_properties(${D}{PROJECT_NAME} PROPERTIES SUFFIX ".elf")
 target_include_directories(${D}{PROJECT_NAME} PRIVATE src ${D}{INC_DIRS})
@@ -1713,6 +3168,9 @@ separate_arguments(_cpu UNIX_COMMAND "${D}{WCH_CPU_FLAGS}")
 target_compile_options(${D}{PROJECT_NAME} PRIVATE ${D}{_cpu} -Os -g -fmessage-length=0 -fsigned-char
   -ffunction-sections -fdata-sections -fno-common -Wall
   ${D}<${D}<COMPILE_LANGUAGE:ASM>:-x${D}<SEMICOLON>assembler-with-cpp>)
+if(WCH_FORCE_INCLUDE)
+  target_compile_options(${D}{PROJECT_NAME} PRIVATE ${D}<${D}<COMPILE_LANGUAGE:C>:-include${D}<SEMICOLON>${D}{WCH_FORCE_INCLUDE}>)
+endif()
 target_link_options(${D}{PROJECT_NAME} PRIVATE ${D}{_cpu} -T "${D}{WCH_LINKER_SCRIPT}" -nostartfiles
   -Wl,--gc-sections -Wl,--print-memory-usage -Wl,-Map=${D}{PROJECT_NAME}.map
   --specs=nano.specs --specs=nosys.specs)
@@ -1773,7 +3231,7 @@ add_custom_command(TARGET ${D}{PROJECT_NAME} POST_BUILD
     showDevDebugOutput:'none',
   }]});
   files['.gitignore'] = 'build/\n';
-  files['README.md'] = vscReadme(v, core, {name, prefix, ocdCfg, ble, isArm});
+  files['README.md'] = vscReadme(v, core, {name, prefix, ocdCfg, ble, isArm, bleOn: bleEnabled(), usbOn: usbEnabled()});
   return {name, files};
 }
 
@@ -1815,7 +3273,21 @@ ${v.note}
 | Check the setup | Task **WCH: Doctor (check environment)**. It lists every tool with OK/FAIL and what to do |
 | Start fresh | Task **WCH: Clean**, then build again (do this after changing paths or the toolchain) |
 
-The same commands work in a terminal:
+${o.bleOn || o.usbOn ? `## ${[o.bleOn && 'Bluetooth LE', o.usbOn && 'USB'].filter(Boolean).join(' and ')}
+
+| File | What it is |
+|---|---|
+| \`src/main.c\` | clock, peripheral init${o.bleOn ? ', BLE stack start and the TMOS loop (\`TMOS_SystemProcess()\`, never block in it)' : ''}${o.usbOn ? ', USB start' : ''} |
+${o.bleOn ? `| \`src/ble_app.c/.h\` | GATT services and characteristics, advertising, security, PHY/MTU handling, and the \`ble_<service>_<char>_set/_get/_notify/_indicate()\` functions |
+| \`src/app_config.h\` | BLE stack settings (MTU buffer, TX power, RAM heap, bonding storage); it is force-included before every file |
+` : ''}${o.usbOn ? `| \`src/usb_app.c/.h\` | USB descriptors and the control/endpoint handling, plus send functions such as \`usb_cdc_write()\`, \`usb_kbd_tap()\`, \`usb_mouse_send()\` and \`usb_hid_custom_send()\` |
+` : ''}| \`src/app_callbacks.c\` | **your code**: every callback (connect/disconnect, data received on a characteristic, USB data received, ...) with an empty or example body |
+
+${o.bleOn ? `Test BLE with a phone app such as **nRF Connect** or **LightBlue**: scan for the device name, connect, open the service, write to a characteristic (your callback runs) and enable notifications.
+${o.isArm ? '' : 'The BLE stack comes from the EVT folders `EXAM/BLE/HAL` and `EXAM/BLE/LIB`, which the Setup task downloads with the rest of the EVT.'}
+` : ''}${o.usbOn ? `USB callbacks run inside the USB interrupt, so keep them short (copy the data, set a flag, and handle it in the main loop${o.bleOn ? ' or a TMOS task' : ''}). The CDC port works with the built-in Windows/Linux/macOS drivers; the custom HID works without a driver (hidapi, WebHID, Python \`hid\`).
+` : ''}
+` : ''}The same commands work in a terminal:
 
 \`\`\`
 powershell -ExecutionPolicy Bypass -File tools/wch.ps1 setup|doctor|build|flash|wlink|clean      (Windows)
