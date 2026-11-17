@@ -271,7 +271,7 @@
   .maintabs .sp{flex:1;}
   .mt-info{font-family:var(--mono); font-size:11px; color:var(--text-faint); padding-bottom:7px;}
   .ide{height:calc(100vh - 100px);}
-  .ide[data-page="pinout"]{grid-template-columns:230px 330px minmax(0,1fr);}
+  .ide[data-page="pinout"]{grid-template-columns:220px minmax(360px,0.85fr) minmax(0,1.15fr);}
   .ide[data-page="pinout"] > .right{display:none;}
   .ide[data-page="clock"]{grid-template-columns:minmax(0,1fr);}
   .ide[data-page="clock"] > .left, .ide[data-page="clock"] > .mid, .ide[data-page="clock"] > .right{display:none;}
@@ -343,6 +343,28 @@
   html[data-theme="light"] .cm{color:#6a737d;} html[data-theme="light"] .kw{color:#0b5cad; font-weight:600;} html[data-theme="light"] .fn{color:#6f42c1;} html[data-theme="light"] .str{color:#a3402a;} html[data-theme="light"] .num{color:#0a7a52;}
   html[data-theme="light"] .pin text.psig{filter:brightness(0.62) saturate(1.4);}
   html[data-theme="light"] .legend span, html[data-theme="light"] .statusbar{color:var(--text-dim);}
+
+  /* ---------- CubeMX-style GPIO table ---------- */
+  .gp-tabs{display:flex; gap:2px; padding:8px 10px 0; border-bottom:1px solid var(--line);}
+  .gp-tab{font-family:var(--sans); font-size:12px; font-weight:600; color:var(--text-dim); background:var(--panel-2); border:1px solid var(--line); border-bottom:none; border-radius:6px 6px 0 0; padding:5px 12px; cursor:pointer; margin-bottom:-1px;}
+  .gp-tab.active{background:var(--panel); color:var(--accent);}
+  .gp-search{display:flex; gap:6px; align-items:center; padding:8px 10px;}
+  .gp-search input{flex:1; padding:5px 8px; font-size:12px;}
+  .gp-wrap{overflow:auto; max-height:260px; border-top:1px solid var(--line-soft); border-bottom:1px solid var(--line-soft);}
+  table.gp{border-collapse:collapse; width:100%; font-family:var(--mono); font-size:11px;}
+  table.gp th{position:sticky; top:0; background:var(--panel-2); color:var(--text-dim); font-weight:600; text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap; font-family:var(--sans); font-size:11px;}
+  table.gp td{padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--text); white-space:nowrap;}
+  table.gp tr{cursor:pointer;}
+  table.gp tr:hover td{background:var(--panel-2);}
+  table.gp tr.sel td{background:var(--sel-bg, rgba(224,164,88,0.14));}
+  html[data-theme="light"] table.gp tr.sel td{background:#cfe2f7;}
+  table.gp td.mod{color:var(--text-faint);}
+  .gp-cfg{padding:10px 14px 4px;}
+  .gp-cfg-title{font-family:var(--sans); font-weight:700; font-size:12.5px; margin:2px 0 10px; color:var(--text);}
+  .gp-empty{padding:16px 14px; color:var(--text-faint); font-size:12px; line-height:1.5;}
+  .gp-add{display:flex; gap:6px; align-items:flex-end; padding:8px 14px 12px; border-top:1px solid var(--line-soft);}
+  .gp-add .field{margin:0; flex:1;}
+  .gp-add .icon-btn{flex:none; height:31px;}
 </style>
 </head>
 <body>
@@ -955,11 +977,14 @@ function genStdperiphGPIO(c){
   return `    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIO${c.port}, ENABLE);
     GPIO_InitStructure.GPIO_Pin   = GPIO_Pin_${c.pin};
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_${c.mode};
-${speedLine}    GPIO_Init(GPIO${c.port}, &GPIO_InitStructure);`;
+${speedLine}    GPIO_Init(GPIO${c.port}, &GPIO_InitStructure);${/^Out_/.test(c.mode) && c.level ? `
+    GPIO_WriteBit(GPIO${c.port}, GPIO_Pin_${c.pin}, ${c.level === 'high' ? 'Bit_SET' : 'Bit_RESET'});   /* initial output level */` : ''}`;
 }
 
 function genWchbleGPIO(c){
-  return `    GPIO${c.port}_ModeCfg(GPIO_Pin_${c.pin}, GPIO_Mode${c.mode});`;
+  const out = /^Out_/.test(c.mode) && c.level;
+  /* set the level before switching to output so the pin never glitches */
+  return `${out ? `    GPIO${c.port}_${c.level === 'high' ? 'SetBits' : 'ResetBits'}(GPIO_Pin_${c.pin});   /* initial output level */\n` : ''}    GPIO${c.port}_ModeCfg(GPIO_Pin_${c.pin}, GPIO_Mode${c.mode});`;
 }
 
 function cpolPhaStd(v){
@@ -3643,7 +3668,7 @@ function renderClockView(){
   let html = '', wires = [], W = 1060, H = 520;
   const head = `<div class="ck-head"><b>Clock Configuration · ${esc(v.id)}</b><span>${state.clock ? `custom clock — <code>${d.kind === 'ble' ? 'SetSysClock()' : 'SystemClock_Config()'}</code> is generated` : 'EVT default clock (nothing generated)'}</span><span class="sp"></span>
     ${state.clock ? '<button class="icon-btn" id="ckReset">Back to EVT default</button>' : ''}</div>`;
-  const wire = (x1, y1, x2, y2, on) => { const mx = (x1 + x2) / 2; wires.push(`<path class="${on ? 'on' : ''}" d="M${x1} ${y1} C${mx} ${y1} ${mx} ${y2} ${x2} ${y2}"/>`); };
+  const wire = (x1, y1, x2, y2, on) => { const mx = Math.round((x1 + x2) / 2); wires.push(`<path class="${on ? 'on' : ''}" d="M${x1} ${y1} H${mx} V${y2} H${x2}"/>`); };
   if(d.kind === 'ble'){
     H = 330;
     const o = d.options.find(x => x.e === c.sys) || d.options[0];
@@ -4583,7 +4608,7 @@ function applyDatasheetDefaults(){
   if(instSel) instSel.addEventListener('change', run);
 }
 const _renderFormOrig = renderForm;
-renderForm = function(){ _renderFormOrig(); applyDatasheetDefaults(); };
+renderForm = function(){ _renderFormOrig(); applyDatasheetDefaults(); if(state.tab === 'gpio' && !state.editId) renderGpioPanel(); };
 
 
 /* ---------- CubeMX-style pages, theme, category search ---------- */
@@ -4644,6 +4669,128 @@ function renderProjectHead(){
   const b2 = $('probBadge2'); b2.textContent = n; b2.hidden = !n;
   $('mtInfo').textContent = `${v.id}${pk ? ' · ' + pk.name : ''} · ${state.configs.length} item${state.configs.length === 1 ? '' : 's'}`;
 }
+
+/* ---------- CubeMX-style GPIO panel: table of every GPIO pin + settings of the selected one ---------- */
+state.gpioSel = null;
+state.gpioFilter = '';
+const GPIO_STD_MODES = [['in', 'Input mode'], ['out_pp', 'Output Push Pull'], ['out_od', 'Output Open Drain'], ['analog', 'Analog mode'], ['af_pp', 'Alternate Function Push Pull'], ['af_od', 'Alternate Function Open Drain']];
+const GPIO_BLE_MODES = [['in', 'Input mode'], ['out_pp', 'Output Push Pull']];
+const GPIO_PULLS = [['none', 'No pull-up and no pull-down'], ['up', 'Pull-up'], ['down', 'Pull-down']];
+const GPIO_SPEEDS = [['2MHz', 'Low (2 MHz)'], ['10MHz', 'Medium (10 MHz)'], ['50MHz', 'High (50 MHz)']];
+const EXTI_TRIG_STD = [['rising', 'External Interrupt Mode with Rising edge trigger detection'], ['falling', 'External Interrupt Mode with Falling edge trigger detection'], ['both', 'External Interrupt Mode with Rising/Falling edge trigger detection']];
+const EXTI_TRIG_BLE = [['rising', 'External Interrupt Mode with Rising edge trigger detection'], ['falling', 'External Interrupt Mode with Falling edge trigger detection'], ['lowlevel', 'External Interrupt Mode, low level'], ['highlevel', 'External Interrupt Mode, high level']];
+function gpioStd(c){ return FAMILIES[c.family].style === 'stdperiph'; }
+/* SDK mode code <-> CubeMX columns (mode / pull / drive) */
+function gpioSplit(c){
+  const m = c.type === 'exti' ? c.pull : c.mode;
+  if(gpioStd(c)){
+    const t = {AIN:['analog','none'], IN_FLOATING:['in','none'], IPU:['in','up'], IPD:['in','down'], Out_PP:['out_pp','none'], Out_OD:['out_od','none'], AF_PP:['af_pp','none'], AF_OD:['af_od','none']}[m] || ['in','none'];
+    return {mode:t[0], pull:t[1], drive:''};
+  }
+  if(m === 'IN_PU') return {mode:'in', pull:'up', drive:''};
+  if(m === 'IN_PD') return {mode:'in', pull:'down', drive:''};
+  if(m === 'Out_PP_20mA') return {mode:'out_pp', pull:'none', drive:'20mA'};
+  if(m === 'Out_PP_5mA') return {mode:'out_pp', pull:'none', drive:'5mA'};
+  return {mode:'in', pull:'none', drive:''};
+}
+function gpioJoin(std, mode, pull, drive){
+  if(std) return mode === 'in' ? ({none:'IN_FLOATING', up:'IPU', down:'IPD'}[pull]) : ({out_pp:'Out_PP', out_od:'Out_OD', analog:'AIN', af_pp:'AF_PP', af_od:'AF_OD'}[mode]);
+  if(mode === 'out_pp') return drive === '20mA' ? 'Out_PP_20mA' : 'Out_PP_5mA';
+  return {none:'IN_Floating', up:'IN_PU', down:'IN_PD'}[pull];
+}
+function gpioRows(){
+  return state.configs.filter(c => c.type === 'gpio' || c.type === 'exti')
+    .map(c => ({c, g:`P${c.port}${c.pin}`}))
+    .sort((a, b) => a.g[1] === b.g[1] ? (+a.g.slice(2)) - (+b.g.slice(2)) : a.g.localeCompare(b.g));
+}
+function gpioRowText(c){
+  const std = gpioStd(c), sp = gpioSplit(c);
+  const pullL = (GPIO_PULLS.find(x => x[0] === sp.pull) || ['', ''])[1];
+  if(c.type === 'exti'){
+    const t = (std ? EXTI_TRIG_STD : EXTI_TRIG_BLE).find(x => x[0] === c.trig);
+    return {signal:'GPIO_EXTI' + c.pin, level:'n/a', mode:t ? t[1] : 'External Interrupt', pull:pullL, speed:'n/a'};
+  }
+  const out = /^out|^af/.test(sp.mode);
+  const modeL = ((std ? GPIO_STD_MODES : GPIO_BLE_MODES).find(x => x[0] === sp.mode) || ['', c.mode])[1];
+  const sig = sp.mode === 'analog' ? 'GPIO_Analog' : out ? 'GPIO_Output' : 'GPIO_Input';
+  const speed = !out ? 'n/a' : std ? ((GPIO_SPEEDS.find(x => x[0] === c.speed) || ['', c.speed || 'n/a'])[1]) : (sp.drive || '5mA') + ' drive';
+  return {signal:sig, level:/^out/.test(sp.mode) ? (c.level === 'high' ? 'High' : 'Low') : 'n/a', mode:modeL, pull:out ? 'n/a' : pullL, speed};
+}
+function gpioUpdate(c, patch){
+  Object.assign(c, patch);
+  relabel(c);
+  renderAll(); renderGpioPanel();
+}
+function renderGpioPanel(){
+  if(state.tab !== 'gpio') return;
+  const rows = gpioRows(), q = state.gpioFilter;
+  if(state.gpioSel && !rows.some(r => r.c.id === state.gpioSel)) state.gpioSel = null;
+  const shown = rows.filter(r => !q || (r.g + ' ' + (state.labels[r.g] || '') + ' ' + gpioRowText(r.c).signal).toLowerCase().includes(q));
+  let h = `<div class="gp-tabs"><button class="gp-tab active">GPIO</button></div>
+  <div class="gp-search"><input type="search" id="gpFilter" placeholder="Search signals" value="${esc(state.gpioFilter)}"><span class="hint" style="margin:0">${rows.length} pin${rows.length === 1 ? '' : 's'}</span></div>`;
+  if(!rows.length){
+    h += `<div class="gp-empty">No GPIO pins yet. Click a pin on the chip and choose <b>GPIO_Output</b>, <b>GPIO_Input</b>, <b>GPIO_Analog</b> or <b>GPIO_EXTI</b>, or add one below.</div>`;
+  } else {
+    h += `<div class="gp-wrap"><table class="gp"><thead><tr><th>Pin Name</th><th>Signal on Pin</th><th>GPIO output level</th><th>GPIO mode</th><th>GPIO Pull-up/Pull-down</th><th>${shown.length && !gpioStd(shown[0].c) ? 'Drive' : 'Maximum output speed'}</th><th>User Label</th></tr></thead><tbody>` +
+      shown.map(({c, g}) => { const t = gpioRowText(c); return `<tr data-gsel="${c.id}" class="${state.gpioSel === c.id ? 'sel' : ''}"><td>${g}</td><td>${t.signal}</td><td>${t.level}</td><td>${esc(t.mode)}</td><td>${t.pull}</td><td>${t.speed}</td><td>${esc(state.labels[g] || '')}</td></tr>`; }).join('') +
+      `</tbody></table></div>`;
+  }
+  const sel = rows.find(r => r.c.id === state.gpioSel);
+  if(sel){
+    const c = sel.c, std = gpioStd(c), sp = gpioSplit(c), o = (list, v) => list.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    h += `<div class="gp-cfg"><div class="gp-cfg-title">${sel.g} Configuration :</div>`;
+    if(c.type === 'exti'){
+      h += `<div class="field"><label>GPIO mode</label><select data-gp="trig">${o(std ? EXTI_TRIG_STD : EXTI_TRIG_BLE, c.trig)}</select></div>
+        <div class="field"><label>GPIO Pull-up/Pull-down</label><select data-gp="pull">${o(GPIO_PULLS, sp.pull)}</select></div>`;
+      if(std) h += `<div class="row2"><div class="field"><label>Preemption priority</label><input type="number" min="0" max="3" data-gp="pp" value="${esc(c.pp || 1)}"></div><div class="field"><label>Sub priority</label><input type="number" min="0" max="3" data-gp="sp" value="${esc(c.sp || 1)}"></div></div>`;
+    } else {
+      const out = /^out/.test(sp.mode), outAny = /^out|^af/.test(sp.mode);
+      h += `<div class="field"><label>GPIO output level</label><select data-gp="level" ${out ? '' : 'disabled'}>${o([['low', 'Low'], ['high', 'High']], c.level === 'high' ? 'high' : 'low')}</select></div>
+        <div class="field"><label>GPIO mode</label><select data-gp="mode">${o(std ? GPIO_STD_MODES : GPIO_BLE_MODES, sp.mode)}</select></div>
+        <div class="field"><label>GPIO Pull-up/Pull-down</label><select data-gp="pull" ${sp.mode === 'in' ? '' : 'disabled'}>${o(GPIO_PULLS, sp.pull)}</select></div>`;
+      h += std ? `<div class="field"><label>Maximum output speed</label><select data-gp="speed" ${outAny ? '' : 'disabled'}>${o(GPIO_SPEEDS, c.speed || '50MHz')}</select></div>`
+               : `<div class="field"><label>Output drive</label><select data-gp="drive" ${out ? '' : 'disabled'}>${o([['5mA', '5 mA'], ['20mA', '20 mA']], sp.drive || '5mA')}</select></div>`;
+    }
+    h += `<div class="field"><label>User Label</label><input type="text" maxlength="24" data-gp="label" value="${esc(state.labels[sel.g] || '')}" placeholder="${sel.g}"></div>
+      <div class="btn-row" style="padding:0 0 10px"><button class="btn btn-ghost" data-gp-del="${c.id}" style="width:auto">Reset pin (remove)</button></div></div>`;
+  } else if(rows.length){
+    h += `<div class="gp-empty">Select a pin in the table to see and change its configuration.</div>`;
+  }
+  /* add a pin without the chip view */
+  const v = currentVariant(), fam = FAMILIES[state.family], std = fam.style === 'stdperiph';
+  const pins = Array.from({length: formPinCount()}, (_, i) => i);
+  h += `<div class="gp-add"><div class="field"><label>Add pin</label><select id="gpAddPort">${v.ports.map(p => `<option>${p}</option>`).join('')}</select></div>
+    <div class="field"><label>&nbsp;</label><select id="gpAddPin">${pins.map(p => `<option>${p}</option>`).join('')}</select></div>
+    <div class="field"><label>&nbsp;</label><select id="gpAddFn"><option value="out">GPIO_Output</option><option value="in">GPIO_Input</option>${std ? '<option value="analog">GPIO_Analog</option>' : ''}<option value="exti">GPIO_EXTI</option></select></div>
+    <button class="icon-btn" id="gpAddBtn">Add</button></div>`;
+  formArea.innerHTML = h;
+  $('addBtn').style.display = 'none';
+  $('gpFilter').addEventListener('input', e => { state.gpioFilter = e.target.value.trim().toLowerCase(); renderGpioPanel(); const f = $('gpFilter'); f.focus(); f.setSelectionRange(f.value.length, f.value.length); });
+  formArea.querySelectorAll('[data-gsel]').forEach(tr => tr.addEventListener('click', () => { state.gpioSel = +tr.dataset.gsel; renderGpioPanel(); }));
+  formArea.querySelectorAll('[data-gp]').forEach(el => el.addEventListener('change', () => {
+    const c = sel.c, k = el.dataset.gp, std2 = gpioStd(c), sp2 = gpioSplit(c);
+    if(k === 'label'){ setLabel(sel.g, el.value); renderGpioPanel(); return; }
+    if(c.type === 'exti'){
+      if(k === 'trig') return gpioUpdate(c, {trig: el.value});
+      if(k === 'pull') return gpioUpdate(c, {pull: gpioJoin(std2, 'in', el.value, '')});
+      return gpioUpdate(c, {[k]: el.value});
+    }
+    if(k === 'level') return gpioUpdate(c, {level: el.value});
+    if(k === 'speed') return gpioUpdate(c, {speed: el.value});
+    const mode = k === 'mode' ? el.value : sp2.mode, pull = k === 'pull' ? el.value : sp2.pull, drive = k === 'drive' ? el.value : (sp2.drive || '5mA');
+    gpioUpdate(c, {mode: gpioJoin(std2, mode, pull, drive), speed: c.speed || '50MHz'});
+  }));
+  const del = formArea.querySelector('[data-gp-del]');
+  if(del) del.addEventListener('click', () => { state.configs = state.configs.filter(x => x.id !== +del.dataset.gpDel); state.gpioSel = null; renderAll(); renderGpioPanel(); });
+  $('gpAddBtn').addEventListener('click', () => {
+    const port = $('gpAddPort').value, pin = $('gpAddPin').value, fn = $('gpAddFn').value;
+    if(state.configs.some(x => (x.type === 'gpio' || x.type === 'exti') && x.port === port && String(x.pin) === String(pin))){ state.gpioSel = state.configs.find(x => x.port === port && String(x.pin) === String(pin) && (x.type === 'gpio' || x.type === 'exti')).id; renderGpioPanel(); return; }
+    const c = fn === 'exti' ? newCfg('exti', {port, pin, trig:'falling', pp:'1', sp:'1', pull: std ? 'IPU' : 'IN_PU'})
+      : newCfg('gpio', {port, pin, mode: fn === 'out' ? (std ? 'Out_PP' : 'Out_PP_5mA') : fn === 'analog' ? 'AIN' : (std ? 'IN_FLOATING' : 'IN_Floating'), speed:'50MHz', level:'low'});
+    state.gpioSel = c.id;
+    renderAll(); renderGpioPanel();
+  });
+}
 /* ---------- main render ---------- */
 function renderAll(keepMenu){
   const v = currentVariant();
@@ -4676,6 +4823,7 @@ function renderAll(keepMenu){
   if(!keepMenu && !$('pinMenu').hidden && state.selPin) positionMenu(state.selPin);
   renderCode();
   if(typeof renderProjectHead === 'function') renderProjectHead();
+  if(state.tab === 'gpio' && !state.editId && $('formArea').querySelector('table.gp, .gp-empty') && !$('formArea').contains(document.activeElement)) renderGpioPanel();
 }
 
 populateVariants();
