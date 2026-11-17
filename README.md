@@ -71,13 +71,13 @@ The page follows the STM32CubeMX layout:
 - Three main tabs: **Pinout & Configuration**, **Clock Configuration** and **Project Manager**.
 - The Pinout page has three columns: **Categories** (grouped or A→Z, with search) | **Mode and Configuration** | **Pinout view / System view**.
 - **Light theme** (default) and **dark theme**. Switch with the Theme button; the choice is remembered.
-- A peripheral appears in Categories only on chips that really have it (checked against the official EVTs).
+- A peripheral appears in Categories only on chips that have it.
 
 #### Pinout & Configuration
 
 - **Chip view**: the part is drawn as its real package (QFN / LQFP / TSSOP / SOP / QSOP / DFN) with pin numbers, names, the pin 1 marker and the exposed pad. Choose the package from the *Package* list.
 - **Zoom and pan**: mouse wheel or +/−, drag to pan, *Fit* to reset. A manual zoom is kept when the window is resized.
-- **Rotation**: rotate the chip in 90° steps with the rotate buttons or `R` / `Shift+R`. Pin labels stay readable.
+- **Rotation**: rotate the chip in 90° steps with the rotate buttons or `R` / `Shift+R`.
 - **Pin menu**: click a pin to get `Reset_State`, `GPIO_Input`, `GPIO_Output`, `GPIO_Analog`, `GPIO_EXTIx` and the alternate functions from the datasheet pin table (ADC, SPI, I²C, USART/UART, timer channels, and so on). The pin is colored by peripheral and the configuration and code follow. Functions that need a remap or are not generated are shown greyed out.
 - **User label**: the label box starts with the pin name. **Set** becomes active only after you change it. Setting it back to the pin name removes the label. A label `LED` becomes `#define LED_Pin` / `LED_GPIO_Port`.
 - **Add to configuration** keeps the form values, so similar entries are quick to add.
@@ -92,17 +92,17 @@ Like the CubeMX GPIO panel:
 
 - A table of every GPIO/EXTI pin: **Pin Name, Signal, Output level, Mode, Pull, Speed/Drive, User Label**.
 - Click a row to edit that pin below the table. Changes apply immediately.
-- **Initial output level** (High/Low): `GPIO_WriteBit` on CH32, `GPIOx_SetBits` / `GPIOx_ResetBits` before `GPIOx_ModeCfg` on CH5xx, so the pin never glitches.
+- **Initial output level** (High/Low).
 - An **Add pin** row adds a new GPIO without going through the chip view.
 
 #### Clock Configuration
 
-A clock tree drawn like CubeMX, with straight wires or single right angles, no crossings and no wire under a block. Click a block to set it.
+A clock tree like CubeMX. Click a block to set it.
 
 - **CH32**: trees for CH32V003, V103, V203 / F203, V303, V307, X035 and L103. HSE/HSI, PLL source, PREDIV, PLL multiplier, system clock mux, AHB/APB1/APB2/ADC prescalers, USB prescaler where it exists. V307 includes PREDIV1 and the ×6.5 multiplier; X035 is HSI only.
-- **CH5xx**: PLL / HSE / HSI dividers and the system clock mux mapped to `SetSysClock(CLK_SOURCE_*)`, with the options each chip really has (CH570, CH572, CH582, CH583, CH585, CH591, CH592; CH570/572 use their own names).
+- **CH5xx**: PLL / HSE / HSI dividers and the system clock mux mapped to `SetSysClock(CLK_SOURCE_*)`, with the options each chip has.
 - **Limits**: datasheet maximums (SYSCLK, PLL output, APB, ADC, USB 48 MHz, HSE range) are checked and reported in **Problems**.
-- **Code**: `SystemClock_Config()` follows each EVT's `system_*.c`; `HSE_VALUE` is passed to the build in exported projects. CH32V303 gets the `CH32V30x_D8` define.
+- **Code**: `SystemClock_Config()` (CH32) or `SetSysClock()` (CH5xx) is generated.
 - The real bus clocks feed the UART baud rate, timer, CAN bit timing and ADC settings.
 
 #### Peripherals
@@ -151,7 +151,7 @@ The zip contains:
 - `CMakeLists.txt` that builds against the official WCH EVT (drivers, startup, linker script, `libISP*.a`) and outputs `.elf`, `.hex` and `.bin`.
 - `.vscode/` with recommended extensions (C/C++, CMake Tools, Cortex-Debug, Serial Monitor), tasks, a Cortex-Debug launch config for WCH-Link and IntelliSense settings.
 - `tools/wch.ps1` (Windows) and `tools/wch.sh` (Linux/macOS), behind the VS Code tasks:
-  - **WCH: Setup** finds the MounRiver toolchain and OpenOCD (unpacks the toolchain from MounRiver's `.7z` if needed), installs CMake and Ninja (winget / brew / apt / dnf / Python, after asking), downloads the official EVT for the chip from `github.com/openwch`, and saves all paths.
+  - **WCH: Setup** finds the MounRiver toolchain and OpenOCD, installs CMake and Ninja (winget / brew / apt / dnf / Python, after asking), downloads the official EVT for the chip from `github.com/openwch`, and saves all paths.
   - **WCH: Doctor** checks every tool and says what is missing and how to fix it.
   - **WCH: Build** (`Ctrl+Shift+B`), **WCH: Flash (OpenOCD / wlink)**, **WCH: Clean**. A failed step ends with a short explanation of the likely cause (wrong EVT, ISA/library mismatch, missing WCH-Link, read-protected chip, ...).
 - `README.md` with a step-by-step guide (English + Persian) and a troubleshooting table.
@@ -211,7 +211,7 @@ Setup + build from scratch (EVT downloaded automatically) was tested on Windows 
 - USB callbacks run in the USB interrupt. Keep them short.
 - **CH32L103 CAN**: filter setup is skipped (its driver has no `CAN_FilterInit`).
 - **CH5xx RTC**: the BLE stack (TMOS) uses the RTC. With Bluetooth on, the RTC module generates nothing and Problems says so; use `tmos_start_task()` for timed work.
-- **CH572**: 12 KB RAM. With BLE, keep MTU ≤ 100 (a smaller heap profile is used).
+- **CH572**: 12 KB RAM. With BLE, keep MTU ≤ 100.
 - **CH58x / CH59x low-power GPIO wake-up**: only PB0–PB15 and PB22/PB23 can wake the chip.
 - BLE is peripheral role only (no central/observer), and USB on CH5xx is device only (no host).
 
@@ -283,13 +283,13 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - چیدمان مثل STM32CubeMX است: سه زبانه‌ی اصلی **Pinout & Configuration**، **Clock Configuration** و **Project Manager**.
 - صفحه‌ی Pinout سه ستون دارد: **Categories** (گروه‌بندی یا الفبایی، با جستجو)، **Mode and Configuration** و **Pinout view / System view**.
 - **تم روشن** (پیش‌فرض) و **تم تیره** دارد. با دکمه‌ی Theme عوض می‌شود و انتخاب ذخیره می‌ماند.
-- هر پریفرال فقط برای تراشه‌ای نمایش داده می‌شود که واقعاً آن را دارد (با EVTهای رسمی بررسی شده).
+- هر پریفرال فقط برای تراشه‌ای نمایش داده می‌شود که آن را دارد.
 
 #### Pinout & Configuration
 
 - **نمای تراشه**: تراشه با پکیج واقعی‌اش (QFN / LQFP / TSSOP / SOP / QSOP / DFN) رسم می‌شود، با شماره و نام پایه‌ها، نشانگر پایه‌ی ۱ و پد زیرین. پکیج از فهرست *Package* انتخاب می‌شود.
 - **زوم و جابه‌جایی**: با چرخ موس یا +/− زوم و با کشیدن جابه‌جا کنید. *Fit* نما را برمی‌گرداند. زوم دستی با تغییر اندازه‌ی پنجره حفظ می‌شود.
-- **چرخش**: تراشه با دکمه‌های چرخش یا `R` و `Shift+R` در گام‌های ۹۰ درجه می‌چرخد و نوشته‌ها خوانا می‌مانند.
+- **چرخش**: تراشه با دکمه‌های چرخش یا `R` و `Shift+R` در گام‌های ۹۰ درجه می‌چرخد.
 - **منوی پایه**: با کلیک روی پایه، `Reset_State`، `GPIO_Input`، `GPIO_Output`، `GPIO_Analog`، `GPIO_EXTIx` و توابع جایگزین جدول پایه‌های دیتاشیت (ADC، SPI، I²C، USART/UART، کانال‌های تایمر و غیره) نمایش داده می‌شوند. پایه بر اساس پریفرال رنگ می‌گیرد و پیکربندی و کد هم به‌روز می‌شوند. توابعی که ریمپ لازم دارند یا هنوز تولید نمی‌شوند خاکستری هستند.
 - **برچسب کاربر**: کادر برچسب با نام پایه پر شده است. دکمه‌ی **Set** فقط پس از تغییر برچسب فعال می‌شود. برگرداندن برچسب به نام پایه، برچسب را حذف می‌کند. برچسب `LED` در کد به `#define LED_Pin` / `LED_GPIO_Port` تبدیل می‌شود.
 - **Add to configuration** مقادیر فرم را نگه می‌دارد.
@@ -302,16 +302,16 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 
 - مثل پنل GPIO در CubeMX، جدولی از همه‌ی پایه‌های GPIO/EXTI دارد با ستون‌های: **Pin Name، Signal، Output level، Mode، Pull، Speed/Drive، User Label**.
 - با کلیک روی هر ردیف، تنظیمات آن پایه زیر جدول باز می‌شود و تغییرات فوراً اعمال می‌شوند.
-- **سطح اولیه‌ی خروجی** (High/Low) در CH32 با `GPIO_WriteBit` تنظیم می‌شود. در CH5xx با `SetBits/ResetBits` قبل از `ModeCfg` تنظیم می‌شود تا پایه پرش نداشته باشد.
+- **سطح اولیه‌ی خروجی** (High/Low).
 - ردیف **Add pin** بدون رفتن به نمای تراشه یک GPIO جدید اضافه می‌کند.
 
 #### Clock Configuration
 
-- درخت کلاک مثل CubeMX رسم شده است. خطوط صاف یا با یک زاویه‌ی قائم هستند، از هم عبور نمی‌کنند و از زیر بلوک‌ها رد نمی‌شوند. تنظیم هر بلوک با کلیک روی آن انجام می‌شود.
+- درخت کلاک مثل CubeMX است و هر بلوک با کلیک روی آن تنظیم می‌شود.
 - **CH32**: درخت کلاک برای CH32V003، V103، V203/F203، V303، V307، X035 و L103 ساخته شده است. این درخت‌ها شامل HSE/HSI، منبع PLL، PREDIV، ضریب PLL، مالتی‌پلکسر کلاک سیستم، پیش‌تقسیم‌کننده‌های AHB/APB1/APB2/ADC و پیش‌تقسیم‌کننده‌ی USB (در صورت وجود) هستند. V307 شامل PREDIV1 و ضریب ×6.5 است و X035 فقط HSI دارد.
 - **CH5xx**: تقسیم‌کننده‌های PLL / HSE / HSI و مالتی‌پلکسر کلاک سیستم به `SetSysClock(CLK_SOURCE_*)` نگاشت شده‌اند. برای هر تراشه فقط گزینه‌های واقعی‌اش نمایش داده می‌شود.
 - **حدود مجاز**: حداکثرهای دیتاشیت (SYSCLK، خروجی PLL، APB، ADC، USB 48 MHz، بازه‌ی HSE) بررسی و در **Problems** گزارش می‌شوند.
-- **کد**: تابع `SystemClock_Config()` مطابق `system_*.c` هر EVT ساخته می‌شود. در پروژه‌ی خروجی `HSE_VALUE` تعریف می‌شود.
+- **کد**: تابع `SystemClock_Config()` (CH32) یا `SetSysClock()` (CH5xx) ساخته می‌شود.
 - کلاک واقعی باس‌ها برای باودریت UART، تایمر، CAN و ADC استفاده می‌شود.
 
 #### پریفرال‌ها
