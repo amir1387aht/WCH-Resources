@@ -28,7 +28,7 @@ json() { python3 -c 'import json,sys; d=json.load(sys.stdin); exec(sys.argv[1])'
 
 name="${MRS_TOOLCHAIN_NAME:-}"; resid=""
 if [ -z "${MRS_TOOLCHAIN_URL:-}" ]; then
-  meta="$(curl -fsSL --retry 3 -A "$UA" "$API/fetchRecentOpenOcd?osType=LINUX&lang=en")"
+  meta="$(curl -fsSL --retry 3 -A "$UA" -H "Referer: https://www.mounriver.com/" "$API/fetchRecentOpenOcd?osType=LINUX&lang=en")"
   name="$(json 'r=[x for x in d["result"] if x.get("systemBits","").upper()=="X64"] or d["result"]; print(r[0]["fileName"])' <<<"$meta")"
   resid="$(json 'r=[x for x in d["result"] if x.get("systemBits","").upper()=="X64"] or d["result"]; print(r[0]["softResId"])' <<<"$meta")"
 fi
@@ -44,7 +44,13 @@ gcc="$(find_bin)"
 if [ -z "$gcc" ]; then
   url="${MRS_TOOLCHAIN_URL:-}"
   if [ -z "$url" ]; then
-    url="$(curl -fsSL --retry 3 -A "$UA" "$API/getDownloadUrl?resourceId=$resid" | json 'print(d["result"])')"
+    resp="$(curl -sSL --retry 3 -A "$UA" -H "Referer: https://www.mounriver.com/" "$API/getDownloadUrl?resourceId=$resid" || true)"
+    url="$(json 'r=d.get("result"); print(r if isinstance(r, str) and r.startswith("http") else "")' <<<"$resp" 2>/dev/null || true)"
+    if [ -z "$url" ]; then
+      echo "::error::MounRiver did not return a download link for $name (resource $resid). Response: ${resp:0:300}"
+      echo "Set the repository variables MRS_TOOLCHAIN_URL / MRS_TOOLCHAIN_NAME to a mirror of the toolchain tarball."
+      exit 1
+    fi
   fi
   echo "Downloading $name"
   mkdir -p "$DEST"
