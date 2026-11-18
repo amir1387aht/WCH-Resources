@@ -55,13 +55,15 @@ Pick a family and a chip, set pins, clocks and peripherals, and get C init code 
 
 | Family | Chips | Library |
 |---|---|---|
-| CH32V | CH32V003, CH32V006, CH32V103, CH32V203, CH32V303, CH32V307 | StdPeriph EVT |
-| CH32X | CH32X035 | StdPeriph EVT |
+| CH32V | CH32V002, CH32V003, CH32V004, CH32V005, CH32V006, CH32V007, CH32M007, CH32M030, CH32V103, CH32V203, CH32V303, CH32V307, CH32V407, CH32V467 | StdPeriph EVT |
+| CH32X | CH32X035, CH32X315 | StdPeriph EVT |
 | CH32L | CH32L103 | StdPeriph EVT |
-| CH32F | CH32F103, CH32F203 | StdPeriph EVT |
+| CH32F | CH32F103, CH32F203 | StdPeriph EVT (Arm Cortex-M3) |
+| CH64x | CH641, CH643 | StdPeriph EVT |
 | CH57x | CH570, CH571, CH572, CH573 | CH5xx SDK |
 | CH58x | CH581, CH582, CH583, CH585 | CH5xx SDK + BLE |
 | CH59x | CH591, CH592 | CH5xx SDK + BLE |
+| CH569 | CH569 | CH56x SDK |
 
 Not every feature exists on every chip. See [Limitations](#limitations).
 
@@ -128,6 +130,27 @@ A clock tree like CubeMX. Click a block to set it.
 
 Invalid settings are reported in **Problems**: pin conflicts, a CAN bitrate that cannot be reached within 1 %, DMA channels used twice, watchdog values out of range, clock limits, and so on.
 
+#### More peripherals, middleware and tools
+
+- **Timers:** input capture / PWM input (period and pulse width), master/slave synchronization, PWM from a DMA buffer (with a WS2812 helper).
+- **ADC:** multi-channel scan into a circular DMA buffer, plus injected channels.
+- **CRC, RNG** (V307), **data in flash** (reserved pages with read/write/erase helpers).
+- **CH32V307:** Ethernet (internal 10M PHY, RMII, RGMII; DHCP or static IP; WCHNET library), FSMC (8080 LCD / SRAM), DVP camera, SDIO (SD card), I2S.
+- **CH32X035:** USB PD sink, PIOC.
+- **CH5xx:**
+  - hardware I2C (master/slave)
+  - touch key
+  - DataFlash/EEPROM storage
+  - Bluetooth roles Observer and Central (scan, connect, discover, read/write/notify)
+  - 2.4 GHz RF (TX/RX)
+  - USB host for keyboard/mouse
+- **FreeRTOS** (Middleware) on V307/V303, V203, X035, L103, V103: tasks table, heap, tick rate; task bodies are USER CODE sections.
+- **Memory settings** in Project Manager:
+  - stack size and minimum free heap
+  - the real flash/RAM size of the chip; a program that does not fit fails at link time with a clear message
+- **NVIC table** (Project Manager > NVIC): every enabled interrupt, with preemption and sub priority.
+- **Undo / Redo** (Ctrl+Z / Ctrl+Y), and a **Fix** button on pin conflicts that moves a function to a free pin that has it.
+
 #### Bluetooth LE and USB on CH5xx
 
 - **BLE peripheral**: device name, advertising interval, TX power, MTU, PHY after connect (1M / 2M / Coded where the library supports it), connection parameters, security (none, Just Works, or a 6-digit passkey with bonding).
@@ -177,11 +200,15 @@ Steps: unzip → open the folder in VS Code → install the recommended extensio
 An offline build of the same page (pywebview), with a toolbar (New, Open, Save / Save As `.wchproj`, Generate code, Example, Copy code, Save .c, VS Code project, Guide, About), native dialogs and keyboard shortcuts. It writes straight into the project folder.
 
 - **Windows 10/11 x64**: `WCH-Configurator.exe` (Edge WebView2).
-- **Linux x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`, one executable with Qt WebEngine inside.
+- **Linux x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`, one executable with Qt WebEngine inside, or the small `WCH-Configurator-linux-gtk.tar.gz` that uses the system WebKitGTK.
+- **macOS (Apple silicon)**: `WCH-Configurator-macos.zip` (not signed: right-click > Open the first time).
 
 Download from <https://github.com/zamanimahdi/WCH-Resources/releases/latest>. Details: [desktop/README.md](desktop/README.md).
 
 ### Testing
+
+- **CI:** `.github/workflows/ci.yml` exports a test matrix of projects (split and single-file) on every push and pull request, and builds them on Linux with the MounRiver GCC12 toolchain. It fails on any error or any warning in `src/`.
+- **Hardware test kit:** `hwtest/` generates test projects for real boards that print PASS/FAIL over UART. See [hwtest/HARDWARE_TEST.md](hwtest/HARDWARE_TEST.md).
 
 Exported VS Code projects were built with `riscv-wch-elf-gcc` 12 (MounRiver Studio) against the official openwch EVTs, with 0 errors and 0 warnings in `src/`:
 
@@ -202,6 +229,19 @@ Exported VS Code projects were built with `riscv-wch-elf-gcc` 12 (MounRiver Stud
 Setup + build from scratch (EVT downloaded automatically) was tested on Windows for CH32V003, CH32V203, CH32V307, CH585 and CH592. **Nothing was tested on real hardware.**
 
 ### Limitations
+
+**New in this version (not tested on hardware)**
+
+- **Not added:**
+  - **CH32H417**: its EVT only has dual-core (V3F + V5F) projects.
+  - **CH564**: no public EVT.
+  - **CH32F103 export**: no public EVT.
+- **Clock trees not modelled:** CH32V407/V467, CH569 and CH32X315 (display only). These use the EVT default clock.
+- **CH32V307:** the PLL2/PLL3 clock tree is not modelled. The 10M Ethernet PHY needs an 8 MHz HSE.
+- **FreeRTOS:** not available on CH5xx.
+- **Remapped pins:** timer pins on remap are not offered.
+- **Bluetooth Central/Observer:** not on CH572, whose library is peripheral-only.
+- **2.4 GHz RF:** cannot run together with BLE.
 
 **General**
 
@@ -292,13 +332,15 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 
 | خانواده | تراشه‌ها | کتابخانه |
 |---|---|---|
-| CH32V | CH32V003, CH32V006, CH32V103, CH32V203, CH32V303, CH32V307 | StdPeriph EVT |
-| CH32X | CH32X035 | StdPeriph EVT |
+| CH32V | CH32V002, CH32V003, CH32V004, CH32V005, CH32V006, CH32V007, CH32M007, CH32M030, CH32V103, CH32V203, CH32V303, CH32V307, CH32V407, CH32V467 | StdPeriph EVT |
+| CH32X | CH32X035, CH32X315 | StdPeriph EVT |
 | CH32L | CH32L103 | StdPeriph EVT |
-| CH32F | CH32F103, CH32F203 | StdPeriph EVT |
+| CH32F | CH32F103, CH32F203 | StdPeriph EVT (Arm Cortex-M3) |
+| CH64x | CH641, CH643 | StdPeriph EVT |
 | CH57x | CH570, CH571, CH572, CH573 | CH5xx SDK |
 | CH58x | CH581, CH582, CH583, CH585 | CH5xx SDK + BLE |
 | CH59x | CH591, CH592 | CH5xx SDK + BLE |
+| CH569 | CH569 | CH56x SDK |
 
 همه‌ی قابلیت‌ها روی همه‌ی تراشه‌ها نیست؛ بخش [محدودیت‌ها](#محدودیتها) را ببینید.
 
@@ -359,6 +401,27 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 | Power | **حالت‌های کم‌مصرف** | CH32: sleep / stop / standby (AWU، پایه‌ی WKUP، EXTI). CH5xx: idle / halt / sleep / shutdown با بیدارشدن از GPIO/RTC. کلاک پس از stop برمی‌گردد |
 
 تنظیمات نامعتبر در **Problems** گزارش می‌شوند. نمونه‌ها: تداخل پایه‌ها، باودریت CAN با خطای بیش از ۱٪، کانال DMA تکراری، مقادیر خارج از بازه‌ی واچ‌داگ و حدود کلاک.
+
+#### پریفرال‌ها، middleware و ابزارهای بیشتر
+
+- **تایمر:** Input Capture / PWM input (دوره و عرض پالس)، همگام‌سازی Master/Slave، PWM از بافر DMA (با تابع WS2812).
+- **ADC:** اسکن چندکاناله در بافر حلقوی DMA، به‌علاوه‌ی کانال‌های injected.
+- **CRC، RNG** (V307) و **ذخیره‌ی داده در Flash** (صفحه‌های رزرو با توابع خواندن/نوشتن/پاک کردن).
+- **CH32V307:** Ethernet (PHY داخلی 10M، RMII، RGMII؛ DHCP یا IP ثابت؛ کتابخانه‌ی WCHNET)، FSMC (LCD 8080 / SRAM)، دوربین DVP، SDIO (کارت SD)، I2S.
+- **CH32X035:** USB PD (sink) و PIOC.
+- **CH5xx:**
+  - I2C سخت‌افزاری (master/slave)
+  - Touch key
+  - ذخیره در DataFlash/EEPROM
+  - نقش‌های بلوتوث Observer و Central (اسکن، اتصال، کشف سرویس، خواندن/نوشتن/notify)
+  - رادیوی 2.4G (ارسال/دریافت)
+  - USB host برای کیبورد/موس
+- **FreeRTOS** (Middleware) روی V307/V303، V203، X035، L103 و V103: جدول taskها، heap و tick. بدنه‌ی هر task یک بخش USER CODE است.
+- **تنظیمات حافظه** در Project Manager:
+  - اندازه‌ی stack و حداقل heap آزاد
+  - Flash/RAM واقعی تراشه؛ برنامه‌ای که جا نشود، موقع لینک با پیام روشن خطا می‌دهد.
+- **جدول NVIC** (Project Manager > NVIC): همه‌ی وقفه‌های فعال با اولویت preemption و sub.
+- **Undo / Redo** (Ctrl+Z / Ctrl+Y)، و دکمه‌ی **Fix** کنار تداخل پایه‌ها که تابع را به یک پایه‌ی آزاد با همان تابع منتقل می‌کند.
 
 #### بلوتوث LE و USB در CH5xx
 
@@ -429,17 +492,34 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 همین ابزار به‌صورت برنامه‌ی آفلاین (pywebview) هم وجود دارد و مستقیم در پوشه‌ی پروژه می‌نویسد. نوار ابزار شامل New، Open، Save / Save As (`.wchproj`)، Generate code، Example، Copy code، Save .c، VS Code project، Guide و About است. پنجره‌های سیستمی و میانبرهای کیبورد هم دارد.
 
 - **ویندوز ۱۰/۱۱ ۶۴ بیتی**: `WCH-Configurator.exe` (با Edge WebView2).
-- **لینوکس x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`، یک فایل اجرایی که Qt WebEngine داخلش است.
+- **لینوکس x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`، یک فایل اجرایی که Qt WebEngine داخلش است. یا نسخه‌ی کوچک `WCH-Configurator-linux-gtk.tar.gz` که از WebKitGTK خود سیستم استفاده می‌کند.
+- **macOS (Apple silicon)**: `WCH-Configurator-macos.zip`. امضای دیجیتال ندارد، پس بار اول راست‌کلیک کنید و Open را بزنید.
 
 دانلود از <https://github.com/zamanimahdi/WCH-Resources/releases/latest>.
 
 ### تست
+
+- **CI:** فایل `.github/workflows/ci.yml` با هر push و pull request مجموعه‌ای از پروژه‌ها را export می‌کند (حالت split و تک‌فایل) و روی لینوکس با تول‌چین MounRiver GCC12 بیلد می‌کند. با هر خطا یا هشدار در `src/` شکست می‌خورد.
+- **کیت تست سخت‌افزار:** `hwtest/` برای بردهای واقعی پروژه‌ی تست می‌سازد که روی UART نتیجه‌ی PASS/FAIL را چاپ می‌کند. راهنما: [hwtest/HARDWARE_TEST.md](hwtest/HARDWARE_TEST.md).
 
 پروژه‌های خروجی VS Code با `riscv-wch-elf-gcc` نسخه‌ی ۱۲ (MounRiver Studio) و EVTهای رسمی openwch بیلد شدند. در `src/` هیچ خطا و هشداری نبود. جدول کامل در بخش انگلیسی [Testing](#testing) آمده است.
 
 راه‌اندازی و بیلد از صفر روی ویندوز تست شد: CH32V003، CH32V203، CH32V307، CH585 و CH592. **هیچ‌کدام روی سخت‌افزار واقعی تست نشده‌اند.**
 
 ### محدودیت‌ها
+
+**موارد جدید این نسخه (روی سخت‌افزار تست نشده)**
+
+- **اضافه نشد:**
+  - **CH32H417**: EVT آن فقط پروژه‌ی دوهسته‌ای (V3F + V5F) دارد.
+  - **CH564**: EVT عمومی ندارد.
+  - **خروجی CH32F103**: EVT عمومی ندارد.
+- **درخت کلاک مدل نشده:** CH32V407/V467، CH569 و CH32X315 (فقط نمایش). این‌ها کلاک پیش‌فرض EVT را دارند.
+- **CH32V307:** درخت کلاک PLL2/PLL3 مدل نشده است. PHY اترنت 10M کریستال 8 MHz لازم دارد.
+- **FreeRTOS:** روی CH5xx نیست.
+- **پایه‌های remap:** پایه‌های remap تایمر ارائه نمی‌شوند.
+- **Central/Observer بلوتوث:** روی CH572 نیست، چون کتابخانه‌اش فقط peripheral است.
+- **رادیوی 2.4G:** با BLE هم‌زمان کار نمی‌کند.
 
 **کلی**
 

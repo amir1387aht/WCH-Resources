@@ -1,0 +1,13 @@
+{
+  "comment": "Boards for hwtest/make_hwtest.mjs. Each board starts from the configurator's own 'Load example' for the chip and package (LED, UART, ADC, PWM / TMR0 on real pins), keeps uart/adc/timer/gpio, and adds a 1 kHz timer interrupt. pins: {\"PA9\": \"USART1_TX\"} re-assigns pins like a click in the pinout view (use it to match your board's LED or USB-serial pins). irqTimer: CH32 timer for the interrupt test (default: a timer not used by the PWM). ch5xxPwm: PWMX channel the test itself sets up on CH5xx (the configurator has no CH5xx PWM option).",
+  "split": true,
+  "boards": [
+    {"name": "hwtest-ch32v003", "family": "ch32v", "variant": "CH32V003", "pkg": "TSSOP20", "irqTimer": "TIM1"},
+    {"name": "hwtest-ch32v203", "family": "ch32v", "variant": "CH32V203", "pkg": "LQFP48", "irqTimer": "TIM3"},
+    {"name": "hwtest-ch32v307", "family": "ch32v", "variant": "CH32V307", "pkg": "LQFP100", "irqTimer": "TIM3"},
+    {"name": "hwtest-ch32x035", "family": "ch32x", "variant": "CH32X035", "pkg": "LQFP48", "irqTimer": "TIM3"},
+    {"name": "hwtest-ch582", "family": "ch58x", "variant": "CH582", "pkg": "QFN48", "ch5xxPwm": {"ch": 4, "port": "A", "pin": 12}},
+    {"name": "hwtest-ch585", "family": "ch58x", "variant": "CH585", "pkg": "QFN48", "ch5xxPwm": {"ch": 4, "port": "A", "pin": 12}},
+    {"name": "hwtest-ch592", "family": "ch59x", "variant": "CH592", "pkg": "QFN32", "ch5xxPwm": {"ch": 4, "port": "A", "pin": 12}}
+  ]
+}

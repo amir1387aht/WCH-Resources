@@ -1,5 +1,5 @@
 """
-WCH Configurator - Desktop edition (Windows and Linux)
+WCH Configurator - Desktop edition (Windows, Linux and macOS)
 
 Original tool: WCH Configurator, made by Amir1387aht (Another)
 Source:        https://github.com/amir1387aht/WCH-Resources
@@ -10,7 +10,7 @@ file, so the desktop app always produces exactly the same output as the web
 tool. The shell only adds what a browser normally provides:
 
   * a native window (pywebview: Microsoft Edge WebView2 on Windows, Qt WebEngine or
-    WebKitGTK on Linux),
+    WebKitGTK on Linux, WKWebView on macOS),
   * a toolbar with icons: New / Open / Save / Save As project (.wchproj),
     Generate code, Example, Copy code, Save .c, VS Code project, Guide,
     Source / GitHub, About (with keyboard shortcuts),
@@ -39,13 +39,14 @@ import webbrowser
 import webview
 
 APP_NAME = "WCH Configurator"
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.5.0"
 AUTHOR = "Amir1387aht (Another)"
 AUTHOR_EMAIL = "amir1387aht@gmail.com"
 REPO_URL = "https://github.com/amir1387aht/WCH-Resources"
 AUTHOR_URL = "https://github.com/amir1387aht"
 PROJECT_TYPES = ("WCH Configurator project (*.wchproj)", "All files (*.*)")
 IS_WIN = sys.platform.startswith("win")
+IS_MAC = sys.platform == "darwin"
 
 
 def logo_data_uri(root):
@@ -89,7 +90,8 @@ def resource_dir():
 def _copy_to_clipboard(text):
     """Clipboard write (fallback when navigator.clipboard is unavailable)."""
     if not IS_WIN:
-        for cmd in (["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"]):
+        cmds = (["pbcopy"],) if IS_MAC else (["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"])
+        for cmd in cmds:
             try:
                 subprocess.run(cmd, input=(text or "").encode("utf-8"), check=True, timeout=5)
                 return True
@@ -560,7 +562,7 @@ INJECT_JS = r"""
     + '<p style="margin:0 0 4px">Source / GitHub: <a href="' + REPO + '" style="color:#7cc4ff">' + REPO + '</a></p>'
     + '<p style="margin:0 0 4px">Author: <a href="https://github.com/amir1387aht" style="color:#7cc4ff">github.com/amir1387aht</a>'
     + ' &middot; <a href="mailto:amir1387aht@gmail.com" style="color:#7cc4ff">amir1387aht@gmail.com</a></p>'
-    + '<p style="margin:0 0 4px;opacity:.8;font-size:12.5px">Desktop edition for Windows and Linux: zamanimahdi</p>'
+    + '<p style="margin:0 0 4px;opacity:.8;font-size:12.5px">Desktop edition for Windows, Linux and macOS: zamanimahdi</p>'
     + '<p style="margin:10px 0;opacity:.8;font-size:12.5px">Any usage of this work without crediting the author\'s name '
     + '(Amir1387aht) is forbidden. Runs fully offline; the generated code is produced locally by the same '
     + 'generator as the web version.</p>'
@@ -636,7 +638,7 @@ def main():
     api._window = window
     inject_js = INJECT_JS.replace("__LOGO__", logo_data_uri(root))
 
-    start_path = next((a for a in sys.argv[1:] if not a.startswith("--")), None)
+    start_path = next((a for a in sys.argv[1:] if not a.startswith("-")), None)
 
     def inject():
         window.evaluate_js(inject_js)
@@ -659,6 +661,9 @@ def main():
     if IS_WIN:
         storage = os.path.join(os.environ.get("LOCALAPPDATA", root), "WCH-Configurator")
         gui = "edgechromium"
+    elif IS_MAC:
+        storage = os.path.join(os.path.expanduser("~/Library/Application Support"), "WCH-Configurator")
+        gui = os.environ.get("WCH_GUI") or None   # pywebview uses Cocoa (WKWebView) on macOS
     else:
         storage = os.path.join(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")), "WCH-Configurator")
         gui = os.environ.get("WCH_GUI") or None   # pywebview picks Qt (bundled in the Linux build) or GTK
