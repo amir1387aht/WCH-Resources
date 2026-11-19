@@ -323,6 +323,12 @@
   .calc-row.bad b{color:var(--red);}
   .calc-note{margin-top:4px; font-size:10.5px; color:var(--text-faint);}
   .calc-note.bad{color:var(--red);}
+  .pm-elec{display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; padding:6px 11px 9px; border-top:1px solid var(--line); font-size:11.5px; color:var(--text-dim);}
+  .pm-elec label{display:flex; align-items:center; gap:5px; cursor:pointer;}
+  .pm-elec input[type=number]{width:62px; padding:3px 5px; font-size:11.5px;}
+  .pm-elec .ft{font-family:var(--mono); font-size:10px; padding:1px 6px; border-radius:8px; border:1px solid var(--line);}
+  .pm-elec .ft.yes{color:var(--teal); border-color:var(--teal-dim);}
+  .pm-elec .ft.no{color:var(--text-faint);}
   .nvic-panel{padding:10px; overflow:auto;}
   .nvic-panel table{border-collapse:collapse; width:100%; font-size:12px;}
   .nvic-panel th, .nvic-panel td{border-bottom:1px solid var(--line); padding:5px 8px; text-align:left;}
@@ -3461,6 +3467,7 @@ function projectData(generated){
     clock: state.clock || null, ble: state.ble || null, usb: state.usb || null, rf: state.rf || null, usbh: state.usbh || null,
     project: {name: projectName(), split: projectSplit(), mem: (state.project && state.project.mem) || {}},
     nvic: state.nvic || {},
+    pinElec: state.pinElec || {},
     generated: generated || [],
   };
 }
@@ -3496,6 +3503,7 @@ function projectLoad(text){
   state.project = {name: (p.project && p.project.name) || '', split: p.project ? !!p.project.split : false,
     mem: (p.project && p.project.mem && typeof p.project.mem === 'object') ? p.project.mem : {}};
   state.nvic = (p.nvic && typeof p.nvic === 'object') ? p.nvic : {};
+  state.pinElec = (p.pinElec && typeof p.pinElec === 'object') ? p.pinElec : {};
   state.editId = null;
   ['renderForm', 'drawChip', 'renderAll'].forEach(fn => { if(typeof window[fn] === 'function') window[fn](); });
   renderProjectSettings();
@@ -7303,7 +7311,7 @@ ${mod_isr(ctx, 'AWU_IRQHandler')}
     .concat(problems && !bleOn(ctx) ? problems(cs, ctx) : []);
 })();
 (function(){ const u = PERIPH_MODULES.find(x => x.tab === 'usbcdc'); if(u && typeof u.label === 'function' && !u.label.panel) u.label.panel = 'USB CDC (virtual COM)'; })();
-/* EXTRA MODULES BEGIN */
+/* INTEGRATED MODULES BEGIN */
 /* ---- periph-ch32 ---- */
 /* ======================= CH32 timer / ADC / CRC / RNG / flash-data modules (stdperiph) ======================= */
 /* Sources: openwch EVT examples TIM/Input_Capture, TIM/Synchro_Timer, TIM/TIM_DMA, ADC/ADC_DMA, ADC/Auto_Injection,
@@ -14025,6 +14033,1316 @@ void ${t}_IRQHandler(void)
     return probs;
   };
 })();
+/* INTEGRATED MODULES END */
+/* EXTRA MODULES BEGIN */
+/* ---- pinchecks ---- */
+/* datasheet data: 5 V tolerant pins, I/O current limits, debug/boot pins (official WCH datasheets, see each "source") */
+const PIN_ELEC_DATA = {"CH32V002":{"ft":{"*":[]},"ftNote":"No FT pins. Abs max VDD 5.5 V; input voltage on I/O pins VSS-0.3 .. VDD+0.3 V.","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":100,"iTotalSink_mA":200,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3","debug":[{"gpio":"PD1","func":"SWIO","note":"1-wire SDI (alternate table also lists SWDIO). SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). HSI must be on when 1-wire debug is used. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE) (RM: AFIO_PCFR1 SWCFG=100, SWD off, pin works as GPIO)."},{"gpio":"PD7","func":"RST","note":"External reset is an alternate function of PD7. When PD7 is used as reset pin its pull-up is on and pull-down off by default (datasheet 1.4 GPIO). RM (CH32V00X RM, user option RST_MODE): 11 = reset alternate function off, PD7 is I/O."}],"source":"CH32V002DS0 V1.7: Table 3-1 Absolute maximum ratings (p.23-24), Table 2-1 pin definitions; 3.3 I/O port characteristics (8 mA / 20 mA output conditions).","ioNote":"Datasheet: GPIO can sink or source up to +-8 mA (VOL/VOH guaranteed) and +-20 mA (VOL/VOH not guaranteed); total of all pins within abs max.","verified":true},"CH32V003":{"ft":{"*":["PC1","PC2","PC5","PC6"],"TSSOP20":["PC1","PC2","PC5","PC6"],"QFN20":["PC1","PC2","PC5","PC6"],"SOP16":["PC1","PC2","PC6"],"SOP8":["PC1","PC2"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. VDD range 2.7-5.5 V.","iPinMaxSink_mA":20,"iPinMaxSource_mA":20,"iTotalSource_mA":100,"iTotalSink_mA":80,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3 (FT: 5.5)","debug":[{"gpio":"PD1","func":"SWIO","note":"1-wire SDI on after reset; HSI must be on. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE) (RM: SWCFG=100 SWD off, GPIO)."},{"gpio":"PD7","func":"NRST","note":"NRST is an alternate function of PD7 (pin table main function PD7). RM user option RST_MODE[1:0]: 11 = reset function off, PD7 is I/O; 00/01/10 = reset on with 128 us/1 ms/12 ms ignore time."}],"source":"CH32V003DS0 V1.8: Table 2-1 pin definitions (p.13-14, I/O level FT), Table 3-1 Absolute maximum ratings (p.16-17).","ioNote":"GPIO +-8 mA guaranteed VOL/VOH, +-20 mA not guaranteed (Table 3-17).","verified":true},"CH32V004":{"ft":{"*":[]},"ftNote":"No FT pins. Abs max VDD 5.5 V; I/O pins VSS-0.3 .. VDD+0.3 V.","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":100,"iTotalSink_mA":200,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3","debug":[{"gpio":"PD1","func":"SWIO","note":"1-wire SDI (alternate table also lists SWDIO). SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). HSI must be on when 1-wire debug is used. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE) (RM: AFIO_PCFR1 SWCFG=100, SWD off, pin works as GPIO)."},{"gpio":"PD7","func":"RST","note":"Reset alternate function of PD7 (pull-up on, pull-down off when used as reset). PA4 and PD7 are shorted inside the chip (Note 3): never drive both as outputs; the configurator pin is PA4/PD7. RM: RST_MODE=11 makes PD7 an I/O."}],"source":"CH32V004DS0 V1.9: Table 3-1 Absolute maximum ratings (p.20-21), Table 2-1 pin definitions + Note 3.","ioNote":"GPIO +-8 mA guaranteed VOL/VOH, +-20 mA not guaranteed (datasheet 3.3.x).","verified":true},"CH32V005":{"ft":{"*":[]},"ftNote":"No FT pins. Abs max VDD 5.5 V; I/O VSS-0.3 .. VDD+0.3 V.","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":100,"iTotalSink_mA":200,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3","debug":[{"gpio":"PD1","func":"SWIO/SWDIO","note":"1-wire SDI is default (SWIO); 2-wire uses SWDIO=PD1 + SWCLK=PB3. SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). HSI must be on when 1-wire debug is used. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE) (RM: AFIO_PCFR1 SWCFG=100, SWD off, pin works as GPIO)."},{"gpio":"PB3","func":"SWCLK","note":"2-wire SDI clock. Freed with the same SDI disable."},{"gpio":"PD7","func":"RST","note":"Reset pin for most CH32V006/V005 parts (Note 5). Pull-up on, pull-down off when used as reset. RM: RST_MODE=11 makes the pin an I/O."},{"gpio":"PC5","func":"RST","note":"Reset pin only on CH32V006E8R6 and CH32V005E6R6 (QSOP24), Note 5."}],"source":"CH32V006DS0 V2.0 (CH32V006/005): Table 3-1 Absolute maximum ratings (p.35-36), pin definitions Note 5.","ioNote":"GPIO +-8 mA guaranteed VOL/VOH, +-20 mA not guaranteed.","verified":true},"CH32V006":{"ft":{"*":[]},"ftNote":"No FT pins. Abs max VDD 5.5 V; I/O VSS-0.3 .. VDD+0.3 V.","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":100,"iTotalSink_mA":200,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3","debug":[{"gpio":"PD1","func":"SWIO/SWDIO","note":"1-wire SDI is default (SWIO); 2-wire uses SWDIO=PD1 + SWCLK=PB3. SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). HSI must be on when 1-wire debug is used. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE) (RM: AFIO_PCFR1 SWCFG=100, SWD off, pin works as GPIO)."},{"gpio":"PB3","func":"SWCLK","note":"2-wire SDI clock. Freed with the same SDI disable."},{"gpio":"PD7","func":"RST","note":"Reset pin for most CH32V006/V005 parts (Note 5). Pull-up on, pull-down off when used as reset. RM: RST_MODE=11 makes the pin an I/O."},{"gpio":"PA7","func":"RST","note":"Reset pin only on CH32V006K8U7 (QFN32), Note 5."},{"gpio":"PC5","func":"RST","note":"Reset pin only on CH32V006E8R6 and CH32V005E6R6 (QSOP24), Note 5."}],"source":"CH32V006DS0 V2.0: Table 3-1 Absolute maximum ratings (p.35-36), pin definitions Note 5.","ioNote":"GPIO +-8 mA guaranteed VOL/VOH, +-20 mA not guaranteed.","verified":true},"CH32V007":{"ft":{"*":[]},"ftNote":"No FT pins. Abs max VDD 5.5 V; I/O VSS-0.3 .. VDD+0.3 V.","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":100,"iTotalSink_mA":200,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3","debug":[{"gpio":"PD1","func":"SWIO/SWDIO","note":"1-wire SDI default (SWIO); 2-wire SWDIO=PD1 + SWCLK=PB3. SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). HSI must be on when 1-wire debug is used. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE) (RM: AFIO_PCFR1 SWCFG=100, SWD off, pin works as GPIO)."},{"gpio":"PB3","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PC5","func":"RST","note":"Reset alternate function of PC5; pull-up on, pull-down off when used as reset (datasheet GPIO section). RM: RST_MODE=11 makes the pin an I/O."}],"source":"CH32V007DS0 V1.8 (CH32V007/M007): Table 3-1 Absolute maximum ratings (p.38-40).","ioNote":"GPIO +-8 mA guaranteed VOL/VOH, +-20 mA not guaranteed.","verified":true},"CH32M007":{"ft":{"*":[]},"ftNote":"No FT pins. I/O VSS-0.3 .. VDD+0.3 V (VDD is the internal regulator output on CH32M007).","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":null,"iTotalSink_mA":200,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3","supplyNote":"IVDD 100 mA is listed only for CH32V007. For CH32M007: VHV pin continuous input current 50 mA; VCC12V pin continuous input current 50 mA (K8U7, G8R6); VB diode 100 mA pulse (1% duty) / 10 mA continuous.","debug":[{"gpio":"PD1","func":"SWIO/SWDIO","note":"1-wire SDI default (SWIO); 2-wire SWDIO=PD1 + SWCLK=PB3. SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). HSI must be on when 1-wire debug is used. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE) (RM: AFIO_PCFR1 SWCFG=100, SWD off, pin works as GPIO)."},{"gpio":"PB3","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PC5","func":"RST","note":"Reset alternate function of PC5; pull-up on, pull-down off when used as reset (datasheet GPIO section). RM: RST_MODE=11 makes the pin an I/O."}],"source":"CH32V007DS0 V1.8 (CH32V007/M007): Table 3-1 Absolute maximum ratings (p.38-40).","ioNote":"GPIO +-8 mA guaranteed VOL/VOH, +-20 mA not guaranteed.","verified":true},"CH32M030":{"ft":{"*":[]},"ftNote":"No FT pins. Common I/O VSS-0.3 .. VDD33+0.3 V (VDD33 max 3.8 V). High-voltage pins: PC5 up to VHV+7 V, PB7 (HV open-drain) up to 40 V, CCx up to 28 V; these are HV pins, not FT.","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":60,"iTotalSink_mA":200,"groups":[{"pins":["PC5","PB7"],"max_mA":5,"note":"HV high-voltage I/O pins: sink or source +-5 mA."},{"pins":["PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15"],"max_mA":80,"note":"MV pre-drive I/O pins (supplied by VDD8): sink or source +-80 mA. PB9/PB11/PB13/PB15 are push-pull outputs only (no input)."}],"driveModes":null,"vddMax_V":3.8,"vinMax":"VDD33+0.3","supplyNote":"iTotalSource_mA is IVHV (continuous input current of all VHV pins, 60 mA); iTotalSink_mA is IGND (200 mA). VHV abs max 30 V, VDD8 12 V, VDD33 3.8 V.","debug":[{"gpio":"PA3","func":"SWIO/SWDIO","note":"1-wire SDI default (SWIO); 2-wire SWDIO=PA3 + SWCLK=PA2. Debug pins are on after reset and can be turned off after the main program runs. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE)."},{"gpio":"PA2","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PA15","func":"RST","note":"Reset pin when user word bit RST_PIN_SEL=1 (Note 4). RM: RST_MODE=11 (default) = reset alternate function off, pin is I/O."},{"gpio":"PC0","func":"RST","note":"Reset pin when user word bit RST_PIN_SEL=0 (Note 4)."}],"source":"CH32M030DS0 V1.2: Table 3-1 Absolute maximum ratings (p.29-30), pin definitions Note 4, 1.4 GPIO description.","verified":true},"CH32V103":{"ft":{"*":[]},"ftNote":"No FT column: VDD is 2.7-5.5 V and the abs max input voltage on all pins is VSS-0.3 .. 5.5 V.","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":50,"iTotalSink_mA":50,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"5.5","debug":[{"gpio":"PA13","func":"SWDIO","note":"Note 5: pin is SWDIO after reset; software can switch it to PA13. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE)."},{"gpio":"PA14","func":"SWCLK","note":"Note 5: SWCLK after reset; software can switch it to PA14."},{"gpio":"PB2","func":"BOOT1","note":"PB2/BOOT1: sampled at reset for the boot mode, GPIO afterwards."}],"pinsNote":"BOOT0 and NRST are dedicated pins (not GPIO).","source":"CH32V103DS0 V1.2: Table 3-1 Absolute maximum ratings (p.21), Table 2-1 pin definitions + Note 5.","ioNote":"Abs max table writes \"Input current -25 / Output current 25\" mA per pin.","verified":true},"CH32V203":{"ft":{"*":["PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD2"],"TSSOP20 (CH32V203F6P6)":["BOOT0/PB8","PA11","PA12","PA13","PA14"],"TSSOP20 (CH32V203F8P6)":["PB6/PA13","PB7/PA14","PB13","PB14","PB15","PA8","PA9","PA10"],"QFN20":["PB10","PB11","PB14","PB15","PA8","PA9","PA13/PA12","PA14/PA11","PA10"],"QFN28":["BOOT0/PB8","PA9","PA10/PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7"],"QSOP28":["PA14/PB5","PB6","PB7","PB8","PB10","PB11","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA13/PA12"],"LQFP32":["PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0/PB8"],"QFN32":["PB2","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","BOOT0/PB9","PB8"],"LQFP48":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","PB8","PB9"],"QFN48X7":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","PB8","PB9"],"LQFP64M (CH32V203RBT6)":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","PB8","PB9"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. PD0/PD1 (OSC_IN/OSC_OUT) and PB1 are not FT. QSOP28 pin 20 (PB1/PB12 bonded): the table lists PB1 once with \"-\" and once with \"FT\"; left out (PB1 is not FT). BOOT0-bonded PB8/PB9 are marked FT in the V203 tables (compare CH32L103 which says they lose 5V tolerance). Shorted pins in 20/28-pin packages must not both be outputs (Note 7).","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":150,"iTotalSink_mA":150,"groups":[{"pins":["PC13","PC14","PC15"],"max_mA":3,"note":"Powered through the backup power switch (3 mA): only one of them as output at a time, 2 MHz max, 30 pF, not as current source (Note 2)."}],"driveModes":null,"vddMax_V":4.0,"vinMax":"VDD+0.3 (FT: 5.5)","debug":[{"gpio":"PA13","func":"SWDIO","note":"SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE) (RM: SWCFG=100, SWD off, pins work as GPIO). After that the chip can only be reprogrammed by a power-on/reset entry into the debugger or bootloader."},{"gpio":"PA14","func":"SWCLK","note":"2-wire SDI clock, freed together with SWDIO."},{"gpio":"PB2","func":"BOOT1","note":"PB2/BOOT1 (only some packages). Note 5: if not bonded out it floats; use pull-down input in low power."},{"gpio":"PB8","func":"BOOT0 (bonded)","note":"TSSOP20 (F6P6), QFN28, LQFP32: BOOT0 shares the pin with PB8 (QFN32: PB9). Note 6: 4.7k pull-down so BOOT0 is low at power-up; PB8/PB9 may be used as output afterwards."}],"source":"CH32V203DS0 V3.0: Tables 3-1-1..3-1-4 pin definitions (p.24-35, I/O level FT) + Notes 2-7, Table 4-1 Absolute maximum ratings (p.38-39).","verified":true},"CH32V303":{"ft":{"*":["PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PE0","PE1","PE2","PE3","PE4","PE5","PE6","PE7","PE8","PE9","PE10","PE11","PE12","PE13","PE14","PE15"],"LQFP100":["PE2","PE3","PE4","PE5","PE6","PB2","PE7","PE8","PE9","PE10","PE11","PE12","PE13","PE14","PE15","PB10","PB11","PB12","PB13","PB14","PB15","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PE0","PE1"],"LQFP64M":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","PB8","PB9"],"LQFP48":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","PB8","PB9"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. PD0/PD1 are FT only in LQFP100 (own pins); in the other packages they are OSC_IN/OSC_OUT (I/A, O/A, not FT). FT input high level max 5.0 V (I/O static characteristics). Other pins: VSS-0.3 .. VIO+0.3 V; USB/Ethernet PHY pins VDD+0.3 V.","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":150,"iTotalSink_mA":150,"groups":[{"pins":["PC13","PC14","PC15"],"max_mA":3,"note":"Backup power switch 3 mA: 2 MHz only, 30 pF, not as current source (Note 2)."}],"driveModes":null,"vddMax_V":4.0,"vinMax":"VIO+0.3 (FT: 5.5)","debug":[{"gpio":"PA13","func":"SWDIO","note":"SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE) (RM: SWCFG=100, SWD off, pins work as GPIO). After that the chip can only be reprogrammed by a power-on/reset entry into the debugger or bootloader."},{"gpio":"PA14","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PB2","func":"BOOT1","note":"PB2/BOOT1 boot-mode pin (Note 5)."}],"pinsNote":"BOOT0 and NRST are dedicated pins.","source":"CH32V307DS0 V3.9 (CH32V303/305/307/317): Table 3-1 pin definitions (p.33-45, I/O level FT) + Notes 2-17, Table 4-1 Absolute maximum ratings (p.58-59).","verified":true},"CH32V307":{"ft":{"*":["PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PE0","PE1","PE2","PE3","PE4","PE5","PE6","PE7","PE8","PE9","PE10","PE11","PE12","PE13","PE14","PE15"],"LQFP100":["PE2","PE3","PE4","PE5","PE6","PB2","PE7","PE8","PE9","PE10","PE11","PE12","PE13","PE14","PE15","PB10","PB11","PB12","PB13","PB14","PB15","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PE0","PE1"],"LQFP64M":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","PB8","PB9"],"QFN68":["PB2","PB10","PB11","PD8","PD9","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PC10","PC11","PC12","PD2","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PE0"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. PD0/PD1 are FT only in LQFP100 (own pins); in the other packages they are OSC_IN/OSC_OUT (I/A, O/A, not FT). FT input high level max 5.0 V (I/O static characteristics). Other pins: VSS-0.3 .. VIO+0.3 V; USB/Ethernet PHY pins VDD+0.3 V.","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":150,"iTotalSink_mA":150,"groups":[{"pins":["PC13","PC14","PC15"],"max_mA":3,"note":"Backup power switch 3 mA: 2 MHz only, 30 pF, not as current source (Note 2)."}],"driveModes":null,"vddMax_V":4.0,"vinMax":"VIO+0.3 (FT: 5.5)","debug":[{"gpio":"PA13","func":"SWDIO","note":"SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE) (RM: SWCFG=100, SWD off, pins work as GPIO). After that the chip can only be reprogrammed by a power-on/reset entry into the debugger or bootloader."},{"gpio":"PA14","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PB2","func":"BOOT1","note":"PB2/BOOT1 boot-mode pin (Note 5)."}],"pinsNote":"BOOT0 and NRST are dedicated pins.","source":"CH32V307DS0 V3.9 (CH32V303/305/307/317): Table 3-1 pin definitions (p.33-45, I/O level FT) + Notes 2-17, Table 4-1 Absolute maximum ratings (p.58-59).","verified":true},"CH32V407":{"ft":{"*":["PA8","PA9","PA10","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD2","PD3","PD4","PD5","PD6","PD7","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PE0","PE1","PE2","PE3","PE4","PE5","PE6","PE7","PE8","PE9","PE10","PE11","PE12"],"LQFP100":["PA8","PA9","PA10","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PE0","PE1","PE2","PE3","PE4","PE5","PE6","PE7","PE8","PE9","PE10","PE11","PE12"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. Not FT: PA0-PA7, PA11, PA12 (USB), PB0, PB1, PB6, PB7 (USBHS), PC0-PC5, PC13-PC15. Note 4: PD0/PD1 are FT only on VET6 (LQFP100); on WEU6/RET6/KEU6 they are remapped OSC pins and not FT. USB 2.0/Ethernet PHY pins VDD+0.3 V. Package keys other than \"*\" use the datasheet package name (no PINOUTS entry in base.html yet).","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":250,"iTotalSink_mA":250,"groups":[{"pins":["PC13","PC14","PC15"],"max_mA":3,"note":"Backup power switch 3 mA: below 2 MHz, 30 pF, not as current source (Note 2)."}],"driveModes":null,"vddMax_V":4.0,"vinMax":"VDD+0.3 (FT: 5.5)","debug":[{"gpio":"PA13","func":"SWDIO/SWIO","note":"1-wire SDI default (SWIO); 2-wire SWDIO + SWCLK. Debug pins on after reset, SDI can be disabled after the program runs. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE)."},{"gpio":"PA14","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PE12","func":"BOOT0","note":"BOOT0/PE12 (Note 5): pull-down so BOOT0 is low at power-up; PE12 may be used as output afterwards. Shorted to VSS inside if not bonded out."},{"gpio":"PB2","func":"BOOT1","note":"BOOT1/PB2 (Note 5)."}],"pinsNote":"NRST is a dedicated pin.","source":"CH32V407DS0 V1.4 (CH32V407/V467): Tables 2-1-x pin definitions (p.31-44, I/O level FT) + Notes 2-5, Table 3-1 Absolute maximum ratings (p.62-63).","verified":true},"CH32V467":{"ft":{"*":["PA8","PA9","PA10","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD2","PD3","PD4","PD5","PD6","PD7","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PE0","PE1","PE2","PE3","PE4","PE5","PE6","PE7","PE8","PE9","PE10","PE11","PE12"],"LQFP100":["PA8","PA9","PA10","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PE0","PE1","PE2","PE3","PE4","PE5","PE6","PE7","PE8","PE9","PE10","PE11","PE12"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. Not FT: PA0-PA7, PA11, PA12 (USB), PB0, PB1, PB6, PB7 (USBHS), PC0-PC5, PC13-PC15. Note 4: PD0/PD1 are FT only on VET6 (LQFP100); on WEU6/RET6/KEU6 they are remapped OSC pins and not FT. USB 2.0/Ethernet PHY pins VDD+0.3 V. Package keys other than \"*\" use the datasheet package name (no PINOUTS entry in base.html yet).","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":250,"iTotalSink_mA":250,"groups":[{"pins":["PC13","PC14","PC15"],"max_mA":3,"note":"Backup power switch 3 mA: below 2 MHz, 30 pF, not as current source (Note 2)."}],"driveModes":null,"vddMax_V":4.0,"vinMax":"VDD+0.3 (FT: 5.5)","debug":[{"gpio":"PA13","func":"SWDIO/SWIO","note":"1-wire SDI default (SWIO); 2-wire SWDIO + SWCLK. Debug pins on after reset, SDI can be disabled after the program runs. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE)."},{"gpio":"PA14","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PE12","func":"BOOT0","note":"BOOT0/PE12 (Note 5): pull-down so BOOT0 is low at power-up; PE12 may be used as output afterwards. Shorted to VSS inside if not bonded out."},{"gpio":"PB2","func":"BOOT1","note":"BOOT1/PB2 (Note 5)."}],"pinsNote":"NRST is a dedicated pin.","source":"CH32V407DS0 V1.4 (CH32V407/V467): Tables 2-1-x pin definitions (p.31-44, I/O level FT) + Notes 2-5, Table 3-1 Absolute maximum ratings (p.62-63).","verified":true},"CH32X035":{"ft":{"*":[]},"ftNote":"No FT pins. I/O VSS-0.3 .. VDD+0.3 V; VDD abs max 6.0 V (operating 2.0-5.5 V).","iPinMaxSink_mA":40,"iPinMaxSource_mA":30,"iTotalSource_mA":150,"iTotalSink_mA":200,"groups":[],"driveModes":null,"vddMax_V":6.0,"vinMax":"VDD+0.3","debug":[{"gpio":"PC18","func":"DIO (SWDIO)","note":"2-wire SDI on after reset, can be turned off after the program runs. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE)."},{"gpio":"PC19","func":"DCK (SWCLK)","note":"2-wire SDI clock."},{"gpio":"PA21","func":"RST","note":"RST alternate function on PA21 (packages that have PA21)."},{"gpio":"PC3","func":"RST","note":"RST on PC3 only for CH32X035 in QSOP28 and TSSOP20 (alternate table note 2)."},{"gpio":"PC17","func":"BOOT detect","note":"Note 8: PC17 high at power-up enters the BOOT area."}],"source":"CH32X035DS0 V2.3: Table 3-1 Absolute maximum ratings (p.25), pin definitions Notes 7-10, Table 2-2 notes 2-3.","verified":true},"CH32X315":{"ft":{"*":["PA13","PA14","PA15","PB12","PB13","PB14","PB15","PD2","PD3"],"QFN76":["PD2","PA13","PA14","PA15","PB12","PB13","PB14","PB15","PD3"],"QFN68":["PA13","PA14","PA15","PD3"],"QFN48":["PD2","PA13","PA14","PA15","PD3"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. VDD abs max 4.0 V. USB2.0/USB3.0 pins: VDD+0.3 / VDDK+0.3.","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":250,"iTotalSink_mA":250,"groups":[],"driveModes":null,"vddMax_V":4.0,"vinMax":"VDD+0.3 (FT: 5.5)","debug":[{"gpio":"PA13","func":"SWDIO/SWIO","note":"1-wire SDI default (SWIO); 2-wire SWDIO + SWCLK. Debug pins on after reset, SDI can be disabled after the program runs. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE)."},{"gpio":"PA14","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PD2","func":"NRST","note":"Table 2-2-12: NRST optional pin PD2 (FT). Enabling is not described in the datasheet; see RM."}],"source":"CH32X315DS0 V1.2: Table 2-1-x pin definitions (p.19-25, I/O level FT), Tables 2-2-9/2-2-12, Table 3-1 Absolute maximum ratings (p.33-34).","verified":true},"CH32L103":{"ft":{"*":["PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB2","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15"],"TSSOP20":["PA11","PA12","PA13/PB6","PA14/PB7"],"QFN20":["PB11","PB6/PB13","PB14","PB15","PA8","PA9","PA14/PA12","PA13/PA11","PA10/PB7"],"QSOP28":["PA14/PB5","PB6","PB7","PB3","PB8","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA13/PA12"],"QFN32":["PB2","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","PB8"],"LQFP48":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB5","PB6","PB7","PB8","PB9"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. Not FT: PA0-PA7, PB0, PB1, PC13-PC15, PD0, PD1. Package rules from Notes 6-8: K8U (QFN32) BOOT0+PB9 shorted -> PB9 not 5V tolerant; F8P6 (TSSOP20) BOOT0+PB8 -> PB8 not 5V tolerant; G8R6 (QSOP28) and F8U6 (QFN20) PB1+PB10 shorted -> PB10 not 5V tolerant. Shorted pin pairs must not both be outputs.","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":150,"iTotalSink_mA":150,"groups":[{"pins":["PC13","PC14","PC15"],"max_mA":3,"note":"Backup power switch 3 mA: 2 MHz only, 30 pF, not as current source (Note 2)."}],"driveModes":null,"vddMax_V":4.0,"vinMax":"VDD+0.3 (FT: 5.5)","supplyNote":"Abs max also lists IDD 30 mA load current of the internal regulator (heat dissipation) and IAVVHV 50 mA (CH32M103 VHV).","debug":[{"gpio":"PA13","func":"SWDIO","note":"SDI pin function is on after power-on/reset and can be turned off after the main program runs (datasheet). EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE) (RM: SWCFG=100, SWD off, pins work as GPIO). After that the chip can only be reprogrammed by a power-on/reset entry into the debugger or bootloader."},{"gpio":"PA14","func":"SWCLK","note":"2-wire SDI clock."},{"gpio":"PB2","func":"BOOT1","note":"PB2/BOOT1 (Note 5): floating if not bonded out, use pull-down input in low power."},{"gpio":"PB9","func":"BOOT0 (bonded, QFN32 K8U)","note":"Note 6: BOOT0+PB9 shorted, PB9 not 5V tolerant; 4.7k pull-down; output use after boot."},{"gpio":"PB8","func":"BOOT0 (bonded, TSSOP20 F8P6)","note":"Note 6: BOOT0+PB8 shorted, PB8 not 5V tolerant; 4.7k pull-down; output use after boot."}],"source":"CH32L103DS0 V2.1: Table 2-1-x pin definitions (p.22-31, I/O level FT) + Notes 1-9, Table 3-1 Absolute maximum ratings (p.37-39).","verified":true},"CH32F103":{"ft":{"*":[]},"ftNote":"No FT column: VDD 2.7-5.5 V; abs max input voltage on pins VSS-0.3 .. 5.5 V.","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":50,"iTotalSink_mA":50,"groups":[],"driveModes":null,"vddMax_V":5.5,"vinMax":"5.5","debug":[{"gpio":"PA13","func":"SWDIO","note":"ARM SW-DP. The datasheet does not describe disabling; StdPeriph uses GPIO_Remap_SWJ_Disable (not checked against the F103 EVT here)."},{"gpio":"PA14","func":"SWCLK","note":"SW-DP clock."},{"gpio":"PB2","func":"BOOT1","note":"PB2/BOOT1 boot-mode pin, GPIO after reset."}],"pinsNote":"BOOT0 and NRST are dedicated pins.","source":"CH32F103DS0 V1.32: Table 3-1 Absolute maximum ratings (p.20-21), Table 2-1 pin definitions.","verified":true},"CH32F203":{"ft":{"*":["PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB2","PB3","PB4","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PD0","PD1","PD2","PD3","PD4","PD5","PD6","PD7","PD8","PD9","PD10","PD11","PD12","PD13","PD14","PD15","PE0","PE1","PE2","PE3","PE4","PE5","PE6","PE7","PE8","PE9","PE10","PE11","PE12","PE13","PE14","PE15"],"LQFP48":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB6","PB7","PB8","PB9"],"QFN48X7":["PB2","PB10","PB11","PB12","PB13","PB14","PB15","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB6","PB7","PB8","PB9"],"LQFP32":["PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PB3","PB4","PB6","PB7","PB8/BOOT0"]},"ftNote":"FT = 5V tolerant (pin-table I/O level column). Abs max: input voltage on FT pins VSS-0.3 .. 5.5 V; other pins VSS-0.3 .. VDD+0.3 V. The datasheet states no further condition (analog mode, pull-up) for FT. PB5 is not FT. PD0/PD1 are FT only as own pins (LQFP100); in LQFP48/QFN48/LQFP32 they are OSC_IN/OSC_OUT (not FT). LQFP32 PB8/BOOT0 is marked FT in the table.","iPinMaxSink_mA":25,"iPinMaxSource_mA":25,"iTotalSource_mA":150,"iTotalSink_mA":150,"groups":[{"pins":["PC13","PC14","PC15"],"max_mA":3,"note":"Backup power switch 3 mA: one output at a time, 2 MHz, 30 pF, not as current source."}],"driveModes":null,"vddMax_V":4.0,"vinMax":"VDD+0.3 (FT: 5.5)","debug":[{"gpio":"PA13","func":"SWDIO","note":"ARM SW-DP, on after reset (2.5.20). The datasheet does not describe disabling; StdPeriph uses GPIO_Remap_SWJ_Disable (not checked against the F20x EVT here)."},{"gpio":"PA14","func":"SWCLK","note":"SW-DP clock."},{"gpio":"PB2","func":"BOOT1","note":"PB2/BOOT1 boot-mode pin."},{"gpio":"PB8","func":"BOOT0 (bonded, LQFP32)","note":"Note 6: BOOT0 and PB8 shorted: 500k pull-down to boot from flash; afterwards use only the output function of PB8."}],"source":"CH32F20xDS0 V2.3: Tables 3-2/3-3 pin definitions (p.33-39, I/O level FT) + Notes, Table 4-1 Absolute maximum ratings (p.49-50).","verified":true},"CH641":{"ft":{"*":[]},"ftNote":"No FT pins. HV pins PB2H..PB5H (configurator PB2..PB5) accept VSS-0.3 .. VHV+0.3 V (VHV max 14 V); other pins VSS-0.3 .. VDD+0.3 V.","iPinMaxSink_mA":30,"iPinMaxSource_mA":30,"iTotalSource_mA":200,"iTotalSink_mA":200,"groups":[{"pins":["PB2","PB3","PB4","PB5","PA2","PA3","PA4","PA5","PA9"],"max_mA":70,"note":"HV drive pins (PB2H-PB5H) and LV strong-drive pins (PA2, PA3, PA4, PA5, PA9): sink or source +-70 mA. PB8 as GPIO: input or open-drain only."}],"driveModes":null,"vddMax_V":5.5,"vinMax":"VDD+0.3 (HV pins: VHV+0.3)","supplyNote":"iTotalSource_mA = IVHV total supply current 200 mA; iTotalSink_mA = IGND 200 mA. VHV abs max 14 V; VDD operating 3.5-5.5 V.","debug":[{"gpio":"PB0","func":"SWIO","note":"1-wire SDI on after reset, can be turned off after the program runs. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SDI_Disable, ENABLE)."},{"gpio":"PA6","func":"RST","note":"RST is an alternate function of PA6 (pin table). The datasheet does not say how it is switched; see the RM user option."}],"source":"CH641DS0 V1.7: Table 3-1 Absolute maximum ratings (p.22-23), 1.4.19 GPIO, pin definitions.","verified":true},"CH643":{"ft":{"*":[]},"ftNote":"No FT pins. I/O VSS-0.3 .. VDD+0.3 V; VDD abs max 6.0 V (operating 2.0-5.5 V).","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSource_mA":null,"iTotalSink_mA":null,"totalByPkg":{"QFN80":{"source":750,"sink":1800,"model":"CH643W"},"LQFP64":{"source":550,"sink":1100,"model":"CH643Q"},"LQFP48":{"source":550,"sink":1100,"model":"CH643L"},"QSOP28":{"source":350,"sink":600,"model":"CH643U"}},"groups":[{"pins":["PA0","PA1","PA2","PA3","PA4","PA5","PA6","PA7","PA8","PA9","PA10","PA11","PA12","PA13","PA14","PA15","PA16","PA17","PA18","PA19","PA20","PA21","PA22","PA23"],"max_mA":100,"note":"PA: sink 100 mA, source 60 mA per pin.","sink_mA":100,"source_mA":60},{"pins":["PB0","PB1","PB2","PB3","PB4","PB5","PB6","PB7","PB8","PB9","PB10","PB11","PB12","PB13","PB14","PB15","PB16","PB17","PB18","PB19","PB20","PB21","PB22","PB23"],"max_mA":100,"note":"PB: sink 100 mA (400 mA at duty <= 1/8), source 30 mA per pin.","sink_mA":100,"source_mA":30,"sinkPulse_mA":400},{"pins":["PC0","PC1","PC2","PC3","PC4","PC5","PC6","PC7","PC8","PC9","PC10","PC11","PC12","PC13","PC14","PC15","PC16","PC17","PC18","PC19","PC20"],"max_mA":40,"note":"PC: sink 40 mA, source 30 mA per pin.","sink_mA":40,"source_mA":30}],"driveModes":null,"vddMax_V":6.0,"vinMax":"VDD+0.3","supplyNote":"Per-pin limits are per port (see groups). IVDD/IGND depend on the package (totalByPkg). Max power 700/1000/1000/2000 mW (U/L/Q/W).","debug":[{"gpio":"PC18","func":"DIO (SWDIO)","note":"2-wire SDI on after reset, can be turned off after the program runs. EVT API: GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE). Shorted with PB12 on CH643L/CH643U (Note 6)."},{"gpio":"PC19","func":"DCK (SWCLK)","note":"Shorted with PB20 on CH643L, with PB14 on CH643U (Note 7)."},{"gpio":"PC20","func":"RST","note":"RST is an alternate function of PC20 (pin table). How to enable it is not stated in the datasheet."},{"gpio":"PC17","func":"BOOT detect","note":"Note 9: PC17 is the BOOT detection pin; high at power-up enters the BOOT area. Keep it low at power-up if used as GPIO."}],"source":"CH643DS0 V1.4: Table 3-1 Absolute maximum ratings (p.25-26), pin definitions Notes 4-9.","verified":true},"CH570":{"ft":{"*":["PA9"],"QFN20":["PA9"],"DFN10X3":[],"SOP8":[]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.5 V max / VOH VIO33-0.5 V min at 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents). V5 (LDO5V input) abs max 5.5 V.","vddMax_V":4.0,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PA0","func":"SWDIO","note":"Note 3: debug interface on after power-on/reset; while enabled PA0/PA1 are only SWDIO/SWCLK. Firmware can turn it off with RB_PIN_DEBUG_EN = 0 (R16_PIN_ALTERNATE bit 14, reset value 1); then PA0/PA1 are GPIO."},{"gpio":"PA1","func":"SWCLK","note":"Same as PA0."},{"gpio":"PA8","func":"RST","note":"External reset (active low, pull-up). User config CFG_RESET_EN enables it (default 0); CFG_RST_PIN_EN selects the pin: 0 = PA8 (default), 1 = PA7."},{"gpio":"PA7","func":"RST (alt)","note":"Reset pin when CFG_RST_PIN_EN = 1."}],"source":"CH572DS1 V1.1 (CH572/CH570): Table 1-1 / 1-2 pin definitions (p.6, p.9, 5VT) + Note 3, user configuration Table, R16_PIN_ALTERNATE, Table 19-1 Absolute maximum ratings (p.144-145).","verified":true},"CH571":{"ft":{"*":["PB12","PB13","PB14","PB15"],"QFN28":["PB15","PB14","PB13","PB12"],"QFN20":[],"ESSOP10":[]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.4 V max / VOH VIO33-0.4 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.2,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 2-wire debug is configured by the ISP tool (user config CFG_DEBUG_EN, default 1). While enabled PB15/PB14 are only TCK/TIO, not GPIO or peripheral pins; after the debug interface is disabled they work as GPIO. Debug works only with CFG_DEBUG_EN=1, CFG_RESET_EN=0, CFG_ROM_READ=1."},{"gpio":"PB14","func":"TIO","note":"Debug data, built-in pull-up. Same rule as PB15."},{"gpio":"PB23","func":"RST#","note":"External reset input (active low, pull-up), enabled by user config CFG_RESET_EN (default 0, set with the ISP tool). When enabled it has the highest priority on PB23; otherwise PB23 is GPIO."}],"source":"CH573DS1 V1.12 (CH573/CH571): pin definitions (p.4-5, 5VT), Table 2-3 user configuration, 7.x GPIO registers (R32_Px_PD_DRV), Table 20-1 Absolute maximum ratings (p.112-113).","verified":true},"CH572":{"ft":{"*":["PA9"],"QFN20":["PA9"],"DFN10X3":[],"TSSOP16":["PA9"]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.5 V max / VOH VIO33-0.5 V min at 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents). V5 (LDO5V input) abs max 5.5 V.","vddMax_V":4.0,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PA0","func":"SWDIO","note":"Note 3: debug interface on after power-on/reset; while enabled PA0/PA1 are only SWDIO/SWCLK. Firmware can turn it off with RB_PIN_DEBUG_EN = 0 (R16_PIN_ALTERNATE bit 14, reset value 1); then PA0/PA1 are GPIO."},{"gpio":"PA1","func":"SWCLK","note":"Same as PA0."},{"gpio":"PA8","func":"RST","note":"External reset (active low, pull-up). User config CFG_RESET_EN enables it (default 0); CFG_RST_PIN_EN selects the pin: 0 = PA8 (default), 1 = PA7."},{"gpio":"PA7","func":"RST (alt)","note":"Reset pin when CFG_RST_PIN_EN = 1."}],"source":"CH572DS1 V1.1 (CH572/CH570): Table 1-1 / 1-2 pin definitions (p.6, p.9, 5VT) + Note 3, user configuration Table, R16_PIN_ALTERNATE, Table 19-1 Absolute maximum ratings (p.144-145).","verified":true},"CH573":{"ft":{"*":["PB12","PB13","PB14","PB15"],"QFN32":["PB15","PB14","PB13","PB12"],"QFN28":["PB15","PB14","PB13","PB12"],"LQFP32":["PB15","PB14","PB13","PB12"]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.4 V max / VOH VIO33-0.4 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.2,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 2-wire debug is configured by the ISP tool (user config CFG_DEBUG_EN, default 1). While enabled PB15/PB14 are only TCK/TIO, not GPIO or peripheral pins; after the debug interface is disabled they work as GPIO. Debug works only with CFG_DEBUG_EN=1, CFG_RESET_EN=0, CFG_ROM_READ=1."},{"gpio":"PB14","func":"TIO","note":"Debug data, built-in pull-up. Same rule as PB15."},{"gpio":"PB23","func":"RST#","note":"External reset input (active low, pull-up), enabled by user config CFG_RESET_EN (default 0, set with the ISP tool). When enabled it has the highest priority on PB23; otherwise PB23 is GPIO."}],"source":"CH573DS1 V1.12 (CH573/CH571): pin definitions (p.4-5, 5VT), Table 2-3 user configuration, 7.x GPIO registers (R32_Px_PD_DRV), Table 20-1 Absolute maximum ratings (p.112-113).","verified":true},"CH581":{"ft":{"*":["PB14","PB15"],"QFN28":["PB15","PB14"]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated. Only PB14/PB15 are 5VT (feature list: 2 GPIOs support 5 V input); PB12/PB13 are USB2 pins, not 5VT.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.4 V max / VOH VIO33-0.4 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.2,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 2-wire debug is configured by the ISP tool (user config CFG_DEBUG_EN, default 1). While enabled PB15/PB14 are only TCK/TIO, not GPIO or peripheral pins; after the debug interface is disabled they work as GPIO. Debug works only with CFG_DEBUG_EN=1, CFG_RESET_EN=0, CFG_ROM_READ=1."},{"gpio":"PB14","func":"TIO","note":"Debug data, built-in pull-up. Same rule as PB15."},{"gpio":"PB23","func":"RST#","note":"External reset input (active low, pull-up), enabled by user config CFG_RESET_EN (default 0, set with the ISP tool). When enabled it has the highest priority on PB23; otherwise PB23 is GPIO."}],"source":"CH583DS1 V1.9 footer (site lists 2.2) (CH583/582/581): pin definitions (p.4-5, 5VT), Table 2-3 user configuration, GPIO registers, Table 20-1 Absolute maximum ratings (p.138-139).","verified":true},"CH582":{"ft":{"*":["PB14","PB15"],"QFN48":["PB15","PB14"],"QFN28":["PB15","PB14"]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated. Only PB14/PB15 are 5VT (feature list: 2 GPIOs support 5 V input); PB12/PB13 are USB2 pins, not 5VT.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.4 V max / VOH VIO33-0.4 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.2,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 2-wire debug is configured by the ISP tool (user config CFG_DEBUG_EN, default 1). While enabled PB15/PB14 are only TCK/TIO, not GPIO or peripheral pins; after the debug interface is disabled they work as GPIO. Debug works only with CFG_DEBUG_EN=1, CFG_RESET_EN=0, CFG_ROM_READ=1."},{"gpio":"PB14","func":"TIO","note":"Debug data, built-in pull-up. Same rule as PB15."},{"gpio":"PB23","func":"RST#","note":"External reset input (active low, pull-up), enabled by user config CFG_RESET_EN (default 0, set with the ISP tool). When enabled it has the highest priority on PB23; otherwise PB23 is GPIO."}],"source":"CH583DS1 V1.9 footer (site lists 2.2) (CH583/582/581): pin definitions (p.4-5, 5VT), Table 2-3 user configuration, GPIO registers, Table 20-1 Absolute maximum ratings (p.138-139).","verified":true},"CH583":{"ft":{"*":["PB14","PB15"],"QFN48":["PB15","PB14"]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated. Only PB14/PB15 are 5VT (feature list: 2 GPIOs support 5 V input); PB12/PB13 are USB2 pins, not 5VT.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.4 V max / VOH VIO33-0.4 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.2,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 2-wire debug is configured by the ISP tool (user config CFG_DEBUG_EN, default 1). While enabled PB15/PB14 are only TCK/TIO, not GPIO or peripheral pins; after the debug interface is disabled they work as GPIO. Debug works only with CFG_DEBUG_EN=1, CFG_RESET_EN=0, CFG_ROM_READ=1."},{"gpio":"PB14","func":"TIO","note":"Debug data, built-in pull-up. Same rule as PB15."},{"gpio":"PB23","func":"RST#","note":"External reset input (active low, pull-up), enabled by user config CFG_RESET_EN (default 0, set with the ISP tool). When enabled it has the highest priority on PB23; otherwise PB23 is GPIO."}],"source":"CH583DS1 V1.9 footer (site lists 2.2) (CH583/582/581): pin definitions (p.4-5, 5VT), Table 2-3 user configuration, GPIO registers, Table 20-1 Absolute maximum ratings (p.138-139).","verified":true},"CH585":{"ft":{"*":["PB14","PB15"],"QFN48":["PB15","PB14"],"QFN32":["PB15","PB14"],"QFN26C3":["PB15","PB14"],"QFN20":["PB15","PB14"]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated. CH585F/CH585C: PA9 and PB9 are bonded (Note 4), neither is 5VT.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.4 V max / VOH VIO33-0.4 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.0,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 1/2-wire debug is configured by the ISP tool (CFG_DEBUG_EN). While enabled PB15/PB14 are only TCK/TIO; after it is closed they are GPIO. HSI must be on for 1-wire debug. Debug needs CFG_DEBUG_EN=1, CFG_RESET_EN=0, CFG_ROM_READ=1."},{"gpio":"PB14","func":"TIO","note":"1-wire debug uses TIO alone; built-in pull-up."},{"gpio":"PB23","func":"RST","note":"External reset (active low, pull-up), enabled by user config CFG_RESET_EN (default 0); highest-priority alternate function of PB23."}],"source":"CH585DS1 V1.6 (CH585/CH584): Table 1-1/1-2 pin definitions (p.8, p.13, 5VT) + Notes 3-4, Table 2-3 user configuration, Table 22-1 Absolute maximum ratings (p.193-194).","verified":true},"CH591":{"ft":{"*":["PB12","PB13","PB14","PB15"],"QFN28":["PB15","PB14","PB13","PB12"],"QFN20":[],"TSSOP16":[]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.5 V max / VOH VIO33-0.5 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.0,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 2-wire debug configured by the ISP tool (CFG_DEBUG_EN, default 1). While enabled PB15/PB14 are only TCK/TIO; after it is disabled they are GPIO. Firmware can also disable it with RB_DEBUG_EN (R16_PIN_ALTERNATE bit 13, 1 = disable) when the ISP tool enabled debug; reserved on lots with 5th lot-number digit < 1."},{"gpio":"PB14","func":"TIO","note":"Debug data, built-in pull-up."},{"gpio":"PB23","func":"RST","note":"External reset (active low, pull-up), user config CFG_RESET_EN (default 0)."}],"source":"CH592DS1 V1.9 (CH592/CH591): pin definitions (p.5-6, 5VT) + Note 3, Table 2-3 user configuration, R16_PIN_ALTERNATE, Table 20-1 Absolute maximum ratings (p.152-153).","verified":true},"CH592":{"ft":{"*":["PB12","PB13","PB14","PB15"],"QFN32":["PB15","PB14","PB13","PB12"],"QFN28":["PB15","PB14","PB13","PB12"],"QFN20":["PB15","PB14","PB13","PB12"]},"ftNote":"5VT = supports 5 V signal input (pin table). Abs max VIO5 (pins with 5 V tolerance) -0.4 .. 5.5 V; VIH5 2.0 .. 5.0 V. Other pins -0.4 .. VIO33+0.4 V. No further condition stated.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"5mA":"R32_Px_PD_DRV bit = 0 with pin as output (push-pull, 5 mA level)","20mA":"R32_Px_PD_DRV bit = 1 with pin as output (push-pull, 20 mA level)","spec":"VOL 0.5 V max / VOH VIO33-0.5 V min at 5 mA or 20 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 5 mA / 20 mA drive levels (VOL/VOH test currents).","vddMax_V":4.0,"vinMax":"VIO33+0.4 (5VT: 5.5)","debug":[{"gpio":"PB15","func":"TCK","note":"Note 3: 2-wire debug configured by the ISP tool (CFG_DEBUG_EN, default 1). While enabled PB15/PB14 are only TCK/TIO; after it is disabled they are GPIO. Firmware can also disable it with RB_DEBUG_EN (R16_PIN_ALTERNATE bit 13, 1 = disable) when the ISP tool enabled debug; reserved on lots with 5th lot-number digit < 1."},{"gpio":"PB14","func":"TIO","note":"Debug data, built-in pull-up."},{"gpio":"PB23","func":"RST","note":"External reset (active low, pull-up), user config CFG_RESET_EN (default 0)."}],"source":"CH592DS1 V1.9 (CH592/CH591): pin definitions (p.5-6, 5VT) + Note 3, Table 2-3 user configuration, R16_PIN_ALTERNATE, Table 20-1 Absolute maximum ratings (p.152-153).","verified":true},"CH569":{"ft":{"*":[]},"ftNote":"No 5VT pins. VDDIO abs max 4.2 V (operating 2.3-3.6 V); the datasheet gives no separate I/O pin voltage row.","iPinMaxSink_mA":null,"iPinMaxSource_mA":null,"iTotalSink_mA":null,"iTotalSource_mA":null,"groups":[],"driveModes":{"8mA":"R32_Px_DRV bit = 0 (push-pull or open-drain, 8 mA)","16mA":"R32_Px_DRV bit = 1 (16 mA)","spec":"VOL 0.4 V max / VOH 2.4 V min at 8/16 mA"},"limitsNote":"The datasheet gives no absolute-maximum current per pin or total; only the 8 mA / 16 mA drive levels.","vddMax_V":4.2,"vinMax":null,"debug":[{"gpio":"PA10","func":"TCK","note":"Debug clock. Debug interface enabled by user config DEBUG_EN (default 0). Note: when debug is enabled the external reset must be disabled."},{"gpio":"PA11","func":"TIO","note":"Debug data."},{"gpio":"PB15","func":"RST#","note":"User config RESET_EN: 1 = PB15 is the external reset pin, 0 (default) = PB15 is a normal GPIO."}],"source":"CH569DS1 V1.2 (CH569/CH565): pin definitions, user configuration word table (p.18-19), GPIO R32_Px_DRV, Table 19-1 Absolute maximum ratings (p.146-147). No PINOUTS entry in base.html.","verified":true}};
+/* ================= SYS (debug pins) + pin electrical checks =================
+ * - SYS > Debug: "Serial Wire" (default, no code) or "Disabled": GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable / SDI_Disable)
+ *   so the debug pins can be used as GPIO or by a peripheral (as CubeMX System Core > SYS > Debug).
+ * - Problems:
+ *   - a debug / reset / boot pin used by an entry
+ *   - a pin marked "5 V signal" that is not 5 V tolerant (or is used as analog)
+ *   - output load current above the per-pin or total limits of the datasheet (PIN_ELEC)
+ * The per-pin flags (5 V signal, load current) are set in the pin menu or the GPIO panel and kept in state.pinElec. */
+state.pinElec = state.pinElec || {};
+const SYS_SDI_CHIPS = ['CH32V002', 'CH32V003', 'CH32V004', 'CH32V005', 'CH32V006', 'CH32V007', 'CH32M007', 'CH32M030', 'CH641'];
+const SYS_SWJ_CHIPS = ['CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32V407', 'CH32V467', 'CH32L103', 'CH32X035', 'CH32X315', 'CH643', 'CH32F103', 'CH32F203'];
+function sysRemapName(id){ return SYS_SDI_CHIPS.includes(id) ? 'GPIO_Remap_SDI_Disable' : SYS_SWJ_CHIPS.includes(id) ? 'GPIO_Remap_SWJ_Disable' : null; }
+function sysDebugOff(){ return state.configs.some(c => c.type === 'sys' && c.debug === 'off'); }
+PERIPH_MODULES.push({
+  tab: 'sys', title: 'SYS (debug)', cat: 'System Core', color: '#8a96a3',
+  label: (c, ctx) => `SYS · Debug ${c.debug === 'off' ? 'disabled (debug pins free)' : 'Serial Wire'}`,
+  supports: ctx => !!sysRemapName(ctx.id || currentVariant().id),
+  form(ctx){
+    const id = currentVariant().id, sdi = SYS_SDI_CHIPS.includes(id);
+    return `<div class="field"><label>Debug</label><select id="f_debug">
+        <option value="sw">${sdi ? 'Serial Wire (1-wire SDI / SWIO)' : 'Serial Wire (SWDIO + SWCLK)'} - default</option>
+        <option value="off">Disabled: the debug pins become GPIO</option></select></div>
+      <div class="hint">After reset the debug pins belong to the debugger, so a GPIO or peripheral on them does not work.
+        "Disabled" generates <code>GPIO_PinRemapConfig(${sysRemapName(id)}, ENABLE)</code> at the start of Peripheral_Init().
+        Debugging is then off; to flash again, connect WCH-Link while holding the chip in reset (or power it on with the
+        WCH-Link connected) and use WCH-LinkUtility / OpenOCD, which can still erase and program the chip.</div>`;
+  },
+  read: g => ({debug: g('debug') === 'off' ? 'off' : 'sw'}),
+  gen(c, ctx){
+    if(c.debug !== 'off') return '    /* SYS: Serial Wire debug stays on (default after reset) */';
+    return `    RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);
+    GPIO_PinRemapConfig(${sysRemapName(currentVariant().id)}, ENABLE);   /* debug pins become GPIO: debugging is off from here */`;
+  },
+  problems(cs, ctx){
+    const out = [];
+    if(cs.length > 1) out.push({lvl: 'err', cfg: cs[1].id, msg: 'SYS: only one SYS entry is needed'});
+    if(cs.some(c => c.debug === 'off')) out.push({lvl: 'warn', cfg: cs[0].id, msg: 'SYS: debugging is disabled. To flash again, hold the chip in reset (or power-cycle it) with WCH-Link connected, then program it with WCH-LinkUtility or OpenOCD.'});
+    return out;
+  },
+});
+
+/* ---- datasheet data (filled from pin_electrical.json; PIN_FN types are the fallback for 5 V tolerance) ---- */
+const PIN_ELEC = typeof PIN_ELEC_DATA !== 'undefined' ? PIN_ELEC_DATA : {};
+function pinElecChip(){ return PIN_ELEC[currentVariant().id] || null; }
+function pinIs5vt(g){
+  const d = pinElecChip(), pk = currentPkg();
+  if(d && d.ft){
+    const list = (pk && d.ft[pk.name]) || d.ft['*'];
+    if(Array.isArray(list)) return list.some(x => gpiosOf(x).includes(g) || x === g);
+  }
+  return /FT|5VT/.test(fnInfo(g).t || '');
+}
+function pinDebugFn(g){
+  const af = (fnInfo(g).af || []).filter(f => /^OTHER:/.test(f)).map(f => f.slice(6));
+  return af.find(f => /^(SWDIO|SWCLK|SWIO|SDI|TCK|TIO|TMS|TDI|TDO)$/.test(f)) || af.find(f => /^(NRST|RST#?|BOOT[01]?)$/.test(f)) || null;
+}
+function pinUsedRoles(g){ return (computeUsage()[g] || []).map(u => u.role); }
+
+function pinElecProblems(){
+  const out = [], usage = computeUsage(), id = currentVariant().id, std = isStd(), d = pinElecChip();
+  const debugOff = sysDebugOff();
+  /* debug / reset / boot pins */
+  for(const [g, us] of Object.entries(usage)){
+    const fn = pinDebugFn(g); if(!fn) continue;
+    const roles = us.filter(u => u.cfg.type !== 'sys').map(u => u.role); if(!roles.length) continue;
+    if(/^(SWDIO|SWCLK|SWIO|SDI)$/.test(fn)){
+      if(!std) continue;
+      if(!debugOff) out.push({lvl: 'err', pin: g, msg: `${g} is the debug pin ${fn}: while Serial Wire debug is on (default after reset) ${roles.join(', ')} does not work on it. Add SYS > Debug = Disabled (System Core), or move the function to another pin.`});
+    } else if(/^(TCK|TIO|TMS|TDI|TDO)$/.test(fn)){
+      out.push({lvl: 'err', pin: g, msg: `${g} is the 2-wire debug pin ${fn}: while 2-wire debug is enabled in the chip's user configuration (default), ${roles.join(', ')} does not work on it. Turn debug off with WCHISPTool (user config CFG_DEBUG_EN = 0, then the chip can only be programmed over the ISP bootloader), or move the function to another pin.`});
+    } else if(/^(NRST|RST#?)$/.test(fn)){
+      out.push({lvl: 'warn', pin: g, msg: `${g} is also the reset pin (${fn}): it works as ${roles.join(', ')} only when the reset function is turned off in the user option bytes (WCH-LinkUtility / WCHISPTool). With reset off, WCH-Link cannot reset the chip.`});
+    } else if(/^BOOT/.test(fn)){
+      out.push({lvl: 'info', pin: g, msg: `${g} is also ${fn}: its level is read at reset to choose the boot memory. Make sure the circuit on it gives the right level while the chip resets.`});
+    }
+  }
+  /* 5 V signals */
+  for(const [g, e] of Object.entries(state.pinElec || {})){
+    if(!e || !e.v5) continue;
+    const roles = (usage[g] || []).map(u => u.role);
+    if(!pinIs5vt(g)) out.push({lvl: 'err', pin: g, msg: `${g} is marked as a 5 V signal but is not 5 V tolerant on ${id}${d && d.source ? ' (' + d.source + ')' : ''}: use a level shifter, a divider, or a 5 V tolerant (FT) pin.`});
+    else if((usage[g] || []).some(u => /ADC|AIN|OPA|CMP|Analog|DAC/i.test(u.role) || (u.cfg.type === 'gpio' && /AIN|Analog/i.test(u.cfg.mode)))) out.push({lvl: 'warn', pin: g, msg: `${g} is used as analog (${roles.join(', ')}) with a 5 V signal: an analog input measures only up to VDD, and 5 V tolerant pins are normally not 5 V tolerant in analog mode. Use a divider.`});
+    else if(d && d.ftNote) out.push({lvl: 'info', pin: g, msg: `${g} (5 V signal, 5 V tolerant): ${d.ftNote}`});
+  }
+  /* output load current */
+  const loads = Object.entries(state.pinElec || {}).filter(([g, e]) => e && +e.mA > 0).map(([g, e]) => [g, +e.mA]);
+  if(loads.length){
+    const pinMax = d ? Math.min(...[d.iPinMaxSink_mA, d.iPinMaxSource_mA].filter(x => typeof x === 'number')) : NaN;
+    for(const [g, mA] of loads){
+      if(isFinite(pinMax) && mA > pinMax) out.push({lvl: 'err', pin: g, msg: `${g}: ${mA} mA load is above the ${pinMax} mA per-pin limit of ${id}${d.source ? ' (' + d.source + ')' : ''}.`});
+      const c = state.configs.find(x => x.type === 'gpio' && 'P' + x.port + x.pin === g);
+      if(c && !std){
+        if(/5mA/.test(c.mode) && mA > 5) out.push({lvl: 'warn', pin: g, msg: `${g}: ${mA} mA load with 5 mA drive. Choose the 20 mA drive for this output.`});
+        if(mA > 20) out.push({lvl: 'err', pin: g, msg: `${g}: ${mA} mA is above the 20 mA drive of the CH5xx GPIO.`});
+      }
+    }
+    const total = loads.reduce((s, [, mA]) => s + mA, 0);
+    const pkT = d && d.totalByPkg && currentPkg() ? Object.entries(d.totalByPkg).find(([k]) => currentPkg().name.startsWith(k)) : null;
+    const totMax = pkT ? Math.min(pkT[1].source, pkT[1].sink) : d ? Math.min(...[d.iTotalSink_mA, d.iTotalSource_mA].filter(x => typeof x === 'number')) : NaN;
+    if(isFinite(totMax) && total > totMax) out.push({lvl: 'err', msg: `Total output load ${total} mA is above the ${totMax} mA limit for all I/O pins of ${id}${d.source ? ' (' + d.source + ')' : ''}.`});
+    for(const gr of (d && d.groups) || []){
+      const sum = loads.filter(([g]) => (gr.pins || []).some(x => x === g || (typeof x === 'string' && x.endsWith('*') && g.startsWith(x.slice(0, -1))))).reduce((s, [, mA]) => s + mA, 0);
+      if(gr.max_mA && sum > gr.max_mA) out.push({lvl: 'err', msg: `Output load on ${(gr.pins || []).join(', ')}: ${sum} mA is above the ${gr.max_mA} mA group limit${gr.note ? ' (' + gr.note + ')' : ''}.`});
+    }
+    if(!d) out.push({lvl: 'info', msg: `Output load ${total} mA in total; the current limits of ${id} are not in the tool yet, check the datasheet.`});
+    else if(!isFinite(pinMax) && !isFinite(totMax) && !(d.groups || []).length) out.push({lvl: 'info', msg: `Output load ${total} mA in total. The ${id} datasheet gives no per-pin or total current limit${d.driveModes ? ', only the output drive levels' : ''}${d.source ? ' (' + d.source + ')' : ''}.`});
+  }
+  return out;
+}
+(function(){
+  const inner = computeProblems;
+  computeProblems = function(usage){ const p = inner.apply(this, arguments); try{ pinElecProblems().forEach(x => p.push(x)); }catch(e){} return p; };
+})();
+
+/* ---- UI: pin menu, GPIO panel, pin table ---- */
+function pinElecSet(g, k, v){
+  const e = Object.assign({}, state.pinElec[g]);
+  if(k === 'v5') e.v5 = !!v; else e.mA = v === '' ? '' : Math.max(0, +v || 0);
+  if(!e.v5 && !(+e.mA > 0)) delete state.pinElec[g]; else state.pinElec[g] = e;
+  renderAll();
+}
+function pinElecHtml(g){
+  const e = state.pinElec[g] || {}, ft = pinIs5vt(g);
+  return `<div class="pm-elec" data-elec="${g}">
+    <label title="This pin is driven by, or drives, a 5 V signal"><input type="checkbox" data-v5="${g}" ${e.v5 ? 'checked' : ''}> 5 V signal</label>
+    <span class="ft ${ft ? 'yes' : 'no'}">${ft ? '5 V tolerant' : 'not 5 V tolerant'}</span>
+    <label title="Current the output drives into its load (LED, relay driver ...)">Load <input type="number" min="0" step="0.5" data-ma="${g}" value="${e.mA !== undefined ? esc(e.mA) : ''}" placeholder="0"> mA</label>
+  </div>`;
+}
+(function(){
+  const open = openPinMenu;
+  openPinMenu = function(n){
+    open.apply(this, arguments);
+    const menu = $('pinMenu'), pk = currentPkg(); if(!menu || menu.hidden || !pk) return;
+    menu.querySelectorAll('.pm-label').forEach(row => {
+      const inp = row.querySelector('[data-label]'); if(inp) row.insertAdjacentHTML('afterend', pinElecHtml(inp.dataset.label));
+    });
+  };
+  document.getElementById('pinMenu').addEventListener('change', e => {
+    const t = e.target;
+    if(t.dataset.v5){ pinElecSet(t.dataset.v5, 'v5', t.checked); const n = state.selPin; if(n) openPinMenu(n); }
+    else if(t.dataset.ma){ pinElecSet(t.dataset.ma, 'mA', t.value); const n = state.selPin; if(n) openPinMenu(n); }
+  });
+  const gp = renderGpioPanel;
+  renderGpioPanel = function(){
+    gp.apply(this, arguments);
+    if(state.tab !== 'gpio') return;
+    const lab = formArea.querySelector('.gp-cfg [data-gp="label"]');
+    if(!lab) return;
+    const row = gpioRows().find(r => r.c.id === state.gpioSel); if(!row) return;
+    lab.closest('.field').insertAdjacentHTML('afterend', `<div class="field">${pinElecHtml(row.g)}</div>`);
+    formArea.querySelectorAll('[data-v5],[data-ma]').forEach(el => el.addEventListener('change', () => {
+      if(el.dataset.v5) pinElecSet(el.dataset.v5, 'v5', el.checked); else pinElecSet(el.dataset.ma, 'mA', el.value);
+      renderGpioPanel();
+    }));
+  };
+  const pt = renderPinTable;
+  renderPinTable = function(usage, probs){
+    pt.apply(this, arguments);
+    const wrap = $('pinTableWrap'), pk = currentPkg(); if(!wrap || !pk) return;
+    const head = wrap.querySelector('thead tr'); if(head) head.insertAdjacentHTML('beforeend', '<th>5 V</th><th>Debug / boot</th><th>Load</th>');
+    wrap.querySelectorAll('tbody tr[data-n]').forEach(tr => {
+      const gp = gpiosOf(pk.pins[+tr.dataset.n - 1]);
+      const ft = gp.length ? (gp.some(pinIs5vt) ? 'FT' : '-') : '';
+      const v5 = gp.some(g => (state.pinElec[g] || {}).v5);
+      const dbg = gp.map(pinDebugFn).filter(Boolean).join('/');
+      const ma = gp.map(g => (state.pinElec[g] || {}).mA).filter(x => +x > 0).join('/');
+      tr.insertAdjacentHTML('beforeend', `<td style="${v5 && ft !== 'FT' ? 'color:var(--red)' : ''}">${ft}${v5 ? ' · 5 V' : ''}</td><td style="color:var(--yellow)">${esc(dbg)}</td><td>${ma ? esc(ma) + ' mA' : ''}</td>`);
+    });
+  };
+})();
+
+/* ---- mcu-selector ---- */
+const CHIP_SPECS = {"CH32V003":{"ds":"CH32V003DS0 V1.8","mhz":48,"flash":16,"ram":2,"vmin":2.7,"vmax":5.5,"adcBits":10,"adcUnits":1,"adcCh":8,"uart":1,"spi":1,"i2c":1,"timers":2,"dac":0,"opa":1,"cmp":1,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":0,"rtc":false,"core":"QingKe V2A","isa":"RV32EC","parts":{"CH32V003A4M6":{"adcCh":6,"spi":0},"CH32V003J4M6":{"adcCh":6,"spi":0}},"ordering":["CH32V003F4P6","CH32V003F4U6","CH32V003A4M6","CH32V003J4M6"]},"CH32V002":{"ds":"CH32V002DS0 V1.7","mhz":48,"flash":16,"ram":4,"vmin":2.0,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":8,"uart":1,"spi":1,"i2c":1,"timers":2,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":8,"rtc":false,"core":"QingKe V2C","isa":"RV32EmC","parts":{"CH32V002A4M6":{"adcCh":6},"CH32V002D4U6":{"adcCh":4,"spi":0},"CH32V002J4M6":{"adcCh":6,"spi":0}},"ordering":["CH32V002F4P6","CH32V002F4U6","CH32V002A4M6","CH32V002D4U6","CH32V002J4M6"]},"CH32V004":{"ds":"CH32V004DS0 V1.9","mhz":48,"flash":32,"ram":6,"vmin":2.7,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":8,"uart":1,"spi":1,"i2c":1,"timers":2,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":0,"rtc":false,"core":"QingKe V2C","isa":"RV32EmC","ordering":["CH32V004F6P1","CH32V004F6U1"]},"CH32V005":{"ds":"CH32V006DS0 V2.0","mhz":48,"flash":32,"ram":6,"vmin":2.0,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":8,"uart":2,"spi":1,"i2c":1,"timers":2,"dac":0,"opa":1,"cmp":1,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":0,"rtc":false,"core":"QingKe V2C","isa":"RV32EmC","parts":{"CH32V005D6U6":{"adcCh":4,"spi":0}},"ordering":["CH32V005E6R6","CH32V005F6U6","CH32V005F6P6","CH32V005D6U6"]},"CH32V006":{"ds":"CH32V006DS0 V2.0","mhz":48,"flash":62,"ram":8,"vmin":2.0,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":8,"uart":2,"spi":1,"i2c":1,"timers":3,"dac":0,"opa":1,"cmp":1,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":8,"rtc":false,"core":"QingKe V2C","isa":"RV32EmC","parts":{"CH32V006F4U6":{"flash":16,"ram":4,"uart":1,"opa":0,"cmp":0},"CH32V006D8U7":{"adcCh":4,"spi":0,"tkey":4}},"ordering":["CH32V006K8U7","CH32V006E8R6","CH32V006E8R7","CH32V006F8U7","CH32V006F4U6","CH32V006F8P7","CH32V006D8U7"]},"CH32V007":{"ds":"CH32V007DS0 V1.8","mhz":48,"flash":62,"ram":8,"vmin":2.0,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":8,"uart":2,"spi":1,"i2c":1,"timers":3,"dac":0,"opa":1,"cmp":2,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":8,"rtc":false,"core":"QingKe V2C","isa":"RV32EmC","ordering":["CH32V007E8R6","CH32V007E8R7","CH32V007K8U6","CH32V007K8U7"]},"CH32M007":{"ds":"CH32V007DS0 V1.8","mhz":48,"flash":62,"ram":8,"vmin":6,"vmax":50,"adcBits":12,"adcUnits":1,"adcCh":7,"uart":2,"spi":1,"i2c":1,"timers":3,"dac":0,"opa":1,"cmp":2,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":7,"rtc":false,"core":"QingKe V2C","isa":"RV32EmC","parts":{"CH32M007E8R6":{"vmax":26},"CH32M007E8U7":{"vmax":26}},"ordering":["CH32M007E8R6","CH32M007E8U7","CH32M007G8R6","CH32M007K8U7"]},"CH32M030":{"ds":"CH32M030DS0 V1.2","mhz":72,"flash":64,"ram":12,"vmin":4.0,"vmax":29.0,"adcBits":12,"adcUnits":1,"adcCh":20,"uart":1,"spi":1,"i2c":1,"timers":3,"dac":0,"opa":4,"cmp":3,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":true,"eth":null,"ble":null,"rf24":false,"tkey":0,"rtc":false,"core":"QingKe V3B","isa":"RV32IMCB","parts":{"CH32M030K8U7":{"adcCh":16,"opa":3,"cmp":2},"CH32M030G8R7":{"adcCh":11,"spi":0,"opa":3,"cmp":2}},"ordering":["CH32M030C8U3","CH32M030C8T7","CH32M030C8U7","CH32M030K8U7","CH32M030G8R7"]},"CH32V103":{"ds":"CH32V103DS0 V1.2","mhz":80,"flash":64,"ram":20,"vmin":2.7,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":16,"uart":3,"spi":2,"i2c":2,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":16,"rtc":true,"core":"QingKe V3A","isa":"RV32IMAC","parts":{"CH32V103C6T6":{"flash":32,"ram":10,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":3,"tkey":10},"CH32V103C8T6":{"adcCh":10,"tkey":10},"CH32V103C8U6":{"adcCh":10,"tkey":10}},"ordering":["CH32V103C6T6","CH32V103C8T6","CH32V103C8U6","CH32V103R8T6"]},"CH32F103":{"ds":"CH32F103DS0 V1.32","mhz":72,"flash":64,"ram":20,"vmin":2.7,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":16,"uart":3,"spi":2,"i2c":2,"timers":4,"dac":2,"opa":0,"cmp":0,"can":1,"usbd":"FS","usbdCount":2,"usbh":true,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":16,"rtc":true,"core":"Cortex-M3","isa":null,"parts":{"CH32F103C6T6":{"flash":32,"ram":10,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":3,"tkey":10},"CH32F103C8T6":{"adcCh":10,"tkey":10},"CH32F103C8U6":{"adcCh":10,"tkey":10}},"ordering":["CH32F103C6T6","CH32F103C8T6","CH32F103C8U6","CH32F103R8T6"]},"CH32F203":{"ds":"CH32F20xDS0 V2.3","mhz":144,"flash":256,"ram":64,"vmin":2.4,"vmax":3.6,"adcBits":12,"adcUnits":2,"adcCh":16,"uart":8,"spi":3,"i2c":2,"timers":10,"dac":2,"opa":4,"cmp":0,"can":1,"usbd":"FS","usbdCount":2,"usbh":true,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":16,"rtc":true,"core":"Cortex-M3","isa":null,"parts":{"CH32F203K8T6":{"flash":64,"ram":20,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":4,"dac":0,"opa":2,"usbdCount":1,"usbh":false,"tkey":10},"CH32F203C6T6":{"flash":32,"ram":10,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":3,"dac":0,"opa":2,"tkey":10},"CH32F203C8T6":{"flash":64,"ram":20,"adcCh":10,"uart":4,"spi":2,"timers":4,"dac":0,"opa":2,"tkey":10},"CH32F203C8U6":{"flash":64,"ram":20,"adcCh":10,"uart":4,"spi":2,"timers":4,"dac":0,"opa":2,"tkey":10},"CH32F203CBT6":{"flash":128,"ram":32,"adcCh":10,"uart":3,"spi":2,"timers":4,"usbdCount":1,"usbh":false,"tkey":10},"CH32F203RBT6":{"flash":128,"ram":32,"uart":3,"spi":2,"timers":4,"usbdCount":1,"usbh":false},"CH32F203RCT6":{"usbdCount":1,"usbh":false},"CH32F203VCT6":{"usbdCount":1,"usbh":false}},"ordering":["CH32F203K8T6","CH32F203C6T6","CH32F203C8T6","CH32F203C8U6","CH32F203CBT6","CH32F203RBT6","CH32F203RCT6","CH32F203VCT6"]},"CH32L103":{"ds":"CH32L103DS0 V2.1","mhz":96,"flash":64,"ram":20,"vmin":1.8,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":10,"uart":4,"spi":2,"i2c":2,"timers":5,"dac":0,"opa":1,"cmp":3,"can":1,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":true,"eth":null,"ble":null,"rf24":false,"tkey":10,"rtc":true,"core":"QingKe V4C","isa":"RV32IMAC","parts":{"CH32L103K8U6":{"spi":1,"i2c":1},"CH32L103K8U7":{"spi":1,"i2c":1},"CH32L103F8P6":{"adcCh":9,"spi":1,"i2c":1,"cmp":2,"usbh":false,"tkey":9}},"ordering":["CH32L103C8T6","CH32L103K8U6","CH32L103K8U7","CH32L103G8R6","CH32L103F8U6","CH32L103F8P6"]},"CH32V203":{"ds":"CH32V203DS0 V3.0","mhz":144,"flash":128,"ram":64,"vmin":2.4,"vmax":3.6,"adcBits":12,"adcUnits":2,"adcCh":16,"uart":4,"spi":2,"i2c":2,"timers":5,"dac":0,"opa":2,"cmp":0,"can":1,"usbd":"FS","usbdCount":2,"usbh":true,"usbpd":false,"eth":"10M","ble":null,"rf24":false,"tkey":16,"rtc":true,"core":"QingKe V4B","isa":"RV32IMAC","parts":{"CH32V203F6P6":{"flash":32,"ram":10,"adcCh":9,"uart":1,"spi":1,"i2c":0,"timers":4,"opa":1,"usbdCount":1,"usbh":false,"eth":null,"tkey":9,"gpio":16},"CH32V203F8P6":{"flash":64,"ram":20,"adcCh":9,"uart":2,"spi":1,"i2c":1,"timers":4,"can":0,"usbdCount":1,"usbh":true,"eth":null,"tkey":9,"gpio":17},"CH32V203F8U6":{"flash":64,"ram":20,"adcCh":9,"uart":2,"spi":1,"i2c":0,"timers":4,"can":0,"usbdCount":1,"usbh":false,"eth":null,"tkey":9,"gpio":17},"CH32V203G6U6":{"flash":32,"ram":10,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":4,"usbdCount":1,"usbh":false,"eth":null,"tkey":10,"gpio":24},"CH32V203G8R6":{"flash":64,"ram":20,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":4,"eth":null,"tkey":10,"gpio":24},"CH32V203K8T6":{"flash":64,"ram":20,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":4,"usbdCount":1,"usbh":false,"eth":null,"tkey":10,"gpio":26},"CH32V203K8U7":{"flash":64,"ram":20,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":4,"eth":null,"tkey":10,"gpio":31},"CH32V203C6T6":{"flash":32,"ram":10,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":4,"eth":null,"tkey":10,"gpio":37},"CH32V203C6U6":{"flash":32,"ram":10,"adcCh":10,"uart":2,"spi":1,"i2c":1,"timers":4,"eth":null,"tkey":10,"gpio":37},"CH32V203C8T6":{"flash":64,"ram":20,"adcCh":10,"timers":4,"eth":null,"tkey":10,"gpio":37},"CH32V203C8U6":{"flash":64,"ram":20,"adcCh":10,"timers":4,"eth":null,"tkey":10,"gpio":37},"CH32V203RBT6":{"gpio":51}},"ordering":["CH32V203F6P6","CH32V203F8P6","CH32V203F8U6","CH32V203G6U6","CH32V203G8R6","CH32V203K8T6","CH32V203K8U7","CH32V203C6T6","CH32V203C8T6","CH32V203C6U6","CH32V203C8U6","CH32V203RBT6"]},"CH32V303":{"ds":"CH32V307DS0 V3.9","mhz":144,"flash":256,"ram":64,"vmin":2.4,"vmax":3.6,"adcBits":12,"adcUnits":2,"adcCh":16,"uart":8,"spi":3,"i2c":2,"timers":10,"dac":2,"opa":4,"cmp":0,"can":1,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":false,"eth":null,"ble":null,"rf24":false,"tkey":16,"rtc":true,"core":"QingKe V4F","isa":"RV32IMAFC","parts":{"CH32V303CBT6":{"flash":128,"ram":32,"adcCh":10,"uart":3,"spi":2,"timers":4,"tkey":10,"gpio":37},"CH32V303RBT6":{"flash":128,"ram":32,"uart":3,"spi":2,"timers":4,"gpio":51},"CH32V303RCT6":{"gpio":51},"CH32V303RCT7":{"gpio":51},"CH32V303VCT6":{"gpio":80}},"ordering":["CH32V303CBT6","CH32V303RBT6","CH32V303RCT6","CH32V303RCT7","CH32V303VCT6"]},"CH32V307":{"ds":"CH32V307DS0 V3.9","mhz":144,"flash":256,"ram":64,"vmin":2.4,"vmax":3.6,"adcBits":12,"adcUnits":2,"adcCh":16,"uart":8,"spi":3,"i2c":2,"timers":10,"dac":2,"opa":4,"cmp":0,"can":2,"usbd":"FS+HS","usbdCount":2,"usbh":true,"usbpd":false,"eth":"1000M","ble":null,"rf24":false,"tkey":16,"rtc":true,"core":"QingKe V4F","isa":"RV32IMAFC","parts":{"CH32V307RCT6":{"gpio":51},"CH32V307WCU6":{"gpio":54},"CH32V307VCT6":{"gpio":80}},"ordering":["CH32V307RCT6","CH32V307WCU6","CH32V307VCT6"]},"CH32V407":{"ds":"CH32V407DS0 V1.4","mhz":200,"flash":512,"ram":200,"vmin":2.9,"vmax":3.6,"adcBits":12,"adcUnits":2,"adcCh":16,"uart":10,"spi":3,"i2c":1,"timers":8,"dac":2,"opa":1,"cmp":0,"can":1,"usbd":"HS","usbdCount":2,"usbh":true,"usbpd":false,"eth":"10/100M","ble":null,"rf24":false,"tkey":0,"rtc":true,"core":"QingKe V3V","isa":"RV32IMABCV","parts":{"CH32V407VET6":{"gpio":77},"CH32V407WEU6":{"gpio":55},"CH32V407RET6":{"usbdCount":1,"gpio":49},"CH32V407KEU6":{"flash":480,"adcCh":8,"uart":7,"spi":2,"gpio":25}},"ordering":["CH32V407VET6","CH32V407WEU6","CH32V407RET6","CH32V407KEU6"]},"CH32V467":{"ds":"CH32V407DS0 V1.4","mhz":200,"flash":512,"ram":200,"vmin":2.9,"vmax":3.6,"adcBits":12,"adcUnits":2,"adcCh":16,"uart":10,"spi":3,"i2c":1,"timers":8,"dac":2,"opa":1,"cmp":0,"can":1,"usbd":"HS","usbdCount":2,"usbh":true,"usbpd":false,"eth":"10/100M","ble":null,"rf24":false,"tkey":0,"rtc":true,"psramMB":8,"core":"QingKe V3V","isa":"RV32IMABCV","parts":{"CH32V467VET6":{"psramMB":8,"gpio":76},"CH32V467WEU6":{"psramMB":8,"gpio":54},"CH32V467RET6":{"usbdCount":1,"psramMB":4,"gpio":48}},"ordering":["CH32V467VET6","CH32V467WEU6","CH32V467RET6"]},"CH32X035":{"ds":"CH32X035DS0 V2.3","mhz":48,"flash":62,"ram":20,"vmin":2.0,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":14,"uart":4,"spi":1,"i2c":1,"timers":3,"dac":0,"opa":2,"cmp":3,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":true,"eth":null,"ble":null,"rf24":false,"tkey":14,"rtc":false,"core":"QingKe V4C","isa":"RV32IMAC","parts":{"CH32X035R8T6":{"gpio":60},"CH32X035C8T6":{"adcCh":10,"tkey":10,"gpio":46},"CH32X035G8U6":{"adcCh":12,"cmp":1,"tkey":12,"gpio":27},"CH32X035G8R6":{"adcCh":11,"tkey":11,"gpio":26},"CH32X035F8U6":{"adcCh":10,"uart":3,"cmp":0,"usbh":false,"tkey":10,"gpio":19},"CH32X035F7P6":{"adcCh":11,"uart":3,"opa":1,"cmp":1,"usbh":false,"tkey":11,"gpio":18},"CH32X035D8U6":{"adcCh":5,"uart":3,"opa":1,"cmp":0,"usbh":false,"tkey":5,"gpio":11}},"ordering":["CH32X035R8T6","CH32X035C8T6","CH32X035G8U6","CH32X035G8R6","CH32X035F8U6","CH32X035F7P6","CH32X035D8U6"]},"CH32X315":{"ds":"CH32X315DS0 V1.2","mhz":480,"flash":192,"ram":64,"vmin":2.8,"vmax":3.6,"adcBits":12,"adcUnits":4,"adcCh":48,"uart":4,"spi":3,"i2c":2,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"SS+HS","usbdCount":2,"usbh":true,"usbpd":true,"eth":null,"ble":null,"rf24":false,"tkey":0,"rtc":true,"core":"QingKe V3F","isa":"RV32IMAFCB","parts":{"CH32X315MCU6":{"gpio":64},"CH32X315WCU6":{"gpio":59},"CH32X315CCU6":{"adcCh":28,"gpio":40}},"ordering":["CH32X315MCU6","CH32X315WCU6","CH32X315CCU6"]},"CH641":{"ds":"CH641DS0 V1.7","mhz":48,"flash":16,"ram":2,"vmin":4.0,"vmax":12.6,"adcBits":10,"adcUnits":1,"adcCh":15,"uart":1,"spi":0,"i2c":1,"timers":2,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":null,"usbdCount":0,"usbh":false,"usbpd":true,"eth":null,"ble":null,"rf24":false,"tkey":0,"rtc":false,"core":"QingKe V2A","isa":"RV32EC","parts":{"CH641F":{"gpio":25},"CH641D":{"adcCh":10,"gpio":17},"CH641X":{"adcCh":12,"gpio":17},"CH641P":{"adcCh":10,"i2c":0,"gpio":13}},"ordering":["CH641F","CH641D","CH641X","CH641P"]},"CH643":{"ds":"CH643DS0 V1.4","mhz":48,"flash":62,"ram":20,"vmin":2.0,"vmax":5.5,"adcBits":12,"adcUnits":1,"adcCh":15,"uart":4,"spi":1,"i2c":1,"timers":3,"dac":0,"opa":2,"cmp":3,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":true,"eth":null,"ble":null,"rf24":false,"tkey":15,"rtc":false,"core":"QingKe V4C","isa":"RV32IMAC","parts":{"CH643W":{"gpio":69},"CH643Q":{"adcCh":14,"tkey":14,"gpio":60},"CH643L":{"adcCh":10,"usbh":false,"usbpd":false,"tkey":10,"gpio":44},"CH643U":{"adcCh":9,"cmp":0,"usbh":false,"usbpd":false,"tkey":9,"gpio":26}},"ordering":["CH643W","CH643Q","CH643L","CH643U"]},"CH570":{"ds":"CH572DS1 V1.1","mhz":100,"flash":240,"ram":12,"vmin":2.0,"vmax":3.6,"adcBits":null,"adcUnits":0,"adcCh":0,"uart":1,"spi":1,"i2c":1,"timers":1,"dac":0,"opa":0,"cmp":1,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":false,"eth":null,"ble":null,"rf24":true,"nfc":false,"tkey":null,"rtc":true,"core":"QingKe V3C","isa":"RV32IMBC","parts":{"CH570D":{"gpio":12},"CH570Q":{"vmin":4.5,"vmax":5.3,"spi":0,"cmp":0,"usbh":false,"gpio":5},"CH570E":{"spi":0,"cmp":0,"usbd":null,"usbdCount":0,"usbh":false,"gpio":3}},"ordering":["CH570D","CH570Q","CH570E"]},"CH572":{"ds":"CH572DS1 V1.1","mhz":100,"flash":240,"ram":12,"vmin":2.0,"vmax":3.6,"adcBits":null,"adcUnits":0,"adcCh":0,"uart":1,"spi":1,"i2c":1,"timers":1,"dac":0,"opa":0,"cmp":1,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":false,"eth":null,"ble":"5.0","rf24":true,"nfc":false,"tkey":null,"rtc":true,"core":"QingKe V3C","isa":"RV32IMBC","parts":{"CH572D":{"gpio":12},"CH572Q":{"vmin":4.5,"vmax":5.3,"spi":0,"gpio":5},"CH572R":{"gpio":10}},"ordering":["CH572D","CH572Q","CH572R"]},"CH571":{"ds":"CH573DS1 V1.12","mhz":60,"flash":192,"ram":18,"vmin":2.3,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":6,"uart":2,"spi":1,"i2c":0,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"FS","usbdCount":1,"usbh":false,"usbpd":false,"eth":null,"ble":"4.2","rf24":null,"nfc":false,"tkey":0,"rtc":true,"core":"RISC-V3A","isa":"RV32IMAC","parts":{"CH571F":{"gpio":20},"CH571D":{"gpio":15},"CH571K":{"adcCh":4,"uart":1,"usbd":null,"usbdCount":0,"gpio":4}},"ordering":["CH571F","CH571D","CH571K"]},"CH573":{"ds":"CH573DS1 V1.12","mhz":60,"flash":448,"ram":18,"vmin":1.7,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":10,"uart":4,"spi":1,"i2c":0,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":false,"eth":null,"ble":"4.2","rf24":null,"nfc":false,"tkey":10,"rtc":true,"core":"RISC-V3A","isa":"RV32IMAC","parts":{"CH573X":{"gpio":22},"CH573F":{"vmin":2.3,"adcCh":8,"tkey":8,"gpio":20},"CH573Q":{"vmin":2.3,"gpio":22}},"ordering":["CH573X","CH573F","CH573Q"]},"CH581":{"ds":"CH583DS1 V1.9","mhz":null,"flash":null,"ram":null,"vmin":null,"vmax":null,"adcBits":null,"adcUnits":null,"adcCh":null,"uart":null,"spi":null,"i2c":null,"timers":null,"dac":null,"opa":null,"cmp":null,"can":null,"usbd":null,"usbdCount":null,"usbh":null,"usbpd":null,"eth":null,"ble":null,"rf24":null,"nfc":null,"tkey":null,"rtc":null,"core":null,"isa":null,"ordering":[]},"CH582":{"ds":"CH583DS1 V1.9","mhz":80,"flash":448,"ram":32,"vmin":2.3,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":14,"uart":4,"spi":1,"i2c":1,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"FS","usbdCount":2,"usbh":true,"usbpd":false,"eth":null,"ble":"5.0","rf24":null,"nfc":false,"tkey":14,"rtc":true,"core":"RISC-V4A","isa":"RV32IMAC","parts":{"CH582M":{"gpio":40},"CH582F":{"adcCh":8,"tkey":8,"gpio":20}},"ordering":["CH582M","CH582F"]},"CH583":{"ds":"CH583DS1 V1.9","mhz":80,"flash":448,"ram":32,"vmin":1.75,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":14,"uart":4,"spi":2,"i2c":1,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"FS","usbdCount":2,"usbh":true,"usbpd":false,"eth":null,"ble":"5.0","rf24":null,"nfc":false,"tkey":14,"rtc":true,"core":"RISC-V4A","isa":"RV32IMAC","parts":{"CH583M":{"gpio":40}},"ordering":["CH583M"]},"CH585":{"ds":"CH585DS1 V1.6","mhz":78,"flash":448,"ram":128,"vmin":1.85,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":14,"uart":4,"spi":2,"i2c":1,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"HS","usbdCount":2,"usbh":true,"usbpd":false,"eth":null,"ble":"5.4","rf24":true,"nfc":true,"tkey":14,"rtc":true,"core":"QingKe V3C","isa":"RV32IMBC","parts":{"CH585M":{"gpio":40},"CH585F":{"adcCh":7,"spi":1,"tkey":7,"gpio":24},"CH585C":{"adcCh":4,"uart":2,"spi":1,"i2c":0,"tkey":0,"gpio":17},"CH585D":{"adcCh":4,"uart":2,"spi":1,"i2c":0,"nfc":false,"tkey":0,"gpio":12}},"ordering":["CH585M","CH585F","CH585C","CH585D"]},"CH591":{"ds":"CH592DS1 V1.9","mhz":80,"flash":192,"ram":26,"vmin":1.75,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":6,"uart":2,"spi":1,"i2c":0,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"FS","usbdCount":1,"usbh":false,"usbpd":false,"eth":null,"ble":"5.4","rf24":null,"nfc":false,"tkey":0,"rtc":true,"core":"QingKe V4C","isa":"RV32IMAC","parts":{"CH591F":{"gpio":20},"CH591D":{"vmin":2.3,"adcCh":4,"gpio":12},"CH591R":{"vmin":2.3,"adcCh":4,"gpio":10}},"ordering":["CH591F","CH591D","CH591R"]},"CH592":{"ds":"CH592DS1 V1.9","mhz":80,"flash":448,"ram":26,"vmin":1.75,"vmax":3.6,"adcBits":12,"adcUnits":1,"adcCh":12,"uart":4,"spi":1,"i2c":1,"timers":4,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"FS","usbdCount":1,"usbh":true,"usbpd":false,"eth":null,"ble":"5.4","rf24":null,"nfc":false,"tkey":12,"rtc":true,"core":"QingKe V4C","isa":"RV32IMAC","parts":{"CH592X":{"gpio":24},"CH592F":{"adcCh":8,"tkey":8,"gpio":20},"CH592A":{"vmin":2.3,"adcCh":8,"tkey":8,"gpio":20},"CH592D":{"adcCh":4,"uart":2,"tkey":4,"gpio":12}},"ordering":["CH592X","CH592F","CH592A","CH592D"]},"CH569":{"ds":"CH569DS1 V1.2","mhz":120,"flash":448,"ram":112,"vmin":2.3,"vmax":3.6,"adcBits":null,"adcUnits":0,"adcCh":0,"uart":4,"spi":2,"i2c":0,"timers":3,"dac":0,"opa":0,"cmp":0,"can":0,"usbd":"SS","usbdCount":2,"usbh":true,"usbpd":false,"eth":"1000M","ble":null,"rf24":false,"nfc":false,"tkey":0,"rtc":false,"core":"RISC-V3A","isa":"RV32IMAC","parts":{"CH569W":{"gpio":49}},"ordering":["CH569W"]}};
+
+/* CH581: CH583DS1 V1.9 dropped it; V1.6 section 1.1 says CH581 = CH582 with one USB, the touch-key, I2C and 2 UARTs removed,
+   256 KB FlashROM (192 KB for the application) and an ADC without DMA (6 external channels in its pin figure). */
+if(CHIP_SPECS.CH581 && CHIP_SPECS.CH582) Object.assign(CHIP_SPECS.CH581, {ds:'CH583DS1 V1.6 (CH581 = CH582 minus USB2, touch key, I2C, UART2/3)', mhz:80, flash:192, ram:32, vmin:2.3, vmax:3.6,
+  adcBits:12, adcUnits:1, adcCh:6, uart:2, spi:1, i2c:0, timers:4, dac:0, opa:0, cmp:0, can:0, usbd:'FS', usbdCount:1, usbh:true, usbpd:false,
+  ble:'5.0', nfc:false, tkey:0, rtc:true, core:'RISC-V4A', isa:'RV32IMAC'});
+const LION_SHOP = [{"part": "CH579M","url": "https://lionelectronic.ir/products/5434-CH579M","kind": "chip","chip": null,"pkg": null},{"part": "CH592X","url": "https://lionelectronic.ir/products/6443-CH592X","kind": "chip","chip": "CH592","pkg": "QFN32"},{"part": "CH585F","url": "https://lionelectronic.ir/products/6444-CH585F","kind": "chip","chip": "CH585","pkg": "QFN32"},{"part": "CH582M","url": "https://lionelectronic.ir/products/6445-CH582M","kind": "chip","chip": "CH582","pkg": "QFN48"},{"part": "CH591R","url": "https://lionelectronic.ir/products/6466-CH591R","kind": "chip","chip": "CH591","pkg": "TSSOP16"},{"part": "CH32V006F8U6","url": "https://lionelectronic.ir/products/6544-CH32V006F8U6","kind": "chip","chip": "CH32V006","pkg": null},{"part": "CH32V006F8P6","url": "https://lionelectronic.ir/products/6545-CH32V006F8P6","kind": "chip","chip": "CH32V006","pkg": null},{"part": "CH32V006E8R6","url": "https://lionelectronic.ir/products/6648-CH32V006E8R6","kind": "chip","chip": "CH32V006","pkg": "QSOP24"},{"part": "CH32V006K8U6","url": "https://lionelectronic.ir/products/6649-CH32V006K8U6","kind": "chip","chip": "CH32V006","pkg": null},{"part": "CH32V005E6R6","url": "https://lionelectronic.ir/products/6650-CH32V005E6R6","kind": "chip","chip": "CH32V005","pkg": "QSOP24"},{"part": "CH32V005F6U6","url": "https://lionelectronic.ir/products/6651-CH32V005F6U6","kind": "chip","chip": "CH32V005","pkg": "QFN20"},{"part": "CH32V005D6U6","url": "https://lionelectronic.ir/products/6654-CH32V005D6U6","kind": "chip","chip": "CH32V005","pkg": "QFN12"},{"part": "CH32V303CBT6","url": "https://lionelectronic.ir/products/6795-CH32V303CBT6","kind": "chip","chip": "CH32V303","pkg": "LQFP48"},{"part": "CH32V203C8T6","url": "https://lionelectronic.ir/products/6796-CH32V203C8T6","kind": "chip","chip": "CH32V203","pkg": null},{"part": "CH570Q","url": "https://lionelectronic.ir/products/6811-CH570Q","kind": "chip","chip": "CH570","pkg": "DFN10X3"},{"part": "CH572Q","url": "https://lionelectronic.ir/products/6812-CH572Q","kind": "chip","chip": "CH572","pkg": "DFN10X3"},{"part": "CH32X033F8P6","url": "https://lionelectronic.ir/products/6813-CH32X033F8P6","kind": "chip","chip": null,"pkg": null},{"part": "CH591R Breakout Board","url": "https://lionelectronic.ir/products/6866-CH591R-Breakout-Board","kind": "board","chip": "CH591","pkg": null},{"part": "CH582M Development Board","url": "https://lionelectronic.ir/products/6906-CH582M-Development-Board","kind": "board","chip": "CH582","pkg": null},{"part": "CH582F MCU Dev Board","url": "https://lionelectronic.ir/products/6907-CH582F-MCU-Dev-Board","kind": "board","chip": "CH582","pkg": null},{"part": "CH585M NFC+ USB","url": "https://lionelectronic.ir/products/7001-CH585M-NFC%2B-USB","kind": "board","chip": "CH585","pkg": null},{"part": "CH572D","url": "https://lionelectronic.ir/products/7027-CH572D","kind": "chip","chip": "CH572","pkg": "QFN20"},{"part": "CH582F","url": "https://lionelectronic.ir/products/7029-CH582F","kind": "chip","chip": "CH582","pkg": "QFN28"},{"part": "CH596D","url": "https://lionelectronic.ir/products/7033-CH596D","kind": "chip","chip": null,"pkg": null},{"part": "CH32L103F8U6","url": "https://lionelectronic.ir/products/7058-CH32L103F8U6","kind": "chip","chip": "CH32L103","pkg": "QFN20"},{"part": "CH32X035C8T6","url": "https://lionelectronic.ir/products/7059-CH32X035C8T6","kind": "chip","chip": "CH32X035","pkg": "LQFP48"},{"part": "CH32X035G8U6","url": "https://lionelectronic.ir/products/7060-CH32X035G8U6","kind": "chip","chip": "CH32X035","pkg": "QFN28"},{"part": "CH32L103C8T6","url": "https://lionelectronic.ir/products/7083-CH32L103C8T6","kind": "chip","chip": "CH32L103","pkg": "LQFP48"},{"part": "CH32L103K8U6","url": "https://lionelectronic.ir/products/7084-CH32L103K8U6","kind": "chip","chip": "CH32L103","pkg": "QFN32"},{"part": "CH32L103F8P6","url": "https://lionelectronic.ir/products/7085-CH32L103F8P6","kind": "chip","chip": "CH32L103","pkg": "TSSOP20"}];
+/* ================= MCU Selector (like the CubeMX MCU Finder) =================
+ * One row per chip + package: data from FAMILIES / PINOUTS / PIN_FN / CLOCK_DEFS / MEM_CHIPS / chipCaps() /
+ * PERIPH_MODULES[].supports(), completed with CHIP_SPECS (official WCH datasheets, null = not verified).
+ * Buy links: LION_SHOP (Lion Electronic). */
+const MCUSEL_LS = 'wchcfg-mcusel';
+const MCUSEL_FEATS = [
+  ['usb', 'USB device'], ['usbhs', 'USB high-speed'], ['usbh', 'USB host'], ['ble', 'Bluetooth LE'], ['can', 'CAN'],
+  ['eth', 'Ethernet'], ['dac', 'DAC'], ['opa', 'OPA'], ['cmp', 'Comparator'], ['usbpd', 'USB PD'], ['tkey', 'Touch key'],
+  ['lion', 'In stock at Lion Electronic'],
+];
+let mcuSelRowsCache = null;
+let mcuSelF = null;
+
+function mcuSelDefaults(){ return {q:'', fams:[], pinMin:'', pinMax:'', flashMin:'', ramMin:'', mhzMin:'', feats:[], sk:'', sd:1}; }
+function mcuSelLoad(){
+  let f = mcuSelDefaults();
+  try{ const s = JSON.parse(localStorage.getItem(MCUSEL_LS) || 'null'); if(s && typeof s === 'object') f = Object.assign(f, s); }catch(e){}
+  if(!Array.isArray(f.fams)) f.fams = [];
+  if(!Array.isArray(f.feats)) f.feats = [];
+  return f;
+}
+function mcuSelSave(){ try{ localStorage.setItem(MCUSEL_LS, JSON.stringify(mcuSelF)); }catch(e){} }
+
+/* ordering codes of one PINOUTS package ("CH32V203C6T6 / CH32V203C8T6", "CH592F/CH592A") */
+function mcuSelCodes(pk){ return pk && pk.code ? String(pk.code).split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean) : []; }
+/* same part apart from the last (temperature range) digit: CH32V006F8U6 = CH32V006F8U7 */
+function mcuSelSamePart(a, b){
+  a = String(a || '').toUpperCase(); b = String(b || '').toUpperCase();
+  if(a === b) return true;
+  return a.length === b.length && /\d$/.test(a) && /\d$/.test(b) && /^CH32/.test(a) && a.slice(0, -1) === b.slice(0, -1);
+}
+
+/* peripheral modules of this tool that support a chip: the page state is switched for the call and restored exactly */
+function mcuSelMods(fam, v){
+  const keep = {family: state.family, variant: state.variant, pkg: state.pkg};
+  const out = new Set();
+  try{
+    state.family = fam; state.variant = v.id;
+    let ctx;
+    try{ ctx = periphCtx(); }catch(e){ ctx = {id: v.id, style: FAMILIES[fam].style, family: fam, header: v.header, v, clk: {}}; }
+    PERIPH_MODULES.forEach(m => { try{ if(m.supports(ctx)) out.add(m.tab); }catch(e){} });
+  } finally {
+    state.family = keep.family; state.variant = keep.variant; state.pkg = keep.pkg;
+  }
+  return out;
+}
+
+/* merge the datasheet values of the parts on this package (max of numbers, OR of flags) */
+function mcuSelSpec(id, pk){
+  const s = (typeof CHIP_SPECS !== 'undefined' && CHIP_SPECS[id]) || {};
+  const codes = mcuSelCodes(pk);
+  const parts = [];
+  const pmap = s.parts || {};
+  codes.forEach(c => {
+    const hit = Object.keys(pmap).find(k => mcuSelSamePart(k, c));
+    parts.push(hit ? pmap[hit] : {});
+  });
+  if(!parts.length) return Object.assign({}, s);
+  const r = Object.assign({}, s);
+  const keys = new Set(); parts.forEach(p => Object.keys(p).forEach(k => keys.add(k)));
+  keys.forEach(k => {
+    const vals = parts.map(p => k in p ? p[k] : s[k]);
+    const nums = vals.filter(x => typeof x === 'number');
+    if(nums.length === vals.length) r[k] = Math.max(...nums);
+    else if(vals.every(x => typeof x === 'boolean' || x === null || x === undefined)) r[k] = vals.some(x => x === true) ? true : vals.every(x => x === null || x === undefined) ? null : false;
+    else r[k] = vals.find(x => x !== null && x !== undefined) ?? null;
+  });
+  r._flashMin = Math.min(...parts.map(p => 'flash' in p ? p.flash : s.flash).filter(x => typeof x === 'number'));
+  r._ramMin = Math.min(...parts.map(p => 'ram' in p ? p.ram : s.ram).filter(x => typeof x === 'number'));
+  return r;
+}
+
+/* Lion Electronic parts: by package (exact ordering code, then same part with another temperature digit, then the
+ * package name given in the shop data), otherwise by chip; boards apart */
+function mcuSelLionIndex(){
+  const pkgItems = {}, chipItems = {}, boards = {}, other = [];
+  (typeof LION_SHOP !== 'undefined' ? LION_SHOP : []).forEach(it => {
+    if(!it.chip || !FAMILIES || !Object.values(FAMILIES).some(f => f.variants.some(v => v.id === it.chip))){ other.push(it); return; }
+    if(it.kind === 'board'){ (boards[it.chip] = boards[it.chip] || []).push(it); return; }
+    const p = PINOUTS[it.chip];
+    let pk = null;
+    if(p){
+      pk = p.pkgs.find(k => mcuSelCodes(k).some(c => c.toUpperCase() === it.part.toUpperCase()))
+        || p.pkgs.find(k => mcuSelCodes(k).some(c => mcuSelSamePart(c, it.part)))
+        || (it.pkg ? p.pkgs.find(k => k.name === it.pkg) : null);
+    }
+    if(pk) (pkgItems[it.chip + '|' + pk.name] = pkgItems[it.chip + '|' + pk.name] || []).push(it);
+    else (chipItems[it.chip] = chipItems[it.chip] || []).push(it);
+  });
+  return {pkgItems, chipItems, boards, other};
+}
+let mcuSelLionIdx = null;
+function mcuSelLion(){ return mcuSelLionIdx || (mcuSelLionIdx = mcuSelLionIndex()); }
+
+function mcuSelMhz(id){
+  const d = (typeof CLOCK_DEFS !== 'undefined' ? CLOCK_DEFS : []).find(x => x.chips.includes(id));
+  if(!d) return null;
+  if(d.sysMax) return d.sysMax / 1e6;
+  if(d.options && d.options.length) return Math.max(...d.options.map(o => o.hz)) / 1e6;
+  return null;
+}
+function mcuSelIsa(id){
+  const c = VSC_CORE[id];
+  if(!c) return null;
+  if(c.mcpu) return null;
+  return String(c.march || '').split('_')[0].toUpperCase() || null;
+}
+
+function mcuSelBuildRows(){
+  const rows = [];
+  const lion = mcuSelLion();
+  Object.keys(FAMILIES).forEach(fam => {
+    FAMILIES[fam].variants.forEach(v => {
+      const mods = mcuSelMods(fam, v);
+      const caps = chipCaps(v);
+      const p = PINOUTS[v.id];
+      const pkgs = p ? p.pkgs : [null];
+      const mem = MEM_CHIPS[v.id] || null, vc = VSC_CORE[v.id] || {};
+      pkgs.forEach(pk => {
+        const s = mcuSelSpec(v.id, pk);
+        const n = x => x === undefined ? null : x;
+        const r = {fam, famLabel: FAMILIES[fam].label, id: v.id, pkg: pk ? pk.name : null, code: pk ? pk.code || '' : '', mods, caps, spec: s};
+        r.pins = pk ? pk.pins.length : null;
+        if(pk){
+          const g = new Set(); pk.pins.forEach(nm => gpiosOf(nm).forEach(x => g.add(x)));
+          r.gpio = g.size;
+          const fn = PIN_FN[pk.fn || p.fn] || {};
+          const a = new Set();
+          g.forEach(io => { const e = fn[io]; if(e) (e.af || []).forEach(x => { if(/^ADC\d*_IN\d+$|^ADC\d+_?IN?\d+$|^ADC\d+$/.test(x)) a.add(x); }); });
+          r.adcCh = a.size || n(s.adcCh);
+        } else { r.gpio = n(s.gpio); r.adcCh = n(s.adcCh); }
+        const isaS = s.isa || mcuSelIsa(v.id);
+        r.core = vc.arm ? 'Arm ' + (s.core || 'Cortex-M3') : s.core || null;
+        r.isa = vc.arm ? null : isaS || null;
+        r.mhz = n(s.mhz) ?? mcuSelMhz(v.id);
+        r.flash = n(s.flash) ?? (mem ? mem.f : vc.mem ? parseInt(vc.mem.flash) : null);
+        r.ram = n(s.ram) ?? (mem ? mem.r : vc.mem ? parseInt(vc.mem.ram) : null);
+        r.flashMin = isFinite(s._flashMin) ? s._flashMin : r.flash;
+        r.ramMin = isFinite(s._ramMin) ? s._ramMin : r.ram;
+        r.vmin = n(s.vmin); r.vmax = n(s.vmax);
+        r.uart = n(s.uart) ?? (v.uarts ? v.uarts.length : null);
+        r.spi = n(s.spi) ?? (v.spi ? v.spi.length : null);
+        r.i2c = n(s.i2c) ?? (v.i2c ? v.i2c.length : typeof v.hasI2Chw === 'boolean' ? (v.hasI2Chw ? 1 : 0) : null);
+        r.tim = n(s.timers) ?? (v.tim ? v.tim.length : null);
+        r.adcBits = n(s.adcBits);
+        if((v.noTabs || []).includes('adc') && !r.adcCh) r.adcCh = 0;
+        r.dac = n(s.dac) ?? (mods.has('dac') ? true : null);
+        r.opa = n(s.opa) ?? (mods.has('opa') ? true : null);
+        r.cmp = n(s.cmp) ?? (mods.has('cmp') ? true : null);
+        r.can = n(s.can) ?? (mods.has('can') ? true : null);
+        /* a datasheet entry (s.core set) writes null for "none" on these; without one use what the tool knows */
+        const ds = (k, d) => s.core ? (s[k] ?? false) : (s[k] ?? d);
+        r.usbd = ds('usbd', caps.usb || mods.has('usbcdc') ? true : null);
+        r.usbh = ds('usbh', caps.usbh || null);
+        r.usbpd = ds('usbpd', mods.has('usbpd') || null);
+        r.eth = ds('eth', mods.has('eth') ? true : null);
+        r.ble = ds('ble', caps.ble ? true : null);
+        r.rf = s.rf24 === true || !!caps.rf;
+        r.nfc = s.nfc === true;
+        r.tkey = n(s.tkey) ?? (mods.has('tkey') ? true : null);
+        r.rtc = ds('rtc', mods.has('rtc') || null);
+        r.ds = s.ds || (p ? p.ds : null);
+        r.lion = pk ? (lion.pkgItems[v.id + '|' + pk.name] || []) : [];
+        r.lionChip = lion.chipItems[v.id] || [];
+        r.boards = lion.boards[v.id] || [];
+        r.inStock = r.lion.length + r.lionChip.length > 0;
+        r.key = v.id + '|' + (r.pkg || '');
+        r.text = [r.famLabel, r.id, r.pkg, r.code, r.core, r.isa, r.ble ? 'BLE ' + r.ble : '', r.eth ? 'ethernet' : '', r.lion.map(x => x.part).join(' ')].join(' ').toLowerCase();
+        rows.push(r);
+      });
+    });
+  });
+  return rows;
+}
+function mcuSelRows(){ return mcuSelRowsCache || (mcuSelRowsCache = mcuSelBuildRows()); }
+
+/* ---------- table ---------- */
+const mcuSelYes = (x, cfg) => x ? `<span class="ms-y${cfg ? ' ms-cfg' : ''}"${cfg ? ' title="code generator in this tool"' : ''}>${x === true ? 'Yes' : esc(String(x))}</span>` : x === null || x === undefined ? '<span class="ms-unk" title="not verified">?</span>' : '<span class="ms-no">-</span>';
+const mcuSelNum = (x, cfg) => x === null || x === undefined ? '<span class="ms-unk" title="not verified">?</span>' : x === 0 || x === false ? '<span class="ms-no">-</span>' : `<span class="${cfg ? 'ms-cfg' : ''}"${cfg ? ' title="code generator in this tool"' : ''}>${x === true ? 'Yes' : esc(String(x))}</span>`;
+const mcuSelFlagVal = x => x === null || x === undefined ? -1 : x === false || x === 0 ? 0 : typeof x === 'number' ? x : 1;
+const MCUSEL_COLS = [
+  {k:'famLabel', l:'Family', s:r => r.famLabel, h:r => esc(r.famLabel)},
+  {k:'id', l:'Chip', s:r => r.id, h:r => `<b>${esc(r.id)}</b>`},
+  {k:'pkg', l:'Package', s:r => r.pkg || '', h:r => r.pkg ? `${esc(r.pkg)}<div class="ms-code">${esc(r.code)}</div>` : '<span class="ms-no">-</span>'},
+  {k:'pins', l:'Pins', n:1, s:r => r.pins, h:r => mcuSelNum(r.pins)},
+  {k:'gpio', l:'GPIO', n:1, s:r => r.gpio, h:r => mcuSelNum(r.gpio)},
+  {k:'core', l:'Core', s:r => r.core || '', h:r => (r.core ? esc(r.core) : mcuSelNum(null)) + (r.isa ? `<div class="ms-code">${esc(r.isa)}</div>` : '')},
+  {k:'mhz', l:'MHz', t:'Max. system clock', n:1, s:r => r.mhz, h:r => mcuSelNum(r.mhz)},
+  {k:'flash', l:'Flash', t:'Code flash, KB', n:1, s:r => r.flash, h:r => r.flash === null ? mcuSelNum(null) : esc(r.flashMin !== r.flash ? r.flashMin + '/' + r.flash : String(r.flash)) + 'K'},
+  {k:'ram', l:'RAM', t:'SRAM, KB', n:1, s:r => r.ram, h:r => r.ram === null ? mcuSelNum(null) : esc(r.ramMin !== r.ram ? r.ramMin + '/' + r.ram : String(r.ram)) + 'K'},
+  {k:'vdd', l:'VDD', t:'Supply voltage range (V)', n:1, s:r => r.vmin, h:r => r.vmin === null ? mcuSelNum(null) : `${r.vmin}-${r.vmax}`},
+  {k:'uart', l:'UART', n:1, s:r => r.uart, h:r => mcuSelNum(r.uart, 1)},
+  {k:'spi', l:'SPI', n:1, s:r => r.spi, h:r => mcuSelNum(r.spi, 1)},
+  {k:'i2c', l:'I2C', n:1, s:r => r.i2c, h:r => mcuSelNum(r.i2c, 1)},
+  {k:'tim', l:'TIM', t:'Timer units (no watchdog / SysTick / RTC)', n:1, s:r => r.tim, h:r => mcuSelNum(r.tim, 1)},
+  {k:'adc', l:'ADC', t:'ADC input channels on this package / resolution', n:1, s:r => r.adcCh, h:r => !r.adcCh ? (r.adcCh === 0 ? '<span class="ms-no">-</span>' : mcuSelNum(null)) : `<span class="ms-cfg" title="code generator in this tool">${r.adcCh}</span>${r.adcBits ? `<span class="ms-sub"> ${r.adcBits}b</span>` : ''}`},
+  {k:'dac', l:'DAC', n:1, s:r => mcuSelFlagVal(r.dac), h:r => mcuSelNum(r.dac, r.mods.has('dac'))},
+  {k:'opa', l:'OPA', n:1, s:r => mcuSelFlagVal(r.opa), h:r => mcuSelNum(r.opa, r.mods.has('opa'))},
+  {k:'cmp', l:'CMP', n:1, s:r => mcuSelFlagVal(r.cmp), h:r => mcuSelNum(r.cmp, r.mods.has('cmp'))},
+  {k:'can', l:'CAN', n:1, s:r => mcuSelFlagVal(r.can), h:r => mcuSelNum(r.can, r.mods.has('can'))},
+  {k:'usbd', l:'USB dev', t:'USB device: FS = full speed, HS = high speed, SS = USB 3.0 super speed', s:r => r.usbd ? (/SS/.test(r.usbd) ? 3 : /HS/.test(r.usbd) ? 2 : 1) : mcuSelFlagVal(r.usbd), h:r => mcuSelYes(r.usbd, r.caps.usb || r.mods.has('usbcdc'))},
+  {k:'usbh', l:'USB host', s:r => mcuSelFlagVal(r.usbh), h:r => mcuSelYes(r.usbh, r.caps.usbh)},
+  {k:'usbpd', l:'USB PD', s:r => mcuSelFlagVal(r.usbpd), h:r => mcuSelYes(r.usbpd, r.mods.has('usbpd'))},
+  {k:'eth', l:'Ethernet', s:r => mcuSelFlagVal(r.eth), h:r => mcuSelYes(r.eth, r.mods.has('eth'))},
+  {k:'ble', l:'BLE', s:r => r.ble ? parseFloat(r.ble) || 1 : mcuSelFlagVal(r.ble), h:r => mcuSelYes(r.ble, r.caps.ble)},
+  {k:'rf', l:'2.4G', t:'Proprietary 2.4 GHz RF mode', s:r => r.rf ? 1 : 0, h:r => mcuSelYes(r.rf, r.caps.rf)},
+  {k:'tkey', l:'Touch', t:'Capacitive touch-key channels', n:1, s:r => mcuSelFlagVal(r.tkey), h:r => mcuSelNum(r.tkey, r.mods.has('tkey'))},
+  {k:'rtc', l:'RTC', s:r => mcuSelFlagVal(r.rtc), h:r => mcuSelYes(r.rtc, r.mods.has('rtc'))},
+  {k:'lion', l:'Buy', t:'Lion Electronic', s:r => r.lion.length * 2 + r.lionChip.length, h:r => mcuSelLionCell(r)},
+];
+function mcuSelLink(it, txt){ return `<a class="ms-lion" href="${esc(it.url)}" target="_blank" rel="noopener" title="Buy at Lion Electronic">${esc(txt || it.part)}</a>`; }
+function mcuSelLionCell(r){
+  const a = r.lion.concat(r.lionChip);
+  let h = a.length ? `<div class="ms-buy">Buy at Lion Electronic: ${a.map(it => mcuSelLink(it)).join(', ')}</div>` : '';
+  if(r.boards.length) h += `<div class="ms-boards">Boards: ${r.boards.map(it => mcuSelLink(it)).join(', ')}</div>`;
+  return h;
+}
+
+function mcuSelFiltered(){
+  const f = mcuSelF, q = f.q.trim().toLowerCase();
+  const num = s => s === '' || s === null || s === undefined || isNaN(+s) ? null : +s;
+  const pinMin = num(f.pinMin), pinMax = num(f.pinMax), flashMin = num(f.flashMin), ramMin = num(f.ramMin), mhzMin = num(f.mhzMin);
+  const has = x => !!x && x !== 0;
+  const test = {
+    usb: r => has(r.usbd), usbhs: r => !!r.usbd && /HS|SS/.test(r.usbd), usbh: r => r.usbh === true, ble: r => has(r.ble), can: r => has(r.can),
+    eth: r => has(r.eth), dac: r => has(r.dac), opa: r => has(r.opa), cmp: r => has(r.cmp), usbpd: r => r.usbpd === true, tkey: r => has(r.tkey),
+    lion: r => r.inStock,
+  };
+  let rows = mcuSelRows().filter(r => {
+    if(q && !q.split(/\s+/).every(w => r.text.includes(w))) return false;
+    if(f.fams.length && !f.fams.includes(r.fam)) return false;
+    if(pinMin !== null && !(r.pins >= pinMin)) return false;
+    if(pinMax !== null && !(r.pins !== null && r.pins <= pinMax)) return false;
+    if(flashMin !== null && !(r.flash >= flashMin)) return false;
+    if(ramMin !== null && !(r.ram >= ramMin)) return false;
+    if(mhzMin !== null && !(r.mhz >= mhzMin)) return false;
+    return f.feats.every(k => !test[k] || test[k](r));
+  });
+  const col = MCUSEL_COLS.find(c => c.k === f.sk);
+  if(col){
+    const d = f.sd < 0 ? -1 : 1;
+    rows = rows.map((r, i) => [r, i]).sort((a, b) => {
+      const x = col.s(a[0]), y = col.s(b[0]);
+      const xn = x === null || x === undefined || x === '', yn = y === null || y === undefined || y === '';
+      if(xn !== yn) return xn ? 1 : -1;
+      const c = typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y), undefined, {numeric: true});
+      return c ? c * d : a[1] - b[1];
+    }).map(a => a[0]);
+  }
+  return rows;
+}
+
+function mcuSelRenderTable(){
+  const dlg = $('mcuSelDlg'); if(!dlg) return;
+  const rows = mcuSelFiltered();
+  const cur = state.variant + '|' + (state.pkg || '');
+  const head = MCUSEL_COLS.map(c => `<th data-k="${c.k}"${c.t ? ` title="${esc(c.t)}"` : ''} class="${c.n ? 'ms-n' : ''}${mcuSelF.sk === c.k ? ' ms-sorted' : ''}">${esc(c.l)}${mcuSelF.sk === c.k ? (mcuSelF.sd < 0 ? ' &#9662;' : ' &#9652;') : ''}</th>`).join('') + '<th></th>';
+  const body = rows.map(r => `<tr data-key="${esc(r.key)}" class="${r.key === cur ? 'ms-cur' : ''}" title="${esc((r.ds ? 'Datasheet: ' + r.ds : '') + (r.mods.size ? '\nModules in this tool: ' + [...r.mods].join(', ') : ''))}">${MCUSEL_COLS.map(c => `<td class="${c.n ? 'ms-n' : ''} ms-c-${c.k}">${c.h(r)}</td>`).join('')}<td><button class="icon-btn ms-sel" data-key="${esc(r.key)}">${r.key === cur ? 'Current' : 'Select'}</button></td></tr>`).join('');
+  dlg.querySelector('.ms-table thead tr').innerHTML = head;
+  dlg.querySelector('.ms-table tbody').innerHTML = body || `<tr><td colspan="${MCUSEL_COLS.length + 1}" class="ms-empty">No chip matches these filters.</td></tr>`;
+  $('mcuSelCount').textContent = `${rows.length} of ${mcuSelRows().length} chip / package rows`;
+}
+
+function mcuSelRenderFilters(){
+  const dlg = $('mcuSelDlg'), f = mcuSelF;
+  dlg.querySelector('#msQ').value = f.q;
+  dlg.querySelectorAll('[data-msfam]').forEach(c => { c.checked = f.fams.includes(c.dataset.msfam); });
+  dlg.querySelectorAll('[data-msfeat]').forEach(c => { c.checked = f.feats.includes(c.dataset.msfeat); });
+  ['pinMin', 'pinMax', 'flashMin', 'ramMin', 'mhzMin'].forEach(k => { dlg.querySelector('#ms_' + k).value = f[k]; });
+}
+
+function mcuSelBuildDialog(){
+  const dlg = document.createElement('dialog');
+  dlg.id = 'mcuSelDlg'; dlg.className = 'ms-dlg';
+  const fams = Object.keys(FAMILIES).map(k => `<label class="ms-chk"><input type="checkbox" data-msfam="${k}"> ${esc(FAMILIES[k].label)}</label>`).join('');
+  const feats = MCUSEL_FEATS.map(([k, l]) => `<label class="ms-chk"><input type="checkbox" data-msfeat="${k}"> ${esc(l)}</label>`).join('');
+  const lion = mcuSelLion();
+  dlg.innerHTML = `
+  <div class="ms-head">
+    <span class="ms-title">MCU Selector</span>
+    <span class="ms-count" id="mcuSelCount"></span>
+    <span class="ms-sp"></span>
+    <button class="icon-btn" id="msReset" title="Clear every filter">Reset filters</button>
+    <button class="icon-btn" id="msClose" title="Close (Esc)">Close</button>
+  </div>
+  <div class="ms-body">
+    <aside class="ms-filt">
+      <input type="search" id="msQ" placeholder="Search chip, package, core" aria-label="Search chip">
+      <div class="ms-fh">Family</div><div class="ms-grid">${fams}</div>
+      <div class="ms-fh">Pins</div>
+      <div class="ms-range"><input type="number" id="ms_pinMin" min="0" placeholder="min" aria-label="Minimum pins"><span>to</span><input type="number" id="ms_pinMax" min="0" placeholder="max" aria-label="Maximum pins"></div>
+      <div class="ms-fh">Minimum</div>
+      <label class="ms-lab">Flash (KB)<input type="number" id="ms_flashMin" min="0"></label>
+      <label class="ms-lab">RAM (KB)<input type="number" id="ms_ramMin" min="0"></label>
+      <label class="ms-lab">Clock (MHz)<input type="number" id="ms_mhzMin" min="0"></label>
+      <div class="ms-fh">Features</div><div class="ms-feats">${feats}</div>
+    </aside>
+    <div class="ms-main">
+      <div class="ms-wrap"><table class="ms-table"><thead><tr></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>`;
+  document.body.appendChild(dlg);
+  const upd = () => { mcuSelSave(); mcuSelRenderTable(); };
+  dlg.querySelector('#msQ').addEventListener('input', e => { mcuSelF.q = e.target.value; upd(); });
+  dlg.querySelectorAll('[data-msfam]').forEach(c => c.addEventListener('change', () => { mcuSelF.fams = [...dlg.querySelectorAll('[data-msfam]:checked')].map(x => x.dataset.msfam); upd(); }));
+  dlg.querySelectorAll('[data-msfeat]').forEach(c => c.addEventListener('change', () => { mcuSelF.feats = [...dlg.querySelectorAll('[data-msfeat]:checked')].map(x => x.dataset.msfeat); upd(); }));
+  ['pinMin', 'pinMax', 'flashMin', 'ramMin', 'mhzMin'].forEach(k => dlg.querySelector('#ms_' + k).addEventListener('input', e => { mcuSelF[k] = e.target.value; upd(); }));
+  dlg.querySelector('#msReset').addEventListener('click', () => { const s = {sk: mcuSelF.sk, sd: mcuSelF.sd}; mcuSelF = Object.assign(mcuSelDefaults(), s); mcuSelRenderFilters(); upd(); });
+  dlg.querySelector('#msClose').addEventListener('click', () => dlg.close());
+  dlg.querySelector('.ms-table thead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-k]'); if(!th) return;
+    if(mcuSelF.sk === th.dataset.k){ if(mcuSelF.sd > 0) mcuSelF.sd = -1; else { mcuSelF.sk = ''; mcuSelF.sd = 1; } }
+    else { mcuSelF.sk = th.dataset.k; mcuSelF.sd = 1; }
+    upd();
+  });
+  dlg.querySelector('.ms-table tbody').addEventListener('click', e => {
+    if(e.target.closest('a')) return;            /* buy links open on their own */
+    const tr = e.target.closest('tr[data-key]'); if(!tr) return;
+    const r = mcuSelRows().find(x => x.key === tr.dataset.key);
+    if(r) mcuSelApply(r);
+  });
+  return dlg;
+}
+
+/* switch the configurator to the row's family / chip / package with the real controls */
+function mcuSelApply(r){
+  const dlg = $('mcuSelDlg');
+  const chipChange = r.fam !== state.family || r.id !== state.variant;
+  const n = (state.configs || []).length + Object.keys(state.labels || {}).length;
+  if(chipChange && n && !confirm(`Switch to ${r.id}${r.pkg ? ' ' + r.pkg : ''}?\nChanging the chip clears the current configuration (${state.configs.length} item${state.configs.length === 1 ? '' : 's'}).`)) return;
+  if(r.fam !== state.family){
+    const b = [...document.querySelectorAll('.fam-btn')].find(x => x.dataset.fam === r.fam);
+    if(b) b.click();
+  }
+  const vs = $('variantSelect');
+  if(state.variant !== r.id && [...vs.options].some(o => o.value === r.id)){ vs.value = r.id; vs.dispatchEvent(new Event('change')); }
+  const ps = $('pkgSelect');
+  if(r.pkg && ps && !ps.disabled && state.pkg !== r.pkg && [...ps.options].some(o => o.value === r.pkg)){ ps.value = r.pkg; ps.dispatchEvent(new Event('change')); }
+  if(dlg && dlg.open) dlg.close();
+}
+
+function mcuSelOpen(){
+  if(!mcuSelF) mcuSelF = mcuSelLoad();
+  mcuSelRowsCache = null;                         /* chips may have been added since the last open */
+  const dlg = $('mcuSelDlg') || mcuSelBuildDialog();
+  mcuSelRenderFilters();
+  mcuSelRenderTable();
+  if(!dlg.open){ if(dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+  const cur = dlg.querySelector('tr.ms-cur');
+  if(cur && cur.scrollIntoView) cur.scrollIntoView({block: 'nearest'});
+  dlg.querySelector('#msQ').focus();
+}
+
+/* Lion links of the selected chip: Project Manager chip card and the chip info line under the pinout */
+function mcuSelLionRefresh(){
+  const id = state.variant, pk = typeof currentPkg === 'function' ? currentPkg() : null;
+  const L = mcuSelLion();
+  const mine = pk ? (L.pkgItems[id + '|' + pk.name] || []) : [];
+  const chipLevel = L.chipItems[id] || [];
+  const others = PINOUTS[id] ? PINOUTS[id].pkgs.filter(k => !pk || k.name !== pk.name).flatMap(k => (L.pkgItems[id + '|' + k.name] || []).map(it => ({it, pkg: k.name}))) : [];
+  const boards = L.boards[id] || [];
+  const buy = mine.concat(chipLevel);
+  let h = '';
+  if(buy.length) h = 'Buy at Lion Electronic: ' + buy.map(it => mcuSelLink(it)).join(', ');
+  if(boards.length) h += (h ? ' · ' : '') + 'Boards: ' + boards.map(it => mcuSelLink(it)).join(', ');
+  const pm = $('pmChip');
+  if(pm && pm.parentNode){
+    let el = $('msPmLion');
+    if(!el){ el = document.createElement('div'); el.id = 'msPmLion'; el.className = 'ms-pm-lion'; pm.parentNode.insertBefore(el, pm.nextSibling); }
+    el.innerHTML = h; el.hidden = !h;
+  }
+  const cn = $('chipNote');
+  if(cn && cn.parentNode){
+    let el = $('msNoteLion');
+    if(!el){ el = document.createElement('span'); el.id = 'msNoteLion'; el.className = 'ms-note-lion'; cn.parentNode.insertBefore(el, cn.nextSibling); }
+    el.innerHTML = h; el.hidden = !h;
+  }
+}
+
+function mcuSelInit(){
+  if($('mcuSelBtn')) return;
+  const st = document.createElement('style');
+  st.textContent = `
+  .ms-dlg{width:min(1680px, 97vw); height:92vh; max-width:none; max-height:none; padding:0; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--text); font-family:var(--sans); overflow:hidden;}
+  .ms-dlg[open]{display:flex; flex-direction:column;}
+  .ms-dlg{color-scheme:dark;} html[data-theme="light"] .ms-dlg{color-scheme:light;}
+  .ms-wrap{background:var(--panel);}
+  .ms-dlg::backdrop{background:rgba(5,10,16,0.55);}
+  .ms-head{display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid var(--line); background:var(--panel-2); flex:none;}
+  .ms-title{font-family:var(--disp); font-weight:700; font-size:16px;}
+  .ms-count{font-family:var(--mono); font-size:11px; color:var(--text-dim);}
+  .ms-sp{flex:1;}
+  .ms-body{display:flex; flex:1; min-height:0;}
+  .ms-filt{width:230px; flex:none; border-right:1px solid var(--line); padding:10px 12px; overflow:auto; background:var(--panel); font-size:12px;}
+  .ms-filt input[type=search], .ms-filt input[type=number]{width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:5px 7px; font-family:var(--mono); font-size:11.5px;}
+  .ms-fh{font-family:var(--mono); font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-faint); margin:12px 0 5px;}
+  .ms-grid{display:grid; grid-template-columns:1fr 1fr; gap:3px 8px;}
+  .ms-chk{display:flex; align-items:center; gap:5px; cursor:pointer; color:var(--text-dim); line-height:1.5;}
+  .ms-chk input{margin:0; accent-color:var(--copper);}
+  .ms-feats .ms-chk{margin:1px 0;}
+  .ms-range{display:flex; align-items:center; gap:6px;} .ms-range span{color:var(--text-faint);}
+  .ms-lab{display:grid; grid-template-columns:1fr 80px; align-items:center; gap:6px; margin:4px 0; color:var(--text-dim);}
+  .ms-main{flex:1; min-width:0; display:flex; flex-direction:column;}
+  .ms-wrap{flex:1; overflow:auto; min-height:0;}
+  .ms-table{border-collapse:separate; border-spacing:0; width:100%; font-size:11.5px; font-family:var(--mono);}
+  .ms-table th{position:sticky; top:0; z-index:1; background:var(--panel-3); color:var(--text-dim); font-weight:600; text-align:left; padding:6px 6px; border-bottom:1px solid var(--line); white-space:nowrap; cursor:pointer; user-select:none; font-size:10.5px;}
+  .ms-table th:hover{color:var(--text);} .ms-table th.ms-sorted{color:var(--copper);}
+  .ms-table td{padding:5px 6px; border-bottom:1px solid var(--line-soft); vertical-align:top; white-space:nowrap;}
+  .ms-table td.ms-c-lion{white-space:normal; min-width:170px; max-width:260px; font-family:var(--sans); font-size:11px;}
+  .ms-table td.ms-c-core{white-space:normal; min-width:110px;}
+  .ms-table .ms-n{text-align:right;}
+  .ms-table tbody tr{cursor:pointer;}
+  .ms-table tbody tr:hover td{background:var(--panel-2);}
+  .ms-table tbody tr.ms-cur td{background:color-mix(in srgb, var(--copper) 12%, transparent);}
+  .ms-code{font-size:9.5px; color:var(--text-faint);}
+  .ms-sub{font-size:9.5px; color:var(--text-faint);}
+  .ms-cfg{color:var(--copper); font-weight:600;}
+  .ms-unk{color:var(--text-faint);}
+  .ms-no{color:var(--text-faint);}
+  .ms-y{color:var(--teal);} .ms-y.ms-cfg{color:var(--copper);}
+  .ms-empty{text-align:center; padding:30px !important; color:var(--text-dim);}
+  .ms-sel{padding:3px 8px;}
+  a.ms-lion{color:var(--copper); text-decoration:none; border-bottom:1px dotted currentColor;}
+  a.ms-lion:hover{border-bottom-style:solid;}
+  .ms-boards{color:var(--text-dim); margin-top:2px;}
+  .ms-foot{flex:none; border-top:1px solid var(--line); padding:7px 12px; font-size:11px; color:var(--text-dim); background:var(--panel-2); line-height:1.5;}
+  .ms-other{margin-top:3px;}
+  .ms-pm-lion{max-width:210px; font-family:var(--sans); font-size:10.5px; color:var(--text-dim); margin-top:2px; line-height:1.4;}
+  .ms-note-lion{margin-left:10px; font-family:var(--sans); color:var(--text-dim);}
+  .ms-note-lion::before{content:'·'; margin-right:8px; color:var(--text-faint);}
+  @media (max-width:1200px){ .ms-filt{width:200px;} .ms-dlg{width:99vw; height:95vh;} }
+  `;
+  document.head.appendChild(st);
+  const b = document.createElement('button');
+  b.className = 'icon-btn'; b.id = 'mcuSelBtn'; b.title = 'Find a chip by package, memory and peripherals'; b.textContent = 'MCU Selector';
+  const ex = $('exampleBtn');
+  if(ex && ex.parentNode) ex.parentNode.insertBefore(b, ex);
+  b.addEventListener('click', mcuSelOpen);
+  if(typeof renderAll === 'function'){
+    const orig = renderAll;
+    renderAll = function(){ const r = orig.apply(this, arguments); try{ mcuSelLionRefresh(); }catch(e){} return r; };
+  }
+  mcuSelLionRefresh();
+}
+setTimeout(mcuSelInit, 0);
+
+/* ---- ide-export ---- */
+/* ---- ide-export ---- */
+/* ================= Toolchain / IDE of the exported project (Project Manager) =================
+ * state.project.ide = 'vscode' (default: VS Code + CMake, unchanged), 'mrs' (MounRiver Studio: Eclipse CDT
+ * .project / .cproject like the EVT examples) or 'pio' (PlatformIO: community platform-ch32v, framework
+ * noneos-sdk). It is saved in the .wchproj (project.ide, only when it is not VS Code, so VS Code exports stay
+ * byte-identical) and used by the zip button and by Generate code.
+ * Both exports start from the VS Code export (same src/ files, USER CODE sections, split files and module
+ * files) and replace the CMake / VS Code files with the files of the IDE:
+ * - MounRiver Studio: the browser cannot read the EVT, so tools/evt_files.txt lists the EVT files that the
+ *   CMake export builds (drivers, startup, User template, linker script with the memory edits, BLE / RF /
+ *   FreeRTOS / NetLib parts, libraries) and tools/mrs_setup.ps1 / .sh (setup_mrs.cmd) copy them into evt/, ld/
+ *   and lib/ - the same self-contained layout as an EVT example after "copy linked resources". The .cproject
+ *   then only uses project-relative paths, so nothing has to be edited by hand.
+ * - PlatformIO: the noneos-sdk framework supplies the SDK (drivers, startup, system_*.c, linker script); the
+ *   BLE / RF stack, which the framework does not have, comes from the EVT through tools/pio_evt.py. */
+var IDE_KINDS = {
+  vscode: {name: 'VS Code + CMake', btn: null, zip: 'vscode'},
+  mrs: {name: 'MounRiver Studio (MRS2 / MRS Community)', btn: 'MounRiver project (.zip)', zip: 'mrs', card: 'MounRiver Studio (Eclipse CDT) + MounRiver GCC12'},
+  pio: {name: 'PlatformIO (platform-ch32v, noneos-sdk)', btn: 'PlatformIO project (.zip)', zip: 'pio', card: 'PlatformIO + platform-ch32v (noneos-sdk) + GCC12'},
+};
+function ideKind(){
+  const i = state.project && state.project.ide;
+  return (i === 'mrs' || i === 'pio') ? i : 'vscode';
+}
+/* helper scripts shipped in the MounRiver / PlatformIO exports (tools/) */
+var IDE_TOOLS = {"mrs_setup.ps1":"<#\n  MounRiver Studio project setup (Windows / PowerShell 5.1+)\n  Exported by WCH Configurator - original tool by Amir1387aht (Another)\n  https://github.com/amir1387aht/WCH-Resources\n\n  Copies the EVT files this project needs (drivers, startup file, linker script, libraries) into evt/, ld/\n  and lib/, as listed in tools/evt_files.txt. The .cproject builds src/ and evt/ and links with ld/Link.ld\n  and lib/*.a, so run this once before the first build, and again after Generate code when the\n  configuration changed (for example Bluetooth, FreeRTOS or Ethernet switched on).\n\n  Usage:  powershell -ExecutionPolicy Bypass -File tools/mrs_setup.ps1 [-Evt <EVT folder>] [-Yes]\n          (or double-click setup_mrs.cmd)\n  -Evt    the EVT folder that contains EXAM\\SRC (official zip from wch-ic.com / wch.cn, or an openwch git checkout).\n          Without it the script uses WCH_EVT_DIR, then the EVT shared with the VS Code exports\n          (%LOCALAPPDATA%\\wch-tools\\evt\\<repo>\\EVT), and downloads it with git when it is not there yet.\n#>\nparam([string]$Evt = '', [switch]$Yes)\n$ErrorActionPreference = 'Stop'\n$Root = Split-Path -Parent $PSScriptRoot\n$List = Join-Path $PSScriptRoot 'evt_files.txt'\n\nfunction Say($m) { Write-Host $m }\nfunction Ok($m) { Write-Host \"  OK   $m\" -ForegroundColor Green }\nfunction Warn($m) { Write-Host \"  WARN $m\" -ForegroundColor Yellow }\nfunction Die($m, $hint) {\n  Write-Host \"ERROR: $m\" -ForegroundColor Red\n  if ($hint) { Write-Host \"-> $hint\" -ForegroundColor Yellow }\n  exit 1\n}\nfunction Confirm-Step($q) {\n  if ($Yes) { return $true }\n  $a = Read-Host \"$q [Y/n]\"\n  return ($a -eq '' -or $a -match '^[yY]')\n}\n\nif (-not (Test-Path $List)) { Die \"tools/evt_files.txt not found\" \"Export the project again from WCH Configurator (Toolchain / IDE: MounRiver Studio).\" }\n$ops = @(Get-Content $List | Where-Object { $_ -match '\\S' -and $_ -notmatch '^\\s*#' } | ForEach-Object { , @(-split $_) })\n$repo = ''; $chip = ''; $header = ''; $need = @(); $clean = @()\nforeach ($f in $ops) {\n  switch ($f[0]) {\n    'repo' { if ($f.Count -gt 1) { $repo = $f[1] } }\n    'chip' { $chip = $f[1] }\n    'check' { $header = $f[1] }\n    'need' { $need += $f[1..($f.Count - 1)] }\n    'clean' { $clean += $f[1..($f.Count - 1)] }\n  }\n}\nSay \"MounRiver Studio setup for the $chip project in $Root\"\n\n# ---- find the EVT ----\n$Cache = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'wch-tools' } else { Join-Path $HOME '.cache/wch-tools' }\nfunction Test-Evt($d) { return ($d -and (Test-Path (Join-Path $d 'EXAM/SRC'))) }\nif ($Evt -and -not (Test-Evt $Evt) -and (Test-Evt (Join-Path $Evt 'EVT'))) { $Evt = Join-Path $Evt 'EVT' }\nif ($Evt -and -not (Test-Evt $Evt)) { Die \"-Evt '$Evt' has no EXAM\\SRC folder\" \"Give the EVT folder that contains EXAM\\SRC.\" }\nif (-not $Evt -and (Test-Evt $env:WCH_EVT_DIR)) { $Evt = $env:WCH_EVT_DIR }\nif (-not $Evt) {\n  $vs = Join-Path $Root '.vscode/settings.json'\n  if (Test-Path $vs) { try { $s = Get-Content $vs -Raw | ConvertFrom-Json; if (Test-Evt $s.'wch.evtDir') { $Evt = $s.'wch.evtDir' } } catch {} }\n}\n$repoDir = if ($repo) { Join-Path $Cache \"evt/$repo\" } else { '' }\nif (-not $Evt -and $repo -and (Test-Evt (Join-Path $repoDir 'EVT'))) { $Evt = Join-Path $repoDir 'EVT' }\n# a shared sparse checkout without EXAM/SRC (e.g. made by the PlatformIO export): add the folders instead of cloning again\nif (-not $Evt -and $repo -and (Test-Path (Join-Path $repoDir '.git')) -and (Get-Command git -ErrorAction SilentlyContinue)) {\n  & git -C $repoDir -c core.longpaths=true sparse-checkout add @need 2>&1 | Out-Host\n  if (Test-Evt (Join-Path $repoDir 'EVT')) { $Evt = Join-Path $repoDir 'EVT' }\n}\nif (-not $Evt) {\n  if (-not $repo) { Die \"WCH has no public GitHub repository with the $chip EVT.\" \"Download the $chip EVT zip from https://www.wch-ic.com (or wch.cn), unzip it and run: powershell -ExecutionPolicy Bypass -File tools/mrs_setup.ps1 -Evt <folder that contains EXAM\\SRC>\" }\n  if (-not (Get-Command git -ErrorAction SilentlyContinue)) { Die \"git is not installed, so the EVT cannot be downloaded.\" \"Install git (winget install Git.Git), or download https://github.com/openwch/$repo as a zip, unzip it and run this script with -Evt <unzipped folder>\\EVT\" }\n  if (-not (Confirm-Step \"Download the official $chip EVT from github.com/openwch/$repo (only the folders this project needs)?\")) { Die \"No EVT\" \"Run the script again with -Evt <EVT folder>.\" }\n  New-Item -ItemType Directory -Force (Split-Path $repoDir) | Out-Null\n  if (Test-Path $repoDir) { Remove-Item -Recurse -Force $repoDir }\n  & git clone -c core.longpaths=true --quiet --depth 1 --filter=blob:none --sparse \"https://github.com/openwch/$repo.git\" $repoDir 2>&1 | Out-Host\n  if ($LASTEXITCODE -ne 0) { Die \"git clone of openwch/$repo failed\" \"Check the internet connection or proxy and run the script again.\" }\n  & git -C $repoDir -c core.longpaths=true sparse-checkout set @need 2>&1 | Out-Host\n  if ($LASTEXITCODE -ne 0) { Die \"Downloading the EVT files failed\" \"Check the internet connection and run the script again.\" }\n  $Evt = Join-Path $repoDir 'EVT'\n}\n$Evt = (Resolve-Path $Evt).Path\n# folders this configuration needs that a sparse git checkout may not have yet\n$evtRepo = Split-Path $Evt\n$missing = @($need | Where-Object { -not (Test-Path (Join-Path $evtRepo $_)) })\nif ($missing.Count -and (Test-Path (Join-Path $evtRepo '.git')) -and (Get-Command git -ErrorAction SilentlyContinue)) {\n  Say \"Adding $($missing -join ', ') to the EVT checkout ...\"\n  & git -C $evtRepo -c core.longpaths=true sparse-checkout add @missing 2>&1 | Out-Host\n  $missing = @($need | Where-Object { -not (Test-Path (Join-Path $evtRepo $_)) })\n}\nif ($missing.Count) { Die \"The EVT in $Evt has no $($missing -join ', ')\" \"Use a full $chip EVT package (-Evt <folder>).\" }\nOk \"EVT: $Evt\"\nif ($header) {\n  $h = Get-ChildItem -Path (Join-Path $Evt 'EXAM/SRC') -Recurse -Filter $header -ErrorAction SilentlyContinue | Select-Object -First 1\n  if (-not $h) { Die \"$header not found in $Evt\\EXAM\\SRC\" \"This EVT is not for $chip. Give the $chip EVT with -Evt.\" }\n}\n\n# ---- copy ----\nfunction Src($p) { return (Join-Path $Evt $p) }\nfunction Dst($p) { $d = Join-Path $Root $p; New-Item -ItemType Directory -Force (Split-Path $d) | Out-Null; return $d }\nfunction Match-Files($dir, $pat) {\n  # one candidate: <dir>/<glob>[!<exclude glob>]\n  $parts = $pat -split '!'\n  if (-not (Test-Path $dir)) { return @() }\n  return @(Get-ChildItem -Path $dir -File | Where-Object { $_.Name -like $parts[0] -and -not ($parts.Count -gt 1 -and $_.Name -like $parts[1]) } | Sort-Object Name)\n}\nforeach ($c in $clean) { $p = Join-Path $Root $c; if (Test-Path $p) { Remove-Item -Recurse -Force $p } }\n$n = 0\nforeach ($f in $ops) {\n  switch ($f[0]) {\n    'dir' {\n      $s = Src $f[2]\n      if (-not (Test-Path $s)) { Die \"$($f[2]) not found in the EVT\" \"Use a full $chip EVT package.\" }\n      $d = Dst $f[1]; New-Item -ItemType Directory -Force $d | Out-Null\n      Copy-Item -Recurse -Force (Join-Path $s '*') $d; $n++\n    }\n    'files' {\n      $s = Src $f[2]\n      if (-not (Test-Path $s)) { Die \"$($f[2]) not found in the EVT\" \"Use a full $chip EVT package.\" }\n      $inc = @($f[3..($f.Count - 1)] | Where-Object { -not $_.StartsWith('!') })\n      $exc = @($f[3..($f.Count - 1)] | Where-Object { $_.StartsWith('!') } | ForEach-Object { $_.Substring(1) })\n      $d = Join-Path $Root $f[1]; New-Item -ItemType Directory -Force $d | Out-Null\n      $got = 0\n      foreach ($x in Get-ChildItem -Path $s -File) {\n        if (@($inc | Where-Object { $x.Name -like $_ }).Count -and -not @($exc | Where-Object { $x.Name -like $_ }).Count) { Copy-Item -Force $x.FullName $d; $got++ }\n      }\n      if (-not $got) { Warn \"no files matched $($f[3..($f.Count - 1)] -join ' ') in $($f[2])\" }\n      $n++\n    }\n    { $_ -eq 'file' -or $_ -eq 'file?' } {\n      $hit = $null\n      foreach ($cand in $f[2..($f.Count - 1)]) {\n        $rel = $cand -split '!'\n        $m = Match-Files (Split-Path (Src $rel[0])) ((Split-Path -Leaf $rel[0]) + $(if ($rel.Count -gt 1) { '!' + $rel[1] } else { '' }))\n        if ($m.Count) { $hit = $m[0]; break }\n      }\n      if (-not $hit) {\n        if ($f[0] -eq 'file?') { continue }\n        Die \"None of $($f[2..($f.Count - 1)] -join ', ') found in the EVT\" \"Use a full $chip EVT package.\"\n      }\n      if ($cand -ne $f[2]) { Warn \"$($f[2]) not found, using $($hit.Name)\" }\n      Copy-Item -Force $hit.FullName (Dst $f[1]); $n++\n    }\n    'alias' {\n      # second name for a header (case-sensitive file systems), only when it is not there yet\n      $d = Join-Path $Root $f[1]\n      if (-not (Test-Path $d)) { Copy-Item -Force (Join-Path $Root $f[2]) $d }\n    }\n    'incfirst' {\n      $p = Join-Path $Root $f[1]\n      $t = [IO.File]::ReadAllText($p)\n      [IO.File]::WriteAllText($p, \"#include `\"$($f[2])`\"   /* added by tools/mrs_setup (the EVT builds this file with -include $($f[2])) */`n\" + $t)\n    }\n    'ldmem' {\n      $p = Join-Path $Root $f[1]\n      $t = [IO.File]::ReadAllText($p)\n      $re = New-Object Text.RegularExpressions.Regex 'MEMORY[ \\t\\r\\n]*\\{[^}]*\\}'\n      if (-not $re.IsMatch($t)) { Die \"No MEMORY block found in $($f[1])\" \"Set FLASH $($f[2])K / RAM $($f[3])K in the linker script yourself.\" }\n      $t = $re.Replace($t, \"MEMORY`n{`n`t/* $($f[4]) */`n`tFLASH (rx) : ORIGIN = 0x00000000, LENGTH = $($f[2])K`n`tRAM (xrw) : ORIGIN = 0x20000000, LENGTH = $($f[3])K`n}\", 1)\n      [IO.File]::WriteAllText($p, $t)\n    }\n    'ldstackheap' {\n      $p = Join-Path $Root $f[1]; $stack = [int]$f[2]; $heap = [int]$f[3]; $tag = $f[4]\n      $t = [IO.File]::ReadAllText($p)\n      $re = New-Object Text.RegularExpressions.Regex '__stack_size[ \\t]*=[ \\t]*[0-9]+[ \\t]*;'\n      if ($re.IsMatch($t)) {\n        if ($stack -gt 0) { $t = $re.Replace($t, \"__stack_size = $stack;\") }\n        if ($heap -gt 0) { $t += \"`nASSERT(ADDR(.stack) - (ADDR(.bss) + SIZEOF(.bss)) >= $heap, `\"${tag}: less than $heap bytes of RAM left for the heap (Project Manager: heap size)`\")`n\" }\n      } elseif ($stack + $heap -gt 0) {\n        $need2 = $stack + $heap\n        $t += \"`nASSERT(ORIGIN(RAM) + LENGTH(RAM) - (ADDR(.bss) + SIZEOF(.bss)) >= $need2, `\"${tag}: less than $need2 bytes of RAM left for the stack and heap (Project Manager: stack/heap size)`\")`n\"\n      }\n      [IO.File]::WriteAllText($p, $t)\n    }\n  }\n}\nOk \"copied the EVT files into $(($clean | ForEach-Object { $_ + '/' }) -join ', ')\"\nSay \"\"\nSay \"Done. In MounRiver Studio: import this folder (File > Import > General > Existing Projects into Workspace,\"\nSay \"or open it in MounRiver Studio II), then Project > Build. Run this script again after Generate code when\"\nSay \"the configuration changed.\"\n","mrs_setup.sh":"#!/usr/bin/env bash\n# MounRiver Studio project setup (Linux / macOS / Git Bash)\n# Exported by WCH Configurator - original tool by Amir1387aht (Another)\n# https://github.com/amir1387aht/WCH-Resources\n#\n# Copies the EVT files this project needs (drivers, startup file, linker script, libraries) into evt/, ld/\n# and lib/, as listed in tools/evt_files.txt. The .cproject builds src/ and evt/ and links with ld/Link.ld\n# and lib/*.a, so run this once before the first build, and again after Generate code when the\n# configuration changed (for example Bluetooth, FreeRTOS or Ethernet switched on).\n#\n# Usage:  bash tools/mrs_setup.sh [--evt <EVT folder>] [-y]\n#   --evt  the EVT folder that contains EXAM/SRC (official zip from wch-ic.com / wch.cn, or an openwch git\n#          checkout). Without it: $WCH_EVT_DIR, then the EVT shared with the VS Code exports\n#          (~/.cache/wch-tools/evt/<repo>/EVT), downloaded with git when it is not there yet.\nset -e\nset -f   # no file name expansion: the patterns in evt_files.txt are matched below\nhere=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"\nroot=\"$(dirname \"$here\")\"\nlist=\"$here/evt_files.txt\"\nEVT=\"\"; YES=0\nwhile [ $# -gt 0 ]; do\n  case \"$1\" in\n    --evt|-evt|-Evt) EVT=\"$2\"; shift 2 ;;\n    -y|--yes|-Yes) YES=1; shift ;;\n    *) echo \"unknown argument: $1\"; exit 2 ;;\n  esac\ndone\ndie() { printf '\\033[31mERROR: %s\\033[0m\\n' \"$1\"; [ -n \"$2\" ] && printf '\\033[33m-> %s\\033[0m\\n' \"$2\"; exit 1; }\nok() { printf '  \\033[32mOK\\033[0m   %s\\n' \"$1\"; }\nwarn() { printf '  \\033[33mWARN\\033[0m %s\\n' \"$1\"; }\nconfirm() { [ $YES = 1 ] && return 0; printf '%s [Y/n] ' \"$1\"; read -r a; [ -z \"$a\" ] || [ \"$a\" = y ] || [ \"$a\" = Y ]; }\n[ -f \"$list\" ] || die \"tools/evt_files.txt not found\" \"Export the project again from WCH Configurator (Toolchain / IDE: MounRiver Studio).\"\ncommand -v perl >/dev/null 2>&1 || die \"perl is needed to edit the linker script\" \"Install perl (it is part of almost every Linux / macOS system).\"\n\nops() { grep -v '^[[:space:]]*#' \"$list\" | grep '[^[:space:]]' | tr -d '\\r'; }\nrepo=\"$(ops | awk '$1==\"repo\"{print $2}')\"\nchip=\"$(ops | awk '$1==\"chip\"{print $2}')\"\nheader=\"$(ops | awk '$1==\"check\"{print $2}')\"\nneed=\"$(ops | awk '$1==\"need\"{for(i=2;i<=NF;i++) print $i}')\"\nclean=\"$(ops | awk '$1==\"clean\"{for(i=2;i<=NF;i++) print $i}')\"\necho \"MounRiver Studio setup for the $chip project in $root\"\n\n# ---- find the EVT ----\ncache=\"${XDG_CACHE_HOME:-$HOME/.cache}/wch-tools\"\n[ -n \"$LOCALAPPDATA\" ] && cache=\"$(cd \"$LOCALAPPDATA\" 2>/dev/null && pwd)/wch-tools\"\nis_evt() { [ -n \"$1\" ] && [ -d \"$1/EXAM/SRC\" ]; }\nif [ -n \"$EVT\" ] && ! is_evt \"$EVT\" && is_evt \"$EVT/EVT\"; then EVT=\"$EVT/EVT\"; fi\nif [ -n \"$EVT\" ] && ! is_evt \"$EVT\"; then die \"--evt '$EVT' has no EXAM/SRC folder\" \"Give the EVT folder that contains EXAM/SRC.\"; fi\nif [ -z \"$EVT\" ] && is_evt \"$WCH_EVT_DIR\"; then EVT=\"$WCH_EVT_DIR\"; fi\nif [ -z \"$EVT\" ] && [ -f \"$root/.vscode/settings.json\" ]; then\n  v=\"$(sed -n 's/.*\"wch.evtDir\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p' \"$root/.vscode/settings.json\")\"\n  is_evt \"$v\" && EVT=\"$v\"\nfi\nrepodir=\"\"; [ -n \"$repo\" ] && repodir=\"$cache/evt/$repo\"\nif [ -z \"$EVT\" ] && [ -n \"$repo\" ] && is_evt \"$repodir/EVT\"; then EVT=\"$repodir/EVT\"; fi\n# a shared sparse checkout without EXAM/SRC (e.g. made by the PlatformIO export): add the folders instead of cloning again\nif [ -z \"$EVT\" ] && [ -n \"$repo\" ] && [ -d \"$repodir/.git\" ] && command -v git >/dev/null 2>&1; then\n  # shellcheck disable=SC2086\n  git -C \"$repodir\" sparse-checkout add $need || true\n  is_evt \"$repodir/EVT\" && EVT=\"$repodir/EVT\"\nfi\nif [ -z \"$EVT\" ]; then\n  [ -n \"$repo\" ] || die \"WCH has no public GitHub repository with the $chip EVT.\" \"Download the $chip EVT zip from https://www.wch-ic.com (or wch.cn), unzip it and run: bash tools/mrs_setup.sh --evt <folder that contains EXAM/SRC>\"\n  command -v git >/dev/null 2>&1 || die \"git is not installed, so the EVT cannot be downloaded.\" \"Install git, or download https://github.com/openwch/$repo as a zip and run this script with --evt <unzipped folder>/EVT\"\n  confirm \"Download the official $chip EVT from github.com/openwch/$repo (only the folders this project needs)?\" || die \"No EVT\" \"Run the script again with --evt <EVT folder>.\"\n  mkdir -p \"$(dirname \"$repodir\")\"; rm -rf \"$repodir\"\n  git clone --quiet --depth 1 --filter=blob:none --sparse \"https://github.com/openwch/$repo.git\" \"$repodir\" || die \"git clone of openwch/$repo failed\" \"Check the internet connection or proxy and run the script again.\"\n  # shellcheck disable=SC2086\n  git -C \"$repodir\" sparse-checkout set $need || die \"Downloading the EVT files failed\" \"Check the internet connection and run the script again.\"\n  EVT=\"$repodir/EVT\"\nfi\nEVT=\"$(cd \"$EVT\" && pwd)\"\nevtrepo=\"$(dirname \"$EVT\")\"\nmissing=\"\"; for n in $need; do [ -e \"$evtrepo/$n\" ] || missing=\"$missing $n\"; done\nif [ -n \"$missing\" ] && [ -d \"$evtrepo/.git\" ] && command -v git >/dev/null 2>&1; then\n  echo \"Adding$missing to the EVT checkout ...\"\n  # shellcheck disable=SC2086\n  git -C \"$evtrepo\" sparse-checkout add $missing || true\n  missing=\"\"; for n in $need; do [ -e \"$evtrepo/$n\" ] || missing=\"$missing $n\"; done\nfi\n[ -z \"$missing\" ] || die \"The EVT in $EVT has no$missing\" \"Use a full $chip EVT package (--evt <folder>).\"\nok \"EVT: $EVT\"\nif [ -n \"$header\" ] && [ -z \"$(find \"$EVT/EXAM/SRC\" -name \"$header\" 2>/dev/null | head -n 1)\" ]; then\n  die \"$header not found in $EVT/EXAM/SRC\" \"This EVT is not for $chip. Give the $chip EVT with --evt.\"\nfi\n\n# ---- copy ----\n# match <dir> <glob[!exclude]>: matching file names in <dir>, sorted\nmatch() { local d=\"$1\" inc=\"${2%%!*}\" exc=\"\"; case \"$2\" in *'!'*) exc=\"${2#*!}\" ;; esac\n  [ -d \"$d\" ] || return 0\n  ( set +f; cd \"$d\" && for x in $inc; do [ -f \"$x\" ] || continue; [ -n \"$exc\" ] && case \"$x\" in $exc) continue ;; esac; echo \"$x\"; done ) | sort; }\nfor c in $clean; do rm -rf \"${root:?}/$c\"; done\nops | while read -r op a b rest; do\n  case \"$op\" in\n    dir)\n      [ -d \"$EVT/$b\" ] || die \"$b not found in the EVT\" \"Use a full $chip EVT package.\"\n      mkdir -p \"$root/$a\"; cp -R \"$EVT/$b/.\" \"$root/$a/\" ;;\n    files)\n      [ -d \"$EVT/$b\" ] || die \"$b not found in the EVT\" \"Use a full $chip EVT package.\"\n      mkdir -p \"$root/$a\"; got=0\n      for x in $(cd \"$EVT/$b\" && ls -A); do\n        [ -f \"$EVT/$b/$x\" ] || continue; keep=0\n        for p in $rest; do case \"$p\" in '!'*) case \"$x\" in ${p#!}) keep=-1 ;; esac ;; *) [ $keep = 0 ] && case \"$x\" in $p) keep=1 ;; esac ;; esac; done\n        [ $keep = 1 ] && { cp \"$EVT/$b/$x\" \"$root/$a/\"; got=1; }\n      done\n      [ $got = 1 ] || warn \"no files matched $rest in $b\" ;;\n    file|'file?')\n      hit=\"\"; first=\"$b\"\n      for cand in $b $rest; do\n        rel=\"${cand%%!*}\"; ex=\"\"; case \"$cand\" in *'!'*) ex=\"!${cand#*!}\" ;; esac\n        m=\"$(match \"$EVT/$(dirname \"$rel\")\" \"$(basename \"$rel\")$ex\" | head -n 1)\"\n        [ -n \"$m\" ] && { hit=\"$EVT/$(dirname \"$rel\")/$m\"; break; }\n      done\n      if [ -z \"$hit\" ]; then [ \"$op\" = 'file?' ] && continue; die \"None of $b $rest found in the EVT\" \"Use a full $chip EVT package.\"; fi\n      [ \"$cand\" = \"$first\" ] || warn \"$first not found, using $(basename \"$hit\")\"\n      mkdir -p \"$(dirname \"$root/$a\")\"; cp \"$hit\" \"$root/$a\" ;;\n    alias)\n      # second name for a header (case-sensitive file systems), only when it is not there yet\n      [ -e \"$root/$a\" ] || cp \"$root/$b\" \"$root/$a\" ;;\n    incfirst)\n      f=\"$root/$a\"; { printf '#include \"%s\"   /* added by tools/mrs_setup (the EVT builds this file with -include %s) */\\n' \"$b\" \"$b\"; cat \"$f\"; } > \"$f.tmp\" && mv \"$f.tmp\" \"$f\" ;;\n    ldmem)\n      grep -q 'MEMORY' \"$root/$a\" || die \"No MEMORY block found in $a\" \"Set the FLASH / RAM sizes in the linker script yourself.\"\n      F=\"$b\" R=\"$(echo \"$rest\" | awk '{print $1}')\" T=\"$(echo \"$rest\" | awk '{print $2}')\" perl -0pi -e 's/MEMORY[ \\t\\r\\n]*\\{[^}]*\\}/MEMORY\\n{\\n\\t\\/* $ENV{T} *\\/\\n\\tFLASH (rx) : ORIGIN = 0x00000000, LENGTH = $ENV{F}K\\n\\tRAM (xrw) : ORIGIN = 0x20000000, LENGTH = $ENV{R}K\\n}/' \"$root/$a\" ;;\n    ldstackheap)\n      S=\"$b\" H=\"$(echo \"$rest\" | awk '{print $1}')\" T=\"$(echo \"$rest\" | awk '{print $2}')\" perl -0pi -e '\n        my ($s, $h, $t) = ($ENV{S}, $ENV{H}, $ENV{T});\n        if (/__stack_size[ \\t]*=[ \\t]*[0-9]+[ \\t]*;/) {\n          s/__stack_size[ \\t]*=[ \\t]*[0-9]+[ \\t]*;/__stack_size = $s;/g if $s > 0;\n          $_ .= \"\\nASSERT(ADDR(.stack) - (ADDR(.bss) + SIZEOF(.bss)) >= $h, \\\"$t: less than $h bytes of RAM left for the heap (Project Manager: heap size)\\\")\\n\" if $h > 0;\n        } elsif ($s + $h > 0) {\n          my $n = $s + $h;\n          $_ .= \"\\nASSERT(ORIGIN(RAM) + LENGTH(RAM) - (ADDR(.bss) + SIZEOF(.bss)) >= $n, \\\"$t: less than $n bytes of RAM left for the stack and heap (Project Manager: stack/heap size)\\\")\\n\";\n        }' \"$root/$a\" ;;\n  esac\ndone\nok \"copied the EVT files into $(echo $clean | sed 's/ /, /g')\"\necho\necho \"Done. In MounRiver Studio: import this folder (File > Import > General > Existing Projects into Workspace,\"\necho \"or open it in MounRiver Studio II), then Project > Build. Run this script again after Generate code when\"\necho \"the configuration changed.\"\n","setup_mrs.cmd":"@echo off\nrem MounRiver Studio project setup: copies the EVT files this project needs into evt\\, ld\\ and lib\\.\nrem Written by WCH Configurator - original tool by Amir1387aht (Another).\npowershell -NoProfile -ExecutionPolicy Bypass -File \"%~dp0tools\\mrs_setup.ps1\" %*\npause\n","pio_evt.py":"# PlatformIO extra script (extra_scripts = pre:tools/pio_evt.py)\n# Exported by WCH Configurator - original tool by Amir1387aht (Another)\n# https://github.com/amir1387aht/WCH-Resources\n#\n# The noneos-sdk framework has the chip drivers, startup file and linker script, but not the Bluetooth LE /\n# 2.4G RF stack of the official EVT. This script finds the EVT and adds the same EVT files to the build as\n# the CMake export does: EXAM/BLE/HAL/*.c, EXAM/BLE/LIB/*.S, the BLE library (or EXAM/RF/LIB), their\n# include folders, and src/app_config.h as a forced include.\n#\n# Where the EVT comes from (first match):\n#   1. custom_wch_evt_dir = <EVT folder that contains EXAM> in platformio.ini\n#   2. the WCH_EVT_DIR environment variable\n#   3. the EVT shared with the VS Code / MounRiver exports (%LOCALAPPDATA%/wch-tools/evt/<repo>/EVT or\n#      ~/.cache/wch-tools/evt/<repo>/EVT), downloaded with git (sparse, only the needed folders) when missing\nimport os\nimport fnmatch\nimport glob\nimport json\nimport shutil\nimport subprocess\nimport sys\n\nImport(\"env\")  # noqa: F821  (SCons)\n\nCONFIG = {}  # CONFIG LINE\n\ndef fail(msg, hint):\n    sys.stderr.write(\"\\nERROR: %s\\n-> %s\\n\\n\" % (msg, hint))\n    env.Exit(1)  # noqa: F821\n\ndef is_evt(d):\n    return bool(d) and os.path.isdir(os.path.join(d, \"EXAM\", \"SRC\"))\n\ndef cache_dir():\n    if os.environ.get(\"LOCALAPPDATA\"):\n        return os.path.join(os.environ[\"LOCALAPPDATA\"], \"wch-tools\")\n    return os.path.join(os.environ.get(\"XDG_CACHE_HOME\") or os.path.join(os.path.expanduser(\"~\"), \".cache\"), \"wch-tools\")\n\ndef find_evt():\n    d = env.GetProjectOption(\"custom_wch_evt_dir\", \"\")  # noqa: F821\n    if d:\n        d = os.path.abspath(os.path.join(env.subst(\"$PROJECT_DIR\"), d))  # noqa: F821\n        if not is_evt(d) and is_evt(os.path.join(d, \"EVT\")):\n            d = os.path.join(d, \"EVT\")\n        if not is_evt(d):\n            fail(\"custom_wch_evt_dir = %s has no EXAM/SRC folder\" % d, \"Set it to the EVT folder that contains EXAM/SRC.\")\n        return d\n    if is_evt(os.environ.get(\"WCH_EVT_DIR\")):\n        return os.environ[\"WCH_EVT_DIR\"]\n    repo = CONFIG[\"repo\"]\n    if not repo:\n        fail(\"WCH has no public GitHub repository with the %s EVT\" % CONFIG[\"chip\"],\n             \"Download the EVT zip from https://www.wch-ic.com (or wch.cn), unzip it and set custom_wch_evt_dir in platformio.ini.\")\n    repo_dir = os.path.join(cache_dir(), \"evt\", repo)\n    if not is_evt(os.path.join(repo_dir, \"EVT\")) and os.path.isdir(os.path.join(repo_dir, \".git\")) and shutil.which(\"git\"):\n        subprocess.call([\"git\", \"-C\", repo_dir, \"-c\", \"core.longpaths=true\", \"sparse-checkout\", \"add\"] + CONFIG[\"need\"])\n    if not is_evt(os.path.join(repo_dir, \"EVT\")):\n        if not shutil.which(\"git\"):\n            fail(\"git is not installed, so the %s EVT cannot be downloaded\" % CONFIG[\"chip\"],\n                 \"Install git, or download https://github.com/openwch/%s as a zip and set custom_wch_evt_dir to its EVT folder.\" % repo)\n        print(\"Downloading the official %s EVT (github.com/openwch/%s, only the needed folders) ...\" % (CONFIG[\"chip\"], repo))\n        if os.path.isdir(repo_dir):\n            shutil.rmtree(repo_dir)\n        os.makedirs(os.path.dirname(repo_dir), exist_ok=True)\n        rc = subprocess.call([\"git\", \"clone\", \"-c\", \"core.longpaths=true\", \"--quiet\", \"--depth\", \"1\", \"--filter=blob:none\", \"--sparse\",\n                              \"https://github.com/openwch/%s.git\" % repo, repo_dir])\n        if rc == 0:\n            rc = subprocess.call([\"git\", \"-C\", repo_dir, \"-c\", \"core.longpaths=true\", \"sparse-checkout\", \"set\"] + CONFIG[\"need\"])\n        if rc != 0:\n            fail(\"Downloading the EVT failed\", \"Check the internet connection or set custom_wch_evt_dir in platformio.ini.\")\n    return os.path.join(repo_dir, \"EVT\")\n\nevt = find_evt()\nrepo_root = os.path.dirname(evt)\nmissing = [n for n in CONFIG[\"need\"] if not os.path.exists(os.path.join(repo_root, n))]\nif missing and os.path.isdir(os.path.join(repo_root, \".git\")) and shutil.which(\"git\"):\n    print(\"Adding %s to the EVT checkout in %s\" % (\", \".join(missing), repo_root))\n    subprocess.call([\"git\", \"-C\", repo_root, \"-c\", \"core.longpaths=true\", \"sparse-checkout\", \"add\"] + missing)\n    missing = [n for n in CONFIG[\"need\"] if not os.path.exists(os.path.join(repo_root, n))]\nif missing:\n    fail(\"The EVT in %s has no %s\" % (evt, \", \".join(missing)), \"Use a full %s EVT package (custom_wch_evt_dir).\" % CONFIG[\"chip\"])\nprint(\"WCH EVT: %s\" % evt)\n\ndef pick_lib(cands):\n    for c in cands:\n        pat, _, exc = c.partition(\"!\")\n        hits = sorted(h for h in glob.glob(os.path.join(evt, pat)) if not (exc and fnmatch.fnmatch(os.path.basename(h), exc)))\n        if hits:\n            return hits[0]\n    return None\n\nlibs = []\nfor part in CONFIG[\"parts\"]:\n    for inc in part.get(\"inc\", []):\n        env.Append(CPPPATH=[os.path.join(evt, inc)])  # noqa: F821\n    for i, (src, flt) in enumerate(part.get(\"src\", [])):\n        env.BuildSources(os.path.join(\"$BUILD_DIR\", \"WchEvt_%s_%d\" % (part[\"name\"], i)), os.path.join(evt, src), flt)  # noqa: F821\n    if part.get(\"lib\"):\n        lib = pick_lib(part[\"lib\"])\n        if not lib:\n            fail(\"No %s library (%s) in the EVT\" % (part[\"name\"], \", \".join(part[\"lib\"])), \"Use a full %s EVT package.\" % CONFIG[\"chip\"])\n        libs.append(lib)\nif libs:\n    env.Prepend(LIBS=[env.File(x) for x in libs])  # noqa: F821\nforce = os.path.join(env.subst(\"$PROJECT_SRC_DIR\"), \"app_config.h\")  # noqa: F821\nif CONFIG.get(\"force_include\") and os.path.isfile(force):\n    env.Append(CFLAGS=[\"-include\", force])  # noqa: F821  (C only, like the CMake export)\n"};
+
+/* --- what the CMake export builds, as data. EVT paths are relative to the EVT folder that contains EXAM. --- */
+function ideBuild(base){
+  const fam = FAMILIES[state.family], v = currentVariant();
+  let core = vscCore(v);
+  if(typeof rtosCore === 'function') core = rtosCore(v, core);
+  const cm = base['CMakeLists.txt'] || '';
+  const cpu = (cm.match(/set\(WCH_CPU_FLAGS "([^"]*)"/) || [])[1] || '';
+  const defs = (cm.match(/target_compile_definitions\(\$\{PROJECT_NAME\} PRIVATE ([^)\n]*)\)/) || [])[1] || 'DEBUG=1';
+  const b = {v, core, ch5: fam.style !== 'stdperiph', arm: !!core.arm, march: core.march || '', mabi: core.mabi || '',
+    cpuFlags: cpu.split(/\s+/).filter(Boolean), defines: defs.split(/\s+/).filter(Boolean),
+    ble: !!base['src/app_config.h'], rf: typeof rfEnabled === 'function' && rfEnabled() && !(typeof rfTmosEnabled === 'function' && rfTmosEnabled()),
+    rtos: null, eth: null, ldmem: [], mem: null, hooks: [], bad: []};
+  const rc = typeof rtosCfg === 'function' ? rtosCfg() : null;
+  if(rc && typeof rtosEvt === 'function') b.rtos = rtosEvt(periphCtx());
+  if(rc && !b.rtos) b.bad.push('FreeRTOS: no EVT FreeRTOS example for this chip');
+  if(b.arm) b.bad.push(`${v.id} is an Arm Cortex-M part`);
+  else if(core.layout || core.startupPath || core.ld) b.layout = `${v.id} uses its own EVT layout (only the CMake export knows it)`;
+  /* core.mem: the EVT Link.ld is made for the largest part of the family (dropped by the FreeRTOS script, as in CMake) */
+  if(core.mem && !b.rtos) b.ldmem.push([parseInt(core.mem.flash, 10), parseInt(core.mem.ram, 10), v.id]);
+  /* Project Manager memory settings (rtosMemCmake) */
+  const m = typeof memInfo === 'function' ? memInfo(v) : null;
+  if(m && (m.known || m.stackSet || m.heap)){
+    if(m.known) b.ldmem.push([m.flash, m.ram, v.id]);
+    b.mem = {stack: (m.stackSet || m.scriptStack) ? m.stack : 0, heap: m.heap || 0, known: m.known, flash: m.flash, ram: m.ram, stackSet: m.stackSet, scriptStack: m.scriptStack};
+  }
+  /* cmake/*.cmake module hooks: the known ones are translated, others cannot be */
+  Object.keys(base).filter(k => /^cmake\/[^/]+\.cmake$/.test(k)).sort().forEach(k => {
+    const t = base[k], name = k.slice(6, -6);
+    const lm = t.match(/LENGTH = (\d+)K\\n\\tRAM \(xrw\) : ORIGIN = 0x20000000, LENGTH = (\d+)K/);
+    if(name === 'eth'){
+      const c = state.configs.find(x => x.type === 'eth');
+      const phy = c && typeof MOD_ETH_PHY !== 'undefined' && MOD_ETH_PHY[c.phy];
+      if(!phy){ b.bad.push('Ethernet: unknown PHY setting'); return; }
+      b.eth = {drv: phy.drv};
+      b.hooks.push(k);
+      if(lm) b.ldmem.push([+lm[1], +lm[2], 'eth']);
+    } else if(name === 'pioc'){
+      b.hooks.push(k);
+      if(lm) b.ldmem.push([+lm[1], +lm[2], 'pioc']);
+    } else b.bad.push(`${k} (written by a module) has CMake build steps that only the CMake export runs`);
+  });
+  return b;
+}
+
+/* --- MounRiver Studio: copy plan (tools/evt_files.txt), folders and libraries --- */
+function ideMrsPlan(b){
+  const v = b.v, core = b.core, ops = [], inc = ['src'], libs = [];
+  const need = ['EVT/EXAM/SRC'];
+  const R = b.rtos ? b.rtos.dir : null;
+  const startup = core.startup;
+  if(!b.ch5){
+    const tmpl = R ? R + '/User' : 'EXAM/GPIO/GPIO_Toggle/User';
+    need.push('EVT/' + (R || 'EXAM/GPIO/GPIO_Toggle'));
+    ops.push('# drivers (EXAM/SRC), startup file and system_*.c / *_it.c / *_conf.h of one EVT example, as the CMake export',
+      'dir evt/Core EXAM/SRC/Core', 'dir evt/Debug EXAM/SRC/Debug', 'dir evt/Peripheral EXAM/SRC/Peripheral',
+      R ? `file evt/Startup/${startup} ${R}/Startup/${startup}` : `file evt/Startup/${startup} EXAM/SRC/Startup/${startup} EXAM/SRC/Startup/*.S EXAM/SRC/Startup/*.s`,
+      `files evt/User ${tmpl} *.c *.h !main.c !Main.c`);
+    inc.push('evt/Core', 'evt/Debug', 'evt/Peripheral/inc', 'evt/User');
+  } else {
+    ops.push('# CH5xx SDK (EXAM/SRC): RVMSIS, StdPeriphDriver and its libISP*.a, startup file',
+      'files evt/RVMSIS EXAM/SRC/RVMSIS *.h', 'files evt/StdPeriphDriver EXAM/SRC/StdPeriphDriver *.c',
+      'dir evt/StdPeriphDriver/inc EXAM/SRC/StdPeriphDriver/inc',
+      `file evt/Startup/${startup} EXAM/SRC/Startup/${startup} EXAM/SRC/Startup/*.S EXAM/SRC/Startup/*.s`);
+    inc.push('evt/RVMSIS', 'evt/StdPeriphDriver/inc');
+  }
+  if(R){
+    const F = R + '/FreeRTOS';
+    ops.push(`# FreeRTOS kernel, WCH RISC-V port and heap_4 of the EVT example ${R}`,
+      `files evt/FreeRTOS ${F} tasks.c list.c queue.c timers.c event_groups.c stream_buffer.c`,
+      `dir evt/FreeRTOS/include ${F}/include`,
+      `files evt/FreeRTOS/portable/GCC/RISC-V ${F}/portable/GCC/RISC-V port.c portASM.S *.h`,
+      `files evt/FreeRTOS/portable/MemMang ${F}/portable/MemMang heap_4.c`);
+    inc.push('evt/FreeRTOS/include', 'evt/FreeRTOS/portable/GCC/RISC-V');
+  }
+  if(b.ble){
+    need.push('EVT/EXAM/BLE/HAL', 'EVT/EXAM/BLE/LIB');
+    ops.push('# Bluetooth LE stack: EXAM/BLE/HAL and EXAM/BLE/LIB (the full library when the EVT also has the _PERI one)',
+      'files evt/BLE/HAL EXAM/BLE/HAL *.c', 'dir evt/BLE/HAL/include EXAM/BLE/HAL/include', 'files evt/BLE/LIB EXAM/BLE/LIB *.h *.S',
+      'file lib/libwch_ble.a EXAM/BLE/LIB/*.a!*_PERI.a EXAM/BLE/LIB/*.a');
+    inc.push('evt/BLE/HAL/include', 'evt/BLE/LIB');
+    libs.push('wch_ble');
+  }
+  if(b.rf){
+    need.push('EVT/EXAM/RF/LIB');
+    ops.push('# 2.4G RF library (EXAM/RF/LIB)', 'files evt/RF/LIB EXAM/RF/LIB *.h', 'file lib/libwch_rf.a EXAM/RF/LIB/*.a');
+    inc.push('evt/RF/LIB');
+    libs.unshift('wch_rf');
+  }
+  if(b.ch5){ ops.push('file lib/libwch_isp.a EXAM/SRC/StdPeriphDriver/*.a'); libs.push('wch_isp'); }
+  if(b.eth){
+    need.push('EVT/EXAM/ETH/NetLib');
+    ops.push(`# Ethernet: WCHNET NetLib (${b.eth.drv}, headers, libwchnet${b.mabi === 'ilp32f' ? '_float' : ''}.a)`,
+      `files evt/NetLib EXAM/ETH/NetLib ${b.eth.drv} *.h`, 'alias evt/NetLib/wchnet.h evt/NetLib/WCHNET.h',
+      `incfirst evt/NetLib/${b.eth.drv} ch32v30x_eth.h`,
+      `file lib/libwch_net.a ${b.mabi === 'ilp32f' ? 'EXAM/ETH/NetLib/libwchnet_float.a ' : ''}EXAM/ETH/NetLib/libwchnet.a`);
+    inc.push('evt/NetLib');
+    libs.push('wch_net');
+  }
+  ops.push('# linker script' + (b.ldmem.length || b.mem ? ' with the FLASH / RAM / stack settings of this configuration' : ''),
+    `file ld/Link.ld ${R ? R + '/Ld/Link.ld' : 'EXAM/SRC/Ld/Link.ld'}`);
+  /* same order as CMakeLists.txt: core.mem, Project Manager memory, module hooks (the last MEMORY block wins) */
+  const ldm = b.ldmem.slice(), hookLd = ldm.filter(x => x[2] === 'eth' || x[2] === 'pioc');
+  ldm.filter(x => !hookLd.includes(x)).forEach(x => ops.push(`ldmem ld/Link.ld ${x[0]} ${x[1]} ${x[2]}`));
+  if(b.mem && (b.mem.stack || b.mem.heap)) ops.push(`ldstackheap ld/Link.ld ${b.mem.stack} ${b.mem.heap} ${v.id}`);
+  hookLd.forEach(x => ops.push(`ldmem ld/Link.ld ${x[0]} ${x[1]} ${v.id}`));
+  const head = [`# EVT files of this ${v.id} project for MounRiver Studio: tools/mrs_setup.ps1 / tools/mrs_setup.sh copy them`,
+    '# into evt/ (compiled, like the linked EVT folders of an EVT example), ld/ and lib/. Written by WCH Configurator.',
+    '# <op> <destination in the project> <source in the EVT folder that contains EXAM> ...',
+    `repo ${core.evt || ''}`, `chip ${v.id}`, `check ${v.header}`, `need ${[...new Set(need)].join(' ')}`, 'clean evt ld lib', ''];
+  return {text: head.concat(ops).join('\n') + '\n', inc, libs};
+}
+
+/* GNU MCU Eclipse RISC-V target options from the -march / -mabi of the CMake export */
+function ideIsa(march, mabi){
+  const m = /^rv32([ei])(m?)(a?)(f?)(d?)(c?)((?:_[a-z0-9]+)*)$/.exec(march || '') || [];
+  const ext = String(m[7] || '').split('_').filter(Boolean);
+  return {base: m[1] === 'e' ? 'rv32e' : 'rv32i', mul: !!m[2], atomic: !!m[3], fp: m[5] ? 'double' : m[4] ? 'single' : 'none', compressed: !!m[6],
+    b: ['zba', 'zbb', 'zbc', 'zbs'].every(x => ext.includes(x)), zmmul: ext.includes('zmmul'), xw: ext.includes('xw'),
+    abiInt: String(mabi || 'ilp32').replace(/[fd]$/, ''), abiFp: /d$/.test(mabi) ? 'double' : /f$/.test(mabi) ? 'single' : 'none'};
+}
+function ideXml(s){ return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function ideHash(s){ let h = 2166136261; for(const ch of String(s)){ h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; }
+
+function ideMrsProject(name){
+  return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<projectDescription>
+	<name>${ideXml(name)}</name>
+	<comment>Generated by WCH Configurator (original tool by Amir1387aht (Another)). Run setup_mrs.cmd or tools/mrs_setup.sh once before the first build.</comment>
+	<projects/>
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
+			<triggers>clean,full,incremental,</triggers>
+			<arguments/>
+		</buildCommand>
+		<buildCommand>
+			<name>org.eclipse.cdt.managedbuilder.core.ScannerConfigBuilder</name>
+			<triggers>full,incremental,</triggers>
+			<arguments/>
+		</buildCommand>
+	</buildSpec>
+	<natures>
+		<nature>org.eclipse.cdt.core.cnature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
+		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
+	</natures>
+	<filteredResources>
+		<filter>
+			<id>1595986042669</id>
+			<name/>
+			<type>22</type>
+			<matcher>
+				<id>org.eclipse.ui.ide.multiFilter</id>
+				<arguments>1.0-name-matches-false-false-*.wvproj</arguments>
+			</matcher>
+		</filter>
+	</filteredResources>
+</projectDescription>
+`;
+}
+
+/* .cproject: one "obj" configuration like the EVT examples, GNU MCU RISC-V GCC toolchain options */
+function ideMrsCproject(name, b, plan){
+  const P = 'ilg.gnumcueclipse.managedbuild.cross.riscv';
+  let seq = 0;
+  const seed = 100000000 + ideHash(name + '|' + b.v.id) % 800000000;
+  const id = sc => `${sc}.${seed + (++seq)}`;
+  const isa = ideIsa(b.march, b.mabi);
+  const flags = b.cpuFlags;
+  const sdl = ((flags.find(f => /^-msmall-data-limit=/.test(f)) || '-msmall-data-limit=8').split('=')[1]);
+  const wl = p => `&quot;\${workspace_loc:/\${ProjName}/${ideXml(p)}}&quot;`;
+  const o = (sc, val, type, nm) => `<option id="${id(P + '.option.' + sc)}"${nm ? ` name="${ideXml(nm)}"` : ''} superClass="${P}.option.${sc}" useByScannerDiscovery="false" value="${val}" valueType="${type}"/>`;
+  const bo = (sc, on, nm) => o(sc, on ? 'true' : 'false', 'boolean', nm);
+  const en = (sc, val, nm) => o(sc, `${P}.option.${val}`, 'enumerated', nm);
+  const list = (sc, type, vals, nm, ind) => vals.length
+    ? `<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="${id(P + '.option.' + sc)}"${nm ? ` name="${ideXml(nm)}"` : ''} superClass="${P}.option.${sc}" useByScannerDiscovery="false" valueType="${type}">\n${vals.map(x => `${ind}\t<listOptionValue builtIn="false" value="${x}"/>`).join('\n')}\n${ind}</option>`
+    : `<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="true" id="${id(P + '.option.' + sc)}"${nm ? ` name="${ideXml(nm)}"` : ''} superClass="${P}.option.${sc}" useByScannerDiscovery="false" valueType="${type}"/>`;
+  const T = '\t\t\t\t\t\t\t', TT = T + '\t';
+  const incs = plan.inc.map(wl);
+  const asmIncs = incs.concat([wl('evt/Startup')]);
+  const defs = b.defines.map(ideXml);
+  const force = b.ble ? [wl('src/app_config.h')] : [];
+  const cfg = `${P}.config.elf.release.${seed}`;
+  const tc = `<toolChain id="${id(P + '.toolchain.elf.release')}" name="RISC-V Cross GCC" superClass="${P}.toolchain.elf.release">
+${T}${en('target.rvGcc', 'target.rvGcc.12', 'RISC-V Compiler')}
+${T}${en('target.isa.base', 'target.arch.' + isa.base, 'Architecture')}
+${T}${bo('target.isa.multiply', isa.mul, 'Multiply extension (RVM)')}
+${T}${bo('target.isa.atomic', isa.atomic, 'Atomic extension (RVA)')}
+${T}${en('target.isa.fp', 'isa.fp.' + isa.fp, 'Floating point')}
+${T}${bo('target.isa.compressed', isa.compressed, 'Compressed extension (RVC)')}
+${T}${bo('target.isa.xw', isa.xw, 'Extra Compressed extension (RVXW)')}
+${T}${bo('target.isa.b', isa.b, 'Bit manipulation extension (RVB)')}
+${T}${bo('target.isa.zmmul', isa.zmmul, 'Multiply only extension (Zmmul)')}
+${T}${en('target.abi.integer', 'abi.integer.' + isa.abiInt, 'Integer ABI')}
+${T}${en('target.abi.fp', 'abi.fp.' + isa.abiFp, 'Floating point ABI')}
+${T}${o('target.smalldatalimit', sdl, 'string', 'Small data limit')}
+${T}${bo('target.saverestore', flags.includes('-msave-restore'), 'Small prologue/epilogue (-msave-restore)')}
+${T}${o('target.other', '', 'string', 'Other target flags')}
+${T}${en('optimization.level', 'optimization.level.size', 'Optimization Level')}
+${T}${bo('optimization.messagelength', true, 'Message length (-fmessage-length=0)')}
+${T}${bo('optimization.signedchar', true, "'char' is signed (-fsigned-char)")}
+${T}${bo('optimization.functionsections', true, 'Function sections (-ffunction-sections)')}
+${T}${bo('optimization.datasections', true, 'Data sections (-fdata-sections)')}
+${T}${bo('optimization.nocommon', true, 'No common unitialized (-fno-common)')}
+${T}${bo('warnings.allwarn', true, 'Enable all common warnings (-Wall)')}
+${T}${bo('warnings.unused', false, 'Warn on various unused elements (-Wunused)')}
+${T}${bo('warnings.uninitialized', false, 'Warn on uninitialized variables (-Wuninitialized)')}
+${T}${en('debugging.level', 'debugging.level.default', 'Debug level')}
+${T}${en('debugging.format', 'debugging.format.default', 'Debug format')}
+${T}${o('toolchain.name', 'GNU MCU RISC-V GCC', 'string')}
+${T}${o('command.prefix', 'riscv-wch-elf-', 'string', 'Prefix')}
+${T}${o('command.c', 'gcc', 'string', 'C compiler')}
+${T}${o('command.cpp', 'g++', 'string', 'C++ compiler')}
+${T}${o('command.ar', 'ar', 'string', 'Archiver')}
+${T}${o('command.objcopy', 'objcopy', 'string', 'Hex/Bin converter')}
+${T}${o('command.objdump', 'objdump', 'string', 'Listing generator')}
+${T}${o('command.size', 'size', 'string', 'Size command')}
+${T}${o('command.make', 'make', 'string', 'Build command')}
+${T}${o('command.rm', 'rm', 'string', 'Remove command')}
+${T}${o('toolchain.id', '512258282', 'string')}
+${T}${bo('addtools.createflash', true, 'Create flash image')}
+${T}${bo('addtools.createlisting', true, 'Create extended listing')}
+${T}${bo('addtools.printsize', true, 'Print size')}
+${T}<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="${id(P + '.targetPlatform')}" isAbstract="false" osList="all" superClass="${P}.targetPlatform"/>
+${T}<builder buildPath="\${workspace_loc:/${ideXml(name)}}/obj" id="${id(P + '.builder')}" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="${P}.builder"/>
+${T}<tool id="${id(P + '.tool.assembler')}" name="GNU RISC-V Cross Assembler" superClass="${P}.tool.assembler">
+${TT}${bo('assembler.usepreprocessor', true, 'Use preprocessor')}
+${TT}${list('assembler.defs', 'definedSymbols', defs, 'Defined symbols (-D)', TT)}
+${TT}${list('assembler.include.paths', 'includePath', asmIncs, 'Include paths (-I)', TT)}
+${TT}<inputType id="${id(P + '.tool.assembler.input')}" superClass="${P}.tool.assembler.input"/>
+${T}</tool>
+${T}<tool id="${id(P + '.tool.c.compiler')}" name="GNU RISC-V Cross C Compiler" superClass="${P}.tool.c.compiler">
+${TT}${list('c.compiler.defs', 'definedSymbols', defs, 'Defined symbols (-D)', TT)}
+${TT}${list('c.compiler.include.paths', 'includePath', incs, 'Include paths (-I)', TT)}
+${TT}${list('c.compiler.include.files', 'includeFiles', force, 'Include files (-include)', TT)}
+${TT}${en('c.compiler.std', 'c.compiler.std.gnu99', 'Language standard')}
+${TT}<inputType id="${id(P + '.tool.c.compiler.input')}" superClass="${P}.tool.c.compiler.input"/>
+${T}</tool>
+${T}<tool id="${id(P + '.tool.cpp.compiler')}" name="GNU RISC-V Cross C++ Compiler" superClass="${P}.tool.cpp.compiler"/>
+${T}<tool id="${id(P + '.tool.c.linker')}" name="GNU RISC-V Cross C Linker" superClass="${P}.tool.c.linker">
+${TT}${list('c.linker.scriptfile', 'stringList', [wl('ld/Link.ld')], 'Script files (-T)', TT)}
+${TT}${bo('c.linker.nostart', true, 'Do not use standard start files (-nostartfiles)')}
+${TT}${bo('c.linker.gcsections', true, 'Remove unused sections (-Xlinker --gc-sections)')}
+${TT}${bo('c.linker.usenewlibnano', true, 'Use newlib-nano (--specs=nano.specs)')}
+${TT}${bo('c.linker.usenewlibnosys', true, 'Do not use syscalls (--specs=nosys.specs)')}
+${TT}${list('c.linker.paths', 'libPaths', plan.libs.length ? [wl('lib')] : [], 'Library search path (-L)', TT)}
+${TT}${list('c.linker.libs', 'libs', plan.libs.concat(['m']), 'Libraries (-l)', TT)}
+${TT}${list('c.linker.flags', 'stringList', ['--print-memory-usage'], 'Linker flags (-Xlinker [option])', TT)}
+${TT}${o('c.linker.mapfilename', '&quot;${BuildArtifactFileBaseName}.map&quot;', 'string', 'Map file name')}
+${TT}<inputType id="${id(P + '.tool.c.linker.input')}" superClass="${P}.tool.c.linker.input">
+${TT}\t<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+${TT}\t<additionalInput kind="additionalinput" paths="$(LIBS)"/>
+${TT}</inputType>
+${T}</tool>
+${T}<tool id="${id(P + '.tool.cpp.linker')}" name="GNU RISC-V Cross C++ Linker" superClass="${P}.tool.cpp.linker">
+${TT}${list('cpp.linker.scriptfile', 'stringList', [wl('ld/Link.ld')], 'Script files (-T)', TT)}
+${TT}${bo('cpp.linker.nostart', true, 'Do not use standard start files (-nostartfiles)')}
+${TT}${bo('cpp.linker.gcsections', true, 'Remove unused sections (-Xlinker --gc-sections)')}
+${TT}${bo('cpp.linker.usenewlibnano', true, 'Use newlib-nano (--specs=nano.specs)')}
+${TT}${bo('cpp.linker.usenewlibnosys', true, 'Do not use syscalls (--specs=nosys.specs)')}
+${TT}${list('cpp.linker.paths', 'libPaths', plan.libs.length ? [wl('lib')] : [], 'Library search path (-L)', TT)}
+${TT}${list('cpp.linker.libs', 'libs', plan.libs.concat(['m']), 'Libraries (-l)', TT)}
+${T}</tool>
+${T}<tool id="${id(P + '.tool.archiver')}" name="GNU RISC-V Cross Archiver" superClass="${P}.tool.archiver"/>
+${T}<tool id="${id(P + '.tool.createflash')}" name="GNU RISC-V Cross Create Flash Image" superClass="${P}.tool.createflash"/>
+${T}<tool id="${id(P + '.tool.createlisting')}" name="GNU RISC-V Cross Create Listing" superClass="${P}.tool.createlisting"/>
+${T}<tool id="${id(P + '.tool.printsize')}" name="GNU RISC-V Cross Print Size" superClass="${P}.tool.printsize"/>
+\t\t\t\t\t\t</toolChain>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<!-- ${ideXml(b.v.id)} project generated by WCH Configurator (original tool by Amir1387aht (Another)).
+	     Same compiler and linker settings as the CMake export: ${ideXml(['-march=' + b.march, '-mabi=' + b.mabi].concat(flags.filter(f => !/^-m(arch|abi)=/.test(f))).join(' '))}.
+	     src/ is the generated code, evt/ ld/ lib/ are filled by setup_mrs.cmd / tools/mrs_setup.sh from the EVT. -->
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="${cfg}">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="${cfg}" moduleId="org.eclipse.cdt.core.settings" name="obj">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GASErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GmakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.CWDLocator" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactExtension="elf" artifactName="\${ProjName}" buildArtefactType="org.eclipse.cdt.build.core.buildArtefactType.exe" buildProperties="org.eclipse.cdt.build.core.buildArtefactType=org.eclipse.cdt.build.core.buildArtefactType.exe,org.eclipse.cdt.build.core.buildType=org.eclipse.cdt.build.core.buildType.release" cleanCommand="\${cross_rm} -rf" description="" id="${cfg}" name="obj" parent="${P}.config.elf.release">
+					<folderInfo id="${cfg}." name="/" resourcePath="">
+						${tc}
+					</folderInfo>
+					<sourceEntries>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="evt"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
+					</sourceEntries>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+			<storageModule moduleId="ilg.gnumcueclipse.managedbuild.packs"/>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="${ideXml(name)}.${P}.target.elf.${seed}" name="Executable file" projectType="${P}.target.elf"/>
+	</storageModule>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
+</cproject>
+`;
+}
+
+/* .template: download / debug settings MounRiver Studio reads (chip, flash address, image) */
+var IDE_MRS_SERIES = [[/^CH32V00[2-7]$|^CH32M007$/, 'CH32V002/4/5/6/7'], [/^CH32V003$/, 'CH32V00x'], [/^CH32V10/, 'CH32V10x'], [/^CH32V20/, 'CH32V20x'],
+  [/^CH32V30/, 'CH32V30x'], [/^CH32V4/, 'CH32V407'], [/^CH32X03/, 'CH32X035'], [/^CH32X3/, 'CH32X315'], [/^CH32L10/, 'CH32L10x'], [/^CH32M030/, 'CH32M030'],
+  [/^CH64[13]$/, null], [/^CH57[0-2]$/, 'CH572'], [/^CH57/, 'CH57x'], [/^CH58[45]$/, 'CH584/5'], [/^CH58/, 'CH58x'], [/^CH59/, 'CH59x'], [/^CH56/, 'CH56x']];
+function ideMrsTemplate(name, b){
+  const id = b.v.id, s = IDE_MRS_SERIES.find(x => x[0].test(id));
+  const pk = typeof currentPkg === 'function' && currentPkg() && currentPkg().code ? String(currentPkg().code).split(/[\s/]+/)[0] : id;
+  return [`Vendor=WCH`, `Toolchain=RISC-V`, `Series=${id}`, `RTOS=${b.rtos ? 'FreeRTOS' : 'NoneOS'}`, `MCU=${pk}`, `Link=WCH-Link`,
+    `Mcu Type=${(s && s[1]) || id}`, `Address=${b.ch5 ? '0x00000000' : '0x08000000'}`, `Target Path=obj\\${name}.hex`,
+    `CLKSpeed=1`, `DebugInterfaceMode=0`, `Erase All=true`, `Program=true`, `Verify=true`, `Reset=true`, `SDIPrintf=false`, ''].join('\r\n');
+}
+
+/* --- PlatformIO: board of the community platform-ch32v (generic boards, noneos-sdk) --- */
+var IDE_PIO_BOARDS = {
+  CH32V002: 'F4P6 A4M6 D4U6 F4U6 J4M6', CH32V003: 'F4P6 A4M6 F4U6 J4M6', CH32V004: 'F6P1 F6U1', CH32V005: 'F6P6 D6U6 E6R6 F6U6',
+  CH32V006: 'K8U6 E8R6 F4P6 F8P6 F8U6', CH32V007: 'K8U6 E8R6', CH32M007: 'G8R6 E8R6 E8U6', CH32V103: 'C8T6 C6T6 C8U6 R8T6',
+  CH32V203: 'C8T6 C6T6 C8U6 F6T6 F8P6 F8U6 G6U6 G8R6 K6T6 K8T6 RBT6', CH32V303: 'VCT6 RCT6 CBT6 RBT6', CH32V307: 'VCT6 RCT6 WCU6',
+  CH32V407: 'VET6 RET6 WEU6', CH32V467: 'VET6 RET6 WEU6', CH32X035: 'C8T6 F7P6 F8U6 G8R6 G8U6 R8T6', CH32X315: 'CCU6 MCU6 WCU6',
+  CH32L103: 'C8T6 F8P6 F8U6 G8R6 K8U6', CH641: 'F D P X', CH643: 'W L Q U', CH570: 'D E Q', CH571: 'F D K', CH572: 'D Q R', CH573: 'F Q X',
+  CH581: 'F', CH582: 'M F', CH583: 'M', CH585: 'M C D F', CH591: 'F D R', CH592: 'X F', CH569: 'W',
+};
+function idePioBoard(v){
+  const sfx = IDE_PIO_BOARDS[v.id];
+  if(!sfx) return null;
+  const ids = sfx.split(' ').map(s => 'generic' + v.id + s);
+  const pkg = typeof currentPkg === 'function' ? currentPkg() : null;
+  const codes = pkg && pkg.code ? String(pkg.code).split(/[\s/]+/).filter(x => /^CH/.test(x)) : [];
+  for(const c of codes){ const hit = ids.find(x => x === 'generic' + c); if(hit) return hit; }
+  for(const c of codes){ const hit = ids.find(x => x.slice(0, -1) === 'generic' + c.slice(0, -1)); if(hit) return hit; }
+  return ids[0];
+}
+function idePioProblems(b){
+  const out = b.bad.slice();
+  if(!idePioBoard(b.v)) out.push(`platform-ch32v has no ${b.v.id} board`);
+  if(b.rtos) out.push('FreeRTOS: the module builds the EVT FreeRTOS example (startup, Link.ld, *_it.c), which the noneos-sdk framework replaces');
+  if(b.eth) out.push('Ethernet: the WCHNET NetLib is not part of the noneos-sdk framework');
+  return out;
+}
+function ideMrsProblems(b){
+  const out = b.bad.slice();
+  if(b.layout) out.push(b.layout);
+  if(b.march && !/^rv32[ei]m?a?f?c?(_[a-z0-9]+)*$/.test(b.march)) out.push(`-march=${b.march} cannot be set in the MounRiver target options`);
+  return out;
+}
+
+function idePioIni(name, b, board){
+  const v = b.v, ch5 = b.ch5, lines = [];
+  const m = b.mem;
+  lines.push(`; ${v.id} PlatformIO project exported by WCH Configurator`,
+    '; Original tool: Amir1387aht (Another) - https://github.com/amir1387aht/WCH-Resources',
+    '; Build: pio run   Flash (WCH-Link): pio run -t upload   Serial monitor: pio device monitor',
+    '; This file is written again by Generate code: put your own settings between USER CODE BEGIN / END.',
+    '', '[platformio]', `default_envs = ${name}`, 'src_dir = src', '', `[env:${name}]`,
+    '; your own options are in [wch_user] below', 'extends = wch_user',
+    'platform = https://github.com/Community-PIO-CH32V/platform-ch32v.git', 'framework = noneos-sdk', `board = ${board || 'NONE ; ERROR: platform-ch32v has no board for ' + v.id}`,
+    '; same CPU flags as the CMake export (the board default can differ, e.g. no FPU)',
+    `board_build.march = ${b.march}`, `board_build.mabi = ${b.mabi}`);
+  /* the FLASH / RAM sizes the CMake export links with (the last MEMORY edit wins, as in CMakeLists.txt) */
+  const lm = b.ldmem.length ? b.ldmem[b.ldmem.length - 1] : null;
+  if(!ch5 && lm){
+    lines.push(`; flash / RAM the program is linked for (${lm[2] === 'pioc' ? 'PIOC: 16 KB of RAM, the top 4 KB are the PIOC code RAM' : lm[2] === 'eth' ? 'Ethernet layout' : 'Project Manager'}), used for the linker script of the framework`,
+      `board_upload.maximum_size = ${lm[0] * 1024}`, `board_upload.maximum_ram_size = ${lm[1] * 1024}`);
+  }
+  if(!ch5 && m && m.stackSet) lines.push(`board_build.stack_size = ${m.stack}`);
+  lines.push('; compile definitions of the CMake export, then the ones of [wch_user]', 'build_flags =', ...b.defines.map(d => '    -D' + d), '    ${wch_user.build_flags}');
+  if(b.ble || b.rf) lines.push('; Bluetooth LE / 2.4G RF stack from the EVT (see tools/pio_evt.py; custom_wch_evt_dir in [wch_user] = your EVT folder)', 'extra_scripts = pre:tools/pio_evt.py');
+  lines.push('', '[wch_user]', '# USER CODE BEGIN wch_user',
+    '; your own PlatformIO options, kept when the code is generated again (the environment above extends this section)',
+    'build_flags =', 'monitor_speed = 115200', 'upload_protocol = wch-link', '; upload_protocol = wlink', '; monitor_port = COM5',
+    '; custom_wch_evt_dir = C:/WCH/CH592EVT/EVT   (EVT folder for the Bluetooth / RF files; empty = WCH_EVT_DIR or the shared download)',
+    '# USER CODE END wch_user', '');
+  return lines.join('\n');
+}
+function idePioScript(b){
+  const parts = [];
+  if(b.ble) parts.push({name: 'BLE', inc: ['EXAM/BLE/HAL/include', 'EXAM/BLE/LIB'],
+    src: [['EXAM/BLE/HAL', '-<*> +<*.c>'], ['EXAM/BLE/LIB', '-<*> +<*.S>']], lib: ['EXAM/BLE/LIB/*.a!*_PERI.a', 'EXAM/BLE/LIB/*.a']});
+  if(b.rf) parts.push({name: 'RF', inc: ['EXAM/RF/LIB'], lib: ['EXAM/RF/LIB/*.a']});
+  const need = ['EVT/EXAM/SRC'];   /* EXAM/SRC too, so the shared EVT download stays usable for the VS Code / MounRiver exports */
+  if(b.ble) need.push('EVT/EXAM/BLE/HAL', 'EVT/EXAM/BLE/LIB');
+  if(b.rf) need.push('EVT/EXAM/RF/LIB');
+  const cfg = {repo: b.core.evt || '', chip: b.v.id, need, parts, force_include: b.ble};
+  return IDE_TOOLS['pio_evt.py'].replace('CONFIG = {}  # CONFIG LINE', () => "CONFIG = json.loads(r'''" + JSON.stringify(cfg) + "''')  # written by WCH Configurator");
+}
+
+function ideReadme(kind, name, b, o){
+  const v = b.v, bad = o.bad;
+  const warn = bad.length ? `> **Not supported in this export:** ${bad.join('; ')}. Use *Toolchain / IDE: VS Code + CMake* in WCH Configurator for this configuration.\n\n` : '';
+  const evtSrc = b.core.evt ? `github.com/openwch/${b.core.evt}` : `the ${v.id} EVT zip from wch-ic.com / wch.cn`;
+  const extras = [b.ble && 'Bluetooth LE (EXAM/BLE/HAL, EXAM/BLE/LIB)', b.rf && '2.4G RF (EXAM/RF/LIB)', b.rtos && `FreeRTOS (${b.rtos.dir})`, b.eth && `Ethernet (EXAM/ETH/NetLib, ${b.eth.drv})`].filter(Boolean);
+  const code = `| Write code | \`src/main.c\` and the peripheral files, inside the \`USER CODE BEGIN\` / \`USER CODE END\` sections. Add your own \`.c\`/\`.h\` files to \`src/\` |
+| Change the configuration | Open \`${name}.wchproj\` in WCH Configurator, change it and press **Generate code** on this folder. USER CODE sections and your own files are kept; changed files are backed up in \`.wch-backup/\``;
+  if(kind === 'mrs') return `# ${v.id} MounRiver Studio project
+
+Exported by **WCH Configurator**, originally created by [Amir1387aht (Another)](https://github.com/amir1387aht/WCH-Resources).
+
+${v.note || ''}
+
+${warn}---
+
+## Quick start
+
+1. **Install MounRiver Studio** (MRS2 or MounRiver Studio Community 1.9x, https://www.mounriver.com). It has the WCH GCC12 toolchain and the WCH-Link driver.
+2. **Copy the EVT files into the project once**: double-click \`setup_mrs.cmd\` (Windows) or run \`bash tools/mrs_setup.sh\` (Linux/macOS). It downloads the official ${v.id} EVT (${evtSrc}, with git, only the folders this project needs) or uses the one the VS Code exports already downloaded, and copies the drivers, the startup file, the linker script and the libraries into \`evt/\`, \`ld/\` and \`lib/\` (list: \`tools/evt_files.txt\`). Already have the EVT? \`tools/mrs_setup.ps1 -Evt <folder with EXAM\\SRC>\` / \`tools/mrs_setup.sh --evt <folder>\`.
+3. **Open the project**: MounRiver Studio Community: *File > Import... > General > Existing Projects into Workspace*, select this folder, *Finish* (do not tick "Copy projects into workspace"). MounRiver Studio II: import / open the Eclipse (MRS1) project in this folder (the one with \`.project\` and \`.cproject\`).
+4. **Build**: *Project > Build Project* (\`Ctrl+B\`). The output is \`obj/${name}.elf\` and \`.hex\`; the FLASH/RAM usage is printed at the end.
+5. **Flash / debug** with WCH-Link: the *Download* and *Debug* buttons of MounRiver Studio (the chip is set in \`.template\`; check it in the download settings the first time).
+
+## Everyday work
+
+| What | How |
+|---|---|
+${code}. Run the setup again when the new configuration needs other EVT parts (e.g. Bluetooth or FreeRTOS switched on) |
+| Compiler settings | *Project > Properties > C/C++ Build > Settings*. \`.cproject\` is written again by Generate code (the old one is in \`.wch-backup/\`), so keep lasting changes in the configurator or redo them after generating |
+
+## What is where
+
+| Folder | Content |
+|---|---|
+| \`src/\` | the generated code (like the \`User\` folder of an EVT example) |
+| \`evt/\` | EVT drivers${b.ch5 ? ' (RVMSIS, StdPeriphDriver)' : ' (Core, Debug, Peripheral) and `system_*.c`, `*_it.c`, `*_conf.h` (`evt/User`)'}, startup file${extras.length ? ', ' + extras.join(', ') : ''} - copied by the setup, do not edit |
+| \`ld/Link.ld\` | linker script of the EVT${b.ldmem.length || (b.mem && (b.mem.stack || b.mem.heap)) ? ' with the FLASH / RAM / stack settings of this configuration' : ''} |
+| \`lib/\` | ${o.libs.length ? o.libs.map(l => '`lib' + l + '.a`').join(', ') + ' (copied from the EVT under a fixed name, so the .cproject does not depend on the EVT version)' : 'libraries (none for this configuration)'} |
+
+## Toolchain settings (same as the CMake export)
+
+- CPU: \`-march=${b.march} -mabi=${b.mabi}\`${b.cpuFlags.filter(f => !/^-m(arch|abi)=/.test(f)).length ? ', `' + b.cpuFlags.filter(f => !/^-m(arch|abi)=/.test(f)).join(' ') + '`' : ''} (MRS target options: ${ideIsaText(b)})
+- Defines: \`${b.defines.join(' ')}\`${b.ble ? '; `src/app_config.h` is force-included (`-include`)' : ''}
+- \`-Os -g -Wall -ffunction-sections -fdata-sections -fno-common -fsigned-char\`, gnu99; linker: \`-T ld/Link.ld -nostartfiles --gc-sections --specs=nano.specs --specs=nosys.specs\`, libraries ${o.libs.concat(['m']).map(l => '`-l' + l + '`').join(' ')}
+- Compiler: MounRiver GCC12 (\`riscv-wch-elf-\`). With the older GCC8 toolchain select GCC12 in *Settings > Target Processor* again.
+
+## Troubleshooting
+
+| Message | Fix |
+|---|---|
+| \`fatal error: ch32...h / CH5...h: No such file\`, \`cannot open linker script file ld/Link.ld\` | The setup did not run (or failed): run \`setup_mrs.cmd\` / \`tools/mrs_setup.sh\`, then *Project > Refresh* (F5) and build again |
+| \`cannot find -lwch_...\` | Same: the setup copies the libraries into \`lib/\` |
+| \`multiple definition of ..._IRQHandler\` | The handler is in \`src/\` and in \`evt/User/*_it.c\`. Keep only one |
+| \`region FLASH overflowed\` | The program is too big for this chip |
+| \`mis-matched ISA\` / unknown \`-march\` | Select the GCC12 toolchain in the project settings |
+
+---
+
+## راهنمای فارسی (خلاصه)
+
+1. **MounRiver Studio** را نصب کنید.
+2. یک بار \`setup_mrs.cmd\` را اجرا کنید (لینوکس/مک: \`bash tools/mrs_setup.sh\`). این اسکریپت EVT رسمی ${v.id} را دانلود می‌کند و فایل‌های لازم را در پوشه‌های \`evt/\`، \`ld/\` و \`lib/\` کپی می‌کند.
+3. در MounRiver: *File > Import > Existing Projects into Workspace* و همین پوشه را انتخاب کنید.
+4. با \`Ctrl+B\` build کنید و با دکمه‌ی Download پروگرام کنید.
+5. کد خودتان را بین \`USER CODE BEGIN\` و \`USER CODE END\` بنویسید تا با Generate code دوباره پاک نشود. اگر ماژول جدیدی (مثلا BLE) اضافه کردید، اسکریپت setup را دوباره اجرا کنید.
+`;
+  /* PlatformIO */
+  return `# ${v.id} PlatformIO project
+
+Exported by **WCH Configurator**, originally created by [Amir1387aht (Another)](https://github.com/amir1387aht/WCH-Resources).
+
+${v.note || ''}
+
+${warn}---
+
+## Quick start
+
+1. **Install PlatformIO**: the *PlatformIO IDE* extension in VS Code, or \`python -m pip install platformio\` for the command line.
+2. **Open this folder** (the one with \`platformio.ini\`) in VS Code, or \`cd\` into it.
+3. **Build**: the PlatformIO *Build* button, or \`pio run\`. The first build downloads the community platform [platform-ch32v](https://github.com/Community-PIO-CH32V/platform-ch32v) with its GCC12 toolchain and the \`noneos-sdk\` framework${b.ble || b.rf ? `, and \`tools/pio_evt.py\` downloads the ${extras.join(', ')} part of the official EVT (${evtSrc}; or set \`custom_wch_evt_dir\` in \`platformio.ini\`)` : ''}.
+4. **Flash** with WCH-Link: *Upload* / \`pio run -t upload\` (\`upload_protocol\` in \`platformio.ini\`). **Debug**: the PlatformIO debugger (F5) with WCH-Link and OpenOCD.
+
+## Everyday work
+
+| What | How |
+|---|---|
+${code} |
+| PlatformIO options | \`platformio.ini\` is written again by Generate code: put your own options (build flags, upload protocol, port, EVT folder) into the \`[wch_user]\` section between \`# USER CODE BEGIN wch_user\` and \`# USER CODE END wch_user\` |
+
+## How it is built
+
+- Board \`${o.board || '-'}\` of platform-ch32v, framework \`noneos-sdk\`: the framework supplies the drivers, \`system_*.c\`, \`debug.c\`, the startup file${b.ch5 ? ' and the libISP library' : ' and the linker script (made from the board flash / RAM sizes)'}. The EVT \`*_it.c\` (NMI / HardFault handlers) is not part of the framework: the startup file has default handlers.
+- CPU flags \`-march=${b.march} -mabi=${b.mabi}\` as in the CMake export (\`board_build.march\` / \`board_build.mabi\`; the board default can differ). The framework adds \`-Os -g -Wall -ffunction-sections -fdata-sections -std=gnu99\`.
+- Defines: \`${b.defines.join(' ')}\` (\`build_flags\`); the board adds the chip defines and, on CH32 parts, the \`SYSCLK_FREQ_*\` default clock of \`SystemInit()\`${b.ch5 ? '' : ' (the generated code sets the configured clock afterwards)'}.
+${b.ble ? '- `src/app_config.h` is force-included in every C file and the BLE library is linked, like the CMake export (`tools/pio_evt.py`).\n' : ''}${b.mem && b.mem.heap ? '- The heap size check of the Project Manager is not applied here (the linker script comes from the framework).\n' : ''}
+---
+
+## راهنمای فارسی (خلاصه)
+
+1. افزونه‌ی **PlatformIO IDE** را در VS Code نصب کنید (یا \`pip install platformio\`).
+2. همین پوشه را باز کنید و دکمه‌ی Build را بزنید (یا \`pio run\`). بار اول پلتفرم platform-ch32v و کامپایلر دانلود می‌شوند.
+3. برای پروگرام کردن با WCH-Link دکمه‌ی Upload را بزنید (\`pio run -t upload\`).
+4. کد خودتان را بین \`USER CODE BEGIN\` و \`USER CODE END\` بنویسید؛ تنظیمات اضافه‌ی PlatformIO را هم در بخش \`[wch_user]\` فایل \`platformio.ini\` بین \`USER CODE BEGIN\` و \`USER CODE END\` بگذارید.
+`;
+}
+function ideIsaText(b){
+  const i = ideIsa(b.march, b.mabi);
+  return [i.base, i.mul && 'M', i.atomic && 'A', i.fp !== 'none' && 'F (' + i.fp + ')', i.compressed && 'C', i.b && 'B', i.zmmul && 'Zmmul', i.xw && 'XW', 'ABI ' + i.abiInt + (i.abiFp !== 'none' ? ' + ' + i.abiFp + ' float' : '')].filter(Boolean).join(', ');
+}
+
+/* --- the export: the VS Code files minus CMake / VS Code, plus the IDE files --- */
+var _ideVscProjectFiles = vscProjectFiles;
+function ideProjectFiles(kind){
+  const r = _ideVscProjectFiles();
+  const name = r.name, base = r.files, b = ideBuild(base);
+  const files = {};
+  const drop = k => k === 'CMakeLists.txt' || k === 'README.md' || k === '.gitignore' || /^\.vscode\//.test(k) || /^cmake\//.test(k)
+    || k === 'tools/wch.ps1' || k === 'tools/wch.sh' || k === name + '.wchproj';
+  Object.keys(base).forEach(k => { if(!drop(k)) files[k] = base[k]; });
+  if(files['wch-project.json']){
+    try{ const j = JSON.parse(files['wch-project.json']); j.ide = kind; files['wch-project.json'] = JSON.stringify(j, null, 2) + '\n'; }catch(e){}
+  }
+  if(kind === 'mrs'){
+    const bad = ideMrsProblems(b);
+    const plan = ideMrsPlan(b);
+    files['.project'] = ideMrsProject(name);
+    files['.cproject'] = ideMrsCproject(name, b, plan);
+    files['.template'] = ideMrsTemplate(name, b);
+    files['tools/evt_files.txt'] = plan.text;
+    files['tools/mrs_setup.ps1'] = IDE_TOOLS['mrs_setup.ps1'].replace(/\r?\n/g, '\r\n');
+    files['tools/mrs_setup.sh'] = IDE_TOOLS['mrs_setup.sh'];
+    files['setup_mrs.cmd'] = IDE_TOOLS['setup_mrs.cmd'].replace(/\r?\n/g, '\r\n');
+    files['.gitignore'] = 'obj/\nevt/\nld/\nlib/\n.wch-backup/\n.settings/\n';
+    files['README.md'] = ideReadme('mrs', name, b, {bad, libs: plan.libs});
+  } else {
+    const bad = idePioProblems(b), board = idePioBoard(b.v);
+    files['platformio.ini'] = idePioIni(name, b, board);
+    if(b.ble || b.rf) files['tools/pio_evt.py'] = idePioScript(b);
+    files['.gitignore'] = '.pio/\n.wch-backup/\n';
+    files['README.md'] = ideReadme('pio', name, b, {bad, board});
+  }
+  files[name + '.wchproj'] = projectJson([...Object.keys(files), name + '.wchproj']);
+  return {name, files};
+}
+vscProjectFiles = function(){
+  const k = ideKind();
+  return k === 'vscode' ? _ideVscProjectFiles.apply(this, arguments) : ideProjectFiles(k);
+};
+
+/* --- .wchproj: project.ide (only when it is not VS Code) --- */
+var _ideProjectData = projectData;
+projectData = function(generated){
+  const d = _ideProjectData.apply(this, arguments);
+  if(ideKind() !== 'vscode' && d && d.project) d.project.ide = ideKind();
+  return d;
+};
+var _ideProjectLoad = projectLoad;
+projectLoad = function(text){
+  let ide = 'vscode';
+  try{ const p = typeof text === 'string' ? JSON.parse(text) : text; const i = p && p.project && p.project.ide; if(i === 'mrs' || i === 'pio') ide = i; }catch(e){}
+  const r = _ideProjectLoad.apply(this, arguments);
+  if(state.project){ if(ide === 'vscode') delete state.project.ide; else state.project.ide = ide; }
+  renderProjectSettings();
+  if(typeof renderAll === 'function') renderAll();
+  return r;
+};
+/* .template (MounRiver download settings) is only created when missing. README.md and .gitignore are written
+ * again when the folder was last generated for another IDE (the old ones are backed up). */
+function ideLastGenerated(){
+  const g = (typeof projIO !== 'undefined' && projIO.generated) || [];
+  return g.includes('.cproject') ? 'mrs' : g.includes('platformio.ini') ? 'pio' : g.includes('CMakeLists.txt') ? 'vscode' : null;
+}
+var _ideProjPolicy = projPolicy;
+projPolicy = function(rel){
+  if(rel === '.template') return 'create';
+  const last = ideLastGenerated();
+  if((rel === 'README.md' || rel === '.gitignore') && last && last !== ideKind()) return 'write';
+  return _ideProjPolicy.apply(this, arguments);
+};
+
+/* --- Problems: what the selected IDE export cannot build --- */
+var _ideComputeProblems = computeProblems;
+computeProblems = function(){
+  const probs = _ideComputeProblems.apply(this, arguments);
+  const k = ideKind();
+  if(k === 'vscode') return probs;
+  try{
+    const b = ideBuild(_ideVscProjectFiles().files);
+    const bad = k === 'mrs' ? ideMrsProblems(b) : idePioProblems(b);
+    const nm = k === 'mrs' ? 'MounRiver Studio export' : 'PlatformIO export';
+    bad.forEach(m => probs.push({lvl: 'err', msg: `${nm}: ${m} - choose VS Code + CMake in Project Manager > Toolchain / IDE`}));
+    if(k === 'pio' && b.mem && b.mem.heap) probs.push({lvl: 'info', msg: 'PlatformIO export: the heap size check is not applied (the linker script comes from the noneos-sdk framework)'});
+    if(k === 'pio' && b.ch5 && b.mem && (b.mem.stackSet || b.ldmem.length)) probs.push({lvl: 'info', msg: 'PlatformIO export: on CH5xx the framework links with its own Link.ld, the Project Manager flash / RAM / stack values are not applied'});
+    if(k === 'mrs') probs.push({lvl: 'info', msg: 'MounRiver Studio export: run setup_mrs.cmd (or tools/mrs_setup.sh) in the project folder once, and again when the configuration needs other EVT parts'});
+  }catch(e){ probs.push({lvl: 'warn', msg: 'Toolchain / IDE export: ' + e.message}); }
+  return probs;
+};
+
+/* --- Project Manager: Toolchain / IDE select, zip button, Toolchain card --- */
+function ideRenderSettings(){
+  const row = document.getElementById('pmProj');
+  if(!row) return;
+  let sel = document.getElementById('projIde');
+  if(!sel){
+    const f = document.createElement('div');
+    f.className = 'pm-field';
+    f.innerHTML = `<label for="projIde">Toolchain / IDE</label><select id="projIde" style="font-size:12px;padding:3px 6px" title="Project type that the zip button and Generate code write">${Object.keys(IDE_KINDS).map(k => `<option value="${k}">${IDE_KINDS[k].name}</option>`).join('')}</select>`;
+    const name = document.getElementById('projName');
+    const after = name ? name.closest('.pm-field') : null;
+    if(after && after.parentNode === row) after.insertAdjacentElement('afterend', f); else row.insertBefore(f, row.firstChild);
+    sel = document.getElementById('projIde');
+    sel.addEventListener('change', e => {
+      const k = e.target.value;
+      if(k === 'vscode') delete state.project.ide; else state.project.ide = k;
+      if(typeof renderAll === 'function') renderAll();
+    });
+  }
+  const k = ideKind();
+  if(sel.value !== k) sel.value = k;
+  const btn = document.getElementById('vscodeBtn');
+  if(btn){
+    if(!btn.dataset.ideText){ btn.dataset.ideText = btn.textContent; btn.dataset.ideTitle = btn.title; }
+    btn.textContent = k === 'vscode' ? btn.dataset.ideText : IDE_KINDS[k].btn;
+    btn.title = k === 'vscode' ? btn.dataset.ideTitle : `Download the ${IDE_KINDS[k].name} project (generated code + project files + README)`;
+  }
+  const card = [...document.querySelectorAll('.pm-card')].find(c => { const t = c.querySelector('.pm-k'); return t && t.textContent.trim() === 'Toolchain'; });
+  const cv = card && card.querySelector('.pm-v');
+  if(cv){
+    if(!cv.dataset.ideText) cv.dataset.ideText = cv.textContent;
+    cv.textContent = k === 'vscode' ? cv.dataset.ideText : IDE_KINDS[k].card;
+  }
+}
+var _ideRenderProjectSettings = renderProjectSettings;
+renderProjectSettings = function(){
+  const r = _ideRenderProjectSettings.apply(this, arguments);
+  ideRenderSettings();
+  return r;
+};
+/* zip button: the selected IDE's project (the VS Code download stays the original handler) */
+document.addEventListener('click', e => {
+  const b = e.target && e.target.closest ? e.target.closest('#vscodeBtn') : null;
+  const k = ideKind();
+  if(!b || k === 'vscode') return;
+  e.stopPropagation(); e.preventDefault();
+  const {name, blob} = vscodeZip();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name + '_' + IDE_KINDS[k].zip + '.zip';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}, true);
+
 /* EXTRA MODULES END */
 /* MODULES END */
 
@@ -15290,7 +16608,7 @@ $('addBtn').addEventListener('click', () => {
   renderAll();
 });
 
-$('clearBtn').addEventListener('click', () => { state.configs = []; state.labels = {}; state.editId = null; syncFormHead(); closePinMenu(); });
+$('clearBtn').addEventListener('click', () => { state.configs = []; state.labels = {}; state.pinElec = {}; state.editId = null; syncFormHead(); closePinMenu(); });
 
 /* example: built from the datasheet functions of the selected package when available */
 $('exampleBtn').addEventListener('click', () => {
@@ -15342,7 +16660,7 @@ const variantSelect = $('variantSelect');
 const pkgSelect = $('pkgSelect');
 const chipNote = $('chipNote');
 function resetChip(){
-  state.configs = []; state.labels = {}; state.editId = null; state.selPin = null; state.clock = null;
+  state.configs = []; state.labels = {}; state.pinElec = {}; state.editId = null; state.selPin = null; state.clock = null;
   $('pinMenu').hidden = true;
   const p = pinout();
   state.pkg = p ? p.pkgs[0].name : null;

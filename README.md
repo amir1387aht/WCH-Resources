@@ -151,6 +151,29 @@ Invalid settings are reported in **Problems**: pin conflicts, a CAN bitrate that
 - **NVIC table** (Project Manager > NVIC): every enabled interrupt, with preemption and sub priority.
 - **Undo / Redo** (Ctrl+Z / Ctrl+Y), and a **Fix** button on pin conflicts that moves a function to a free pin that has it.
 
+#### MCU Selector
+
+The **MCU Selector** button opens a table of every chip and package, like the CubeMX MCU Finder:
+- **Columns:** pins, GPIO, ADC channels, core, clock, flash/RAM, supply voltage, and the peripherals (UART, SPI, I2C, timers, DAC, OPA, CMP, CAN, USB device/host/PD, Ethernet, BLE, 2.4 GHz RF, touch key, RTC). The data comes from the official datasheets.
+- **Filters:** search, family, pin range, minimum flash/RAM/clock, and features.
+- **Selecting:** click a row to open that chip and package.
+- **Buy links:** chips sold by Lion Electronic (lionelectronic.ir) have a link to the shop page. The same link is shown for the selected chip in Project Manager and under the pinout.
+
+#### Pin checks
+
+- **Debug pins:** a GPIO or peripheral on a debug pin (SWDIO/SWCLK, single-wire SWIO, TIO/TCK) is an error, because the pin belongs to the debugger after reset.
+  - On CH32, add **SYS > Debug = Disabled** (System Core): it generates `GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable / GPIO_Remap_SDI_Disable)`.
+  - On CH5xx, 2-wire debug is turned off only with WCHISPTool (user config).
+  - Reset and boot pins get a warning.
+- **5 V signals:** in the pin menu or the GPIO panel, mark a pin as "5 V signal". A pin that is not 5 V tolerant (per the datasheet pin table, per package) is an error.
+- **Output current:** enter the load current of an output. The per-pin, total and per-group limits of the datasheet are checked. On CH5xx, a warning tells you when the 20 mA drive is needed.
+- **Interrupts:** an interrupt handler that two entries would both define (for example two modules on the same timer) is an error.
+
+#### Live results in the forms
+
+- **ADC:** ADC clock, conversion time (sampling + conversion cycles of the chip), sample rate per channel, and the scan rate for ADC scan.
+- **Timer:** counter clock, update/PWM frequency and period, high time and duty resolution. On CH5xx: ticks and the real period.
+
 #### Bluetooth LE and USB on CH5xx
 
 - **BLE peripheral**: device name, advertising interval, TX power, MTU, PHY after connect (1M / 2M / Coded where the library supports it), connection parameters, security (none, Just Works, or a 6-digit passkey with bonding).
@@ -166,7 +189,9 @@ The code uses the official WCH BLE library (TMOS) and the usbdev driver from the
 - The generated code with a file selector (`main.c`, `app_callbacks.c`, ...), **Copy code** and **Download .c**.
 - **Problems** list (errors and warnings).
 - **VS Code project (.zip)** and the **VS Code guide**.
-- Project settings: **project name**, **Generate peripheral initialization as a pair of .c/.h files per peripheral**, the project folder, and **Open project**, **Save .wchproj**, **Generate code**.
+- Project settings: **project name**, **Toolchain / IDE** (VS Code + CMake, MounRiver Studio or PlatformIO), **Generate peripheral initialization as a pair of .c/.h files per peripheral**, the project folder, and **Open project**, **Save .wchproj**, **Generate code**.
+- **MounRiver Studio:** an Eclipse project (`.project`, `.cproject`). Run `setup_mrs` once: it copies the EVT drivers, startup file, linker script and libraries into the project. Then use File > Import in MounRiver Studio. The compiler flags are the same as the CMake build.
+- **PlatformIO:** `platformio.ini` for the community WCH platform (platform-ch32v, framework noneos-sdk). CH32M030, the Arm chips, FreeRTOS and Ethernet are not supported there, and Problems says so.
 
 #### Projects: open, change, generate again
 
@@ -430,6 +455,29 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **جدول NVIC** (Project Manager > NVIC): همه‌ی وقفه‌های فعال با اولویت preemption و sub.
 - **Undo / Redo** (Ctrl+Z / Ctrl+Y)، و دکمه‌ی **Fix** کنار تداخل پایه‌ها که تابع را به یک پایه‌ی آزاد با همان تابع منتقل می‌کند.
 
+#### MCU Selector
+
+دکمه‌ی **MCU Selector** جدولی از همه‌ی تراشه‌ها و پکیج‌ها را باز می‌کند، مثل MCU Finder در CubeMX:
+- **ستون‌ها:** تعداد پایه، GPIO، کانال ADC، هسته، کلاک، Flash/RAM، ولتاژ و پریفرال‌ها (UART، SPI، I2C، تایمر، DAC، OPA، CMP، CAN، USB، Ethernet، BLE، رادیوی 2.4G، Touch، RTC). داده‌ها از دیتاشیت‌های رسمی است.
+- **فیلترها:** جستجو، خانواده، تعداد پایه، حداقل Flash/RAM/کلاک و امکانات.
+- **انتخاب:** با کلیک روی هر ردیف، همان تراشه و پکیج باز می‌شود.
+- **لینک خرید:** تراشه‌هایی که در فروشگاه Lion Electronic (lionelectronic.ir) هستند لینک خرید دارند. همین لینک برای تراشه‌ی انتخاب‌شده در Project Manager و زیر پین‌اوت هم نمایش داده می‌شود.
+
+#### بررسی پایه‌ها
+
+- **پایه‌های دیباگ:** استفاده از پایه‌ی دیباگ (SWDIO/SWCLK، SWIO، TIO/TCK) برای GPIO یا پریفرال خطاست، چون بعد از ریست مال دیباگر است.
+  - در CH32 گزینه‌ی **SYS > Debug = Disabled** را اضافه کنید (System Core). این گزینه `GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable / GPIO_Remap_SDI_Disable)` را تولید می‌کند.
+  - در CH5xx دیباگ دوسیمه فقط با WCHISPTool خاموش می‌شود.
+  - برای پایه‌های ریست و بوت هشدار داده می‌شود.
+- **سیگنال ۵ ولت:** در منوی پایه یا پنل GPIO، پایه را «5 V signal» علامت بزنید. اگر طبق جدول پایه‌های دیتاشیت (برای هر پکیج) آن پایه 5V tolerant نباشد، خطا داده می‌شود.
+- **جریان خروجی:** جریان بار هر خروجی را وارد کنید. حد هر پایه، حد مجموع و حد هر گروه طبق دیتاشیت بررسی می‌شود. در CH5xx اگر درایو ۲۰ mA لازم باشد، هشدار داده می‌شود.
+- **وقفه‌ها:** اگر دو ماژول یک تابع وقفه را بخواهند (مثلاً دو ماژول روی یک تایمر)، خطا داده می‌شود.
+
+#### محاسبه‌ی زنده در فرم‌ها
+
+- **ADC:** کلاک ADC، زمان تبدیل، نرخ نمونه‌برداری هر کانال و نرخ اسکن.
+- **تایمر:** کلاک شمارنده، فرکانس و دوره‌ی Update/PWM، زمان High و دقت duty. در CH5xx: تعداد tick و دوره‌ی واقعی.
+
 #### بلوتوث LE و USB در CH5xx
 
 - **BLE (peripheral)**: تنظیمات شامل نام دستگاه، فاصله‌ی ادورتایز، توان ارسال، MTU و PHY پس از اتصال (1M / 2M / Coded) است. پارامترهای اتصال و امنیت هم قابل تنظیم‌اند: بدون جفت‌سازی، Just Works، یا رمز ۶ رقمی با Bonding.
@@ -450,7 +498,9 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - کد تولیدشده با انتخاب فایل، و دکمه‌های **Copy code** و **Download .c**.
 - فهرست **Problems** (خطاها و هشدارها).
 - **VS Code project (.zip)** و **راهنمای VS Code**.
-- تنظیمات پروژه: **نام پروژه**، **Generate peripheral initialization as a pair of .c/.h files per peripheral**، پوشه‌ی پروژه، و دکمه‌های **Open project**، **Save .wchproj** و **Generate code**.
+- تنظیمات پروژه: **نام پروژه**، **Toolchain / IDE** (VS Code + CMake، MounRiver Studio یا PlatformIO)، **Generate peripheral initialization as a pair of .c/.h files per peripheral**، پوشه‌ی پروژه، و دکمه‌های **Open project**، **Save .wchproj** و **Generate code**.
+- **MounRiver Studio:** پروژه‌ی Eclipse (`.project` و `.cproject`) ساخته می‌شود. یک بار `setup_mrs` را اجرا کنید تا درایورها، startup، لینکر اسکریپت و کتابخانه‌های EVT در پروژه کپی شوند. بعد در MounRiver Studio از File > Import بازش کنید. فلگ‌های کامپایل همان بیلد CMake است.
+- **PlatformIO:** فایل `platformio.ini` برای پلتفرم community ‏WCH ‏(platform-ch32v، framework ‏noneos-sdk) ساخته می‌شود. CH32M030، تراشه‌های Arm، FreeRTOS و Ethernet آنجا پشتیبانی نمی‌شوند و Problems این را می‌گوید.
 
 #### پروژه: باز کردن، تغییر، تولید دوباره‌ی کد
 
