@@ -315,6 +315,14 @@
   .pm-proj .pm-path{font-family:var(--mono); font-size:11px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:520px;}
   .pm-proj .pm-btns{display:flex; gap:6px; margin-left:auto;}
   .pm-proj .btn-primary{padding:6px 14px; font-size:12px;}
+  .calc{margin:8px 0; border:1px solid var(--line); border-radius:7px; background:var(--panel-2); padding:6px 9px; font-size:12px;}
+  .calc:empty{display:none;}
+  .calc-row{display:flex; justify-content:space-between; gap:10px; padding:2px 0;}
+  .calc-row span{color:var(--text-dim);}
+  .calc-row b{font-family:var(--mono); font-weight:600; color:var(--text); text-align:right;}
+  .calc-row.bad b{color:var(--red);}
+  .calc-note{margin-top:4px; font-size:10.5px; color:var(--text-faint);}
+  .calc-note.bad{color:var(--red);}
   .nvic-panel{padding:10px; overflow:auto;}
   .nvic-panel table{border-collapse:collapse; width:100%; font-size:12px;}
   .nvic-panel th, .nvic-panel td{border-bottom:1px solid var(--line); padding:5px 8px; text-align:left;}
@@ -746,6 +754,8 @@ function renderForm(){
     const ctx = periphCtx();
     formArea.innerHTML = mod.form(ctx);
     if(mod.bind) mod.bind(ctx);
+    if(!formArea.__calc){ formArea.__calc = true; ['input', 'change'].forEach(ev => formArea.addEventListener(ev, () => { try{ renderCalc(); }catch(e){} })); }
+    setTimeout(() => { try{ renderCalc(); }catch(e){} }, 0);
     return;
   }
   const fam = FAMILIES[state.family];
@@ -887,6 +897,7 @@ function renderForm(){
           <div class="field"><label>Auto-reload (ARR / Period)</label><input type="number" id="f_arr" value="9999"></div>
         </div>
         <div class="hint">${timerHint()}</div>
+        <div class="calc" id="f_calc"></div>
         <div class="row2">
           <div class="field"><label>PWM channel (used only if Mode = PWM)</label>
             <select id="f_ch"><option value="1">Channel 1</option><option value="2">Channel 2</option><option value="3">Channel 3</option><option value="4">Channel 4</option></select>
@@ -935,6 +946,7 @@ function renderForm(){
       <div id="wtb_group">
         <div class="field"><label>Period (µs)</label><input type="number" id="f_period" value="1000"></div>
         <div class="hint">TMR0_TimerInit() counts in system-clock ticks (FREQ_SYS). The generator converts µs → ticks for you.</div>
+        <div class="calc" id="f_calc"></div>
         <div class="field"><label>Enable cycle-end interrupt</label>
           <select id="f_it"><option value="1">Yes</option><option value="0">No</option></select>
         </div>
@@ -973,10 +985,11 @@ function renderForm(){
         </div>
         <div class="field"><label>Sample time</label>
           <select id="f_stime">
-            ${(currentVariant().adcST || ['1_5','7_5','13_5','28_5','41_5','55_5','71_5','239_5'].map(t => [t, t.replace('_','.')])).map(([t, l])=>`<option value="${t}" ${t=='41_5'?'selected':''}>${l} cycles</option>`).join('')}
+            ${(currentVariant().adcST || adcTiming().opts).map(([t, l])=>`<option value="${t}" ${t=='41_5'?'selected':''}>${l} cycles</option>`).join('')}
           </select>
         </div>
       </div>
+      <div class="calc" id="f_calc"></div>
       <div class="hint">ADC_Channel_x doesn't map 1:1 onto the P{port}{pin} you picked above — cross-check the channel-to-pin table in your variant's datasheet/GPIO alt-function table and set the pin to GPIO_Mode_AIN (handled for you below).</div>
       ` : `
       <div class="row2">
@@ -1034,6 +1047,8 @@ function renderForm(){
     `;
   }
   formArea.innerHTML = html;
+  if(!formArea.__calc){ formArea.__calc = true; ['input', 'change'].forEach(ev => formArea.addEventListener(ev, () => { try{ renderCalc(); }catch(e){} })); }
+  setTimeout(() => { try{ renderCalc(); }catch(e){} }, 0);
 
   if(state.tab === 'adc' && fam.style === 'wchble'){
     const modeSel = document.getElementById('f_admode');
@@ -3835,6 +3850,109 @@ function autoFixPin(g){
     }
   }
   return {ok: false, msg: `${g}: no free pin with the same function was found; change one of the functions by hand (click the pin)`};
+}
+
+/* ================= live results under the ADC / timer forms =================
+ * ADC: conversion time = sampling time + conversion cycles (per chip, from its reference manual / datasheet tCONV),
+ * at the ADC clock of the Clock Configuration view. Timer: counter clock, update frequency and period from PSC/ARR
+ * (CH32) or from the period in µs and FREQ_SYS (CH5xx). */
+const ADC_KEYS = ['1_5', '7_5', '13_5', '28_5', '41_5', '55_5', '71_5', '239_5'];
+function adcTiming(){
+  const id = currentVariant().id;
+  const T = (cyc, conv, src, sure) => ({cyc, conv, src, sure, opts: ADC_KEYS.map((k, i) => [k, String(cyc[i])]).filter((_, i) => cyc[i] !== undefined)});
+  if(id === 'CH32V003') return T([3, 9, 15, 30, 43, 57, 73, 241], 11, 'CH32V003RM: TCONV = sampling time + 11 TADCCLK', true);
+  if(typeof wchV00x === 'function' && wchV00x(id)) return T([3.5, 7.5, 11.5, 19.5, 35.5, 55.5, 71.5, 239.5], 12.5, 'CH32V00XRM: TCONV = sampling time + 12.5 TADCCLK', true);
+  if(id === 'CH32X035' || id === 'CH643') return T([4, 5, 6, 7, 8, 9, 10, 11], 13, id === 'CH643' ? 'CH643DS0: tCONV 17-24 1/fADC' : 'assumed same ADC as CH643 (tCONV = sampling + 13 cycles)', id === 'CH643');
+  if(id === 'CH32L103') return T([1.5, 7.5, 13.5, 28.5, 41.5, 55.5, 71.5, 239.5], 12.5, 'EVT ch32l103_adc.c (CyclesMode0-7, ADC_LP = 0); 12.5 conversion cycles assumed', false);
+  if(id === 'CH32M030') return {cyc: null, map: {'5_5': 5.5, '11_5': 11.5, '23_5': 23.5, '59_5': 59.5}, conv: 12.5, src: 'CH32M030DS0: tCONV 18-72 1/fADC', sure: true, opts: [['5_5', '5.5'], ['11_5', '11.5'], ['23_5', '23.5'], ['59_5', '59.5']]};
+  if(/^CH32V(103|20|30)|^CH32F/.test(id)) return T([1.5, 7.5, 13.5, 28.5, 41.5, 55.5, 71.5, 239.5], 12.5, 'TCONV = sampling time + 12.5 cycles (tCONV 14-252 1/fADC in the datasheet)', true);
+  return T([1.5, 7.5, 13.5, 28.5, 41.5, 55.5, 71.5, 239.5], 12.5, 'conversion time of this chip not checked: 12.5 cycles assumed', false);
+}
+function adcSampleCycles(key){
+  const t = adcTiming();
+  if(t.map) return t.map[key];
+  const i = ADC_KEYS.indexOf(key);
+  return i >= 0 ? t.cyc[i] : parseFloat(String(key).replace('_', '.'));
+}
+function fmtRate(hz){
+  if(!isFinite(hz) || hz <= 0) return '-';
+  if(hz >= 1e6) return (+(hz / 1e6).toPrecision(4)) + ' MHz';
+  if(hz >= 1e3) return (+(hz / 1e3).toPrecision(4)) + ' kHz';
+  return (+hz.toPrecision(4)) + ' Hz';
+}
+function fmtSps(hz){ return fmtRate(hz).replace('MHz', 'MS/s').replace('kHz', 'kS/s').replace(/\bHz$/, 'S/s'); }
+function fmtTime(sec){
+  if(!isFinite(sec) || sec <= 0) return '-';
+  if(sec >= 1) return (+sec.toPrecision(4)) + ' s';
+  if(sec >= 1e-3) return (+(sec * 1e3).toPrecision(4)) + ' ms';
+  if(sec >= 1e-6) return (+(sec * 1e6).toPrecision(4)) + ' µs';
+  return (+(sec * 1e9).toPrecision(4)) + ' ns';
+}
+function calcRow(k, v, bad){ return `<div class="calc-row${bad ? ' bad' : ''}"><span>${k}</span><b>${v}</b></div>`; }
+function adcConvTime(stimeKey){
+  const f = clockFreqs(), t = adcTiming(), cyc = adcSampleCycles(stimeKey);
+  if(!f.adcclk || cyc === undefined || isNaN(cyc)) return null;
+  return {cyc, total: cyc + t.conv, sec: (cyc + t.conv) / f.adcclk, clk: f.adcclk, t};
+}
+function renderCalc(){
+  let el = $('f_calc');
+  if(!el && state.tab === 'adcscan' && $('formArea')){ $('formArea').insertAdjacentHTML('beforeend', '<div class="calc" id="f_calc"></div>'); el = $('f_calc'); }
+  if(!el) return;
+  const g = id => { const e = $(id); return e ? e.value : undefined; };
+  const std = FAMILIES[state.family].style === 'stdperiph';
+  let h = '';
+  if(state.tab === 'adc' && std){
+    const c = adcConvTime(g('f_stime'));
+    if(!c){ el.innerHTML = '<div class="calc-row"><span>ADC clock not known for this chip</span></div>'; return; }
+    /* every other single-channel ADC entry is read one after another with the same software start */
+    const others = state.configs.filter(x => x.type === 'adc' && x.id !== state.editId);
+    const all = others.reduce((s, x) => { const o = adcConvTime(x.stime); return s + (o ? o.sec : 0); }, c.sec);
+    const amax = (clockDef() && clockDef().adc && clockDef().adc.max) || 0;
+    h += calcRow('ADC clock' + (amax ? ` (max ${fmtRate(amax)})` : ''), fmtRate(c.clk), amax && c.clk > amax + 1);
+    h += calcRow('Conversion', `${c.cyc} + ${c.t.conv} = ${+c.total.toFixed(1)} cycles = ${fmtTime(c.sec)}`);
+    h += calcRow('Max sample rate (this channel alone, back to back)', fmtSps(1 / c.sec));
+    if(others.length) h += calcRow(`With all ${others.length + 1} ADC channels read in turn`, `${fmtSps(1 / all)} per channel`);
+    h += `<div class="calc-note">${esc(c.t.src)}${c.t.sure ? '' : ' (not verified)'}. Software start and reading the result add time, so the real rate is lower.</div>`;
+  } else if(state.tab === 'adcscan' && std){
+    const c = adcConvTime(g('f_stime'));
+    const n = String(g('f_chs') || '').split(/[\s,;]+/).filter(x => /^\d+$/.test(x)).length;
+    if(!c || !n){ el.innerHTML = ''; return; }
+    const amax2 = (clockDef() && clockDef().adc && clockDef().adc.max) || 0;
+    h += calcRow('ADC clock' + (amax2 ? ` (max ${fmtRate(amax2)})` : ''), fmtRate(c.clk), amax2 && c.clk > amax2 + 1);
+    h += calcRow('Conversion per channel', `${+c.total.toFixed(1)} cycles = ${fmtTime(c.sec)}`);
+    h += calcRow(`One scan of ${n} channel${n > 1 ? 's' : ''}`, fmtTime(n * c.sec));
+    h += calcRow('Sample rate per channel (continuous scan)', fmtSps(1 / (n * c.sec)));
+    h += `<div class="calc-note">${esc(c.t.src)}${c.t.sure ? '' : ' (not verified)'}.</div>`;
+  } else if(state.tab === 'timer' && std){
+    const f = clockFreqs(), inst = g('f_inst') || 'TIM2', mode = g('f_mode');
+    if(mode === 'encoder'){ el.innerHTML = ''; return; }
+    const clk = (ADV_TIMERS.includes(inst) ? f.tim1clk : f.tim2clk) || f.hclk || f.sysclk;
+    const psc = parseInt(g('f_psc')), arr = parseInt(g('f_arr'));
+    if(!clk || isNaN(psc) || isNaN(arr)){ el.innerHTML = ''; return; }
+    const cnt = clk / (psc + 1), upd = cnt / (arr + 1), bad16 = v => v < 0 || v > 65535;
+    h += calcRow(`${inst} clock`, fmtRate(clk));
+    h += calcRow('Counter clock = clock / (PSC + 1)', `${fmtRate(cnt)} (tick ${fmtTime(1 / cnt)})`, bad16(psc));
+    h += calcRow(mode === 'pwm' ? 'PWM frequency = counter / (ARR + 1)' : 'Update frequency = counter / (ARR + 1)', fmtRate(upd), bad16(arr));
+    h += calcRow(mode === 'pwm' ? 'PWM period' : 'Update period', fmtTime(1 / upd));
+    if(mode === 'pwm'){
+      const duty = Math.min(100, Math.max(0, parseFloat(g('f_duty')) || 0));
+      const pulse = Math.round((arr + 1) * duty / 100);
+      h += calcRow('High time', `${fmtTime(pulse / cnt)} (CCR = ${pulse}, ${(+(pulse / (arr + 1) * 100).toFixed(2))} %)`);
+      h += calcRow('Duty resolution', `${arr + 1} steps (${(+Math.log2(arr + 1).toFixed(1))} bits)`);
+    }
+    if(bad16(psc) || bad16(arr)) h += '<div class="calc-note bad">PSC and ARR are 16-bit registers: 0 to 65535.</div>';
+  } else if(state.tab === 'timer' && !std){
+    if(g('f_wmode') === 'encoder'){ el.innerHTML = ''; return; }
+    const fsys = clockFreqs().sysclk, us = parseFloat(g('f_period'));
+    if(!fsys || !(us > 0)){ el.innerHTML = ''; return; }
+    const ticks = Math.floor(fsys * us / 1e6), real = ticks / fsys, max = 0x3FFFFFF;
+    h += calcRow('Timer clock (FREQ_SYS)', fmtRate(fsys));
+    h += calcRow('Count', `${ticks} ticks`, ticks > max || ticks < 1);
+    h += calcRow('Real period', fmtTime(real) + (Math.abs(real * 1e6 - us) > 1e-6 ? ` (asked ${us} µs)` : ''));
+    h += calcRow('Frequency', fmtRate(1 / real));
+    if(ticks > max) h += `<div class="calc-note bad">The TMR counter is 26-bit: at most ${max} ticks = ${fmtTime(max / fsys)}.</div>`;
+  }
+  el.innerHTML = h;
 }
 
 function generateFilesBase(){
