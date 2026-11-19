@@ -296,7 +296,14 @@ Open `index.html` in a browser (or run the desktop app), pick a chip, configure 
 
 ### License and credits
 
-MIT License, unless a resource says otherwise. See [`LICENSE`](LICENSE).
+**All rights reserved** (source-available, not open source). See [`LICENSE`](LICENSE) for the full text.
+
+- You may use the configurator (web page and desktop app) for free, also for commercial work.
+- The code and projects it generates are yours to use, change and sell without restriction.
+- You may **not** copy, re-upload, mirror or redistribute the configurator or a modified version of it (on GitHub or anywhere else), publish a similar or derived tool made from its code or data, rebrand it or remove the credits, without written permission.
+- Forking on GitHub is allowed only to send pull requests back to this repository.
+- Files from WCH (`Drivers/`, `Templates/`, and the EVT code a generated project downloads) keep their own licenses.
+- For any other use, ask first: amir1387aht@gmail.com.
 
 The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and register names come from the official WCH datasheets and openwch EVTs.
 
@@ -597,7 +604,17 @@ git clone https://github.com/amir1387aht/WCH-Resources.git
 
 ### مجوز و اعتبار
 
-این مخزن تحت مجوز MIT است، مگر اینکه منبعی خلاف آن را اعلام کند. فایل [`LICENSE`](LICENSE) را ببینید.
+**تمام حقوق محفوظ است.** کد منبع قابل مشاهده است ولی متن‌باز نیست. متن کامل در فایل [`LICENSE`](LICENSE) است.
+
+- استفاده از ابزار (صفحه‌ی وب و نسخه‌ی دسکتاپ) رایگان است، حتی برای کار تجاری.
+- کد و پروژه‌ای که ابزار تولید می‌کند مال شماست و می‌توانید بدون محدودیت از آن استفاده کنید، تغییرش دهید یا بفروشید.
+- بدون اجازه‌ی کتبی **مجاز نیست**:
+  - کپی، آپلود دوباره، mirror یا توزیع خود ابزار یا نسخه‌ی تغییریافته‌اش، روی GitHub یا هر جای دیگر.
+  - انتشار ابزار مشابه یا مشتق‌شده از کد یا داده‌های آن.
+  - تغییر نام تجاری یا حذف نام سازنده.
+- Fork در GitHub فقط برای فرستادن Pull Request به همین مخزن مجاز است.
+- فایل‌های WCH (`Drivers/`، `Templates/` و کد EVT که پروژه دانلود می‌کند) مجوز خودشان را دارند.
+- برای هر استفاده‌ی دیگر، اول اجازه بگیرید: amir1387aht@gmail.com
 
 سازنده‌ی WCH Configurator: **Amir1387aht (Another)**. پین‌اوت‌ها و نام رجیسترها از دیتاشیت‌های رسمی WCH و EVTهای openwch گرفته شده‌اند.
 
