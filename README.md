@@ -2,6 +2,12 @@
 
 A collection of resources, drivers, templates and development tools for **WCH (Nanjing Qinheng Microelectronics)** microcontrollers. The main tool is the **WCH Configurator**, a CubeMX-style pin, clock and peripheral configurator that generates C init code and ready-to-build VS Code projects.
 
+![WCH Configurator: Pinout & Configuration](docs/images/pinout.png)
+
+> **New: works with AI assistants (MCP).** Claude, Cursor, VS Code Copilot, Windsurf and any other MCP client can select the chip, assign pins, add peripherals, set the clock, check Problems and generate the whole project for you: *"Make a CH32V003 project with USART1 at 115200, an LED on PC0 and a 1 kHz timer interrupt"*. → [AI assistants (MCP)](#ai-assistants-mcp)
+>
+> **جدید: کار با دستیارهای هوش مصنوعی (MCP).** Claude، Cursor، Copilot در VS Code، Windsurf و هر کلاینت MCP دیگری می‌تواند تراشه را انتخاب کند، پایه‌ها و پریفرال‌ها و کلاک را تنظیم کند، Problems را بررسی کند و کل پروژه را بسازد. → [دستیار هوش مصنوعی (MCP)](#mcp-fa)
+
 **[English](#english)** · **[فارسی](#فارسی)**
 
 ---
@@ -13,6 +19,7 @@ A collection of resources, drivers, templates and development tools for **WCH (N
 ### Contents
 
 - [Repository structure](#repository-structure)
+- **[AI assistants (MCP)](#ai-assistants-mcp)**
 - [WCH Configurator](#wch-configurator)
   - [Supported chips](#supported-chips)
   - [Layout](#layout)
@@ -20,6 +27,10 @@ A collection of resources, drivers, templates and development tools for **WCH (N
   - [GPIO panel](#gpio-panel)
   - [Clock Configuration](#clock-configuration)
   - [Peripherals](#peripherals)
+  - [Examples](#examples)
+  - [MCU Selector](#mcu-selector)
+  - [Pin checks](#pin-checks)
+  - [Live results in the forms](#live-results-in-the-forms)
   - [Bluetooth LE and USB on CH5xx](#bluetooth-le-and-usb-on-ch5xx)
   - [Project Manager and code output](#project-manager-and-code-output)
   - [Projects: open, change, generate again](#projects-open-change-generate-again)
@@ -37,7 +48,9 @@ WCH-Resources/
 ├── Drivers/ch59x/                  CH59x drivers
 ├── Templates/CH59X-BLE-TEMPLATE/   CH59x Bluetooth LE project template
 ├── index.html                      WCH Configurator (single file, runs in a browser)
-├── desktop/                        Windows desktop app (pywebview shell + build scripts)
+├── desktop/                        desktop app for Windows, Linux and macOS (pywebview shell + build scripts)
+├── mcp/wch-mcp.mjs                 MCP server: lets AI assistants use the configurator
+├── docs/images/                    screenshots
 ├── LICENSE
 └── README.md
 ```
@@ -45,7 +58,78 @@ WCH-Resources/
 - **Drivers**: WCH MCU drivers collected for reuse. Currently the CH59x series.
 - **Templates**: clean starting projects. Currently **CH59X BLE Template**.
 - **index.html**: the WCH Configurator. Open it in any modern browser; nothing to install.
-- **desktop/**: the same configurator as an offline desktop app for Windows and Linux. See [desktop/README.md](desktop/README.md).
+- **desktop/**: the same configurator as an offline desktop app for Windows, Linux and macOS. See [desktop/README.md](desktop/README.md).
+- **mcp/**: the MCP server for AI assistants. See [AI assistants (MCP)](#ai-assistants-mcp).
+
+### AI assistants (MCP)
+
+**The configurator can be used by an AI assistant.** `mcp/wch-mcp.mjs` is a [Model Context Protocol](https://modelcontextprotocol.io) server. Add it to Claude Desktop, Claude Code, Cursor, VS Code (Copilot), Windsurf or any other MCP client, and ask in plain words:
+
+> Make a CH32V203 project in LQFP48: USART1 at 115200 on PA9/PA10, SPI1 for a flash chip with CS on PA4, I2C1 on PB6/PB7, an LED on PC13 and a button interrupt on PB0. Run it at 144 MHz from an 8 MHz crystal, check Problems, and generate it into D:\work\sensor_node.
+
+The assistant then uses the same steps you would use in the window, and the files it writes are the files the UI writes.
+
+**What the assistant can do**
+
+| Tools | What they do |
+|---|---|
+| `list_chips`, `select_chip` | every supported chip and package; choose one |
+| `list_pins`, `pin_info`, `assign_pin`, `set_pin_label` | the pin table from the datasheet, and assigning a function to a pin (GPIO, EXTI, ADC, USART, SPI, I2C, timer channels...) like a click in the chip view |
+| `list_peripherals`, `describe_peripheral`, `add_peripheral`, `edit_peripheral`, `remove_peripheral` | every peripheral form of the chip, with its fields, options, notes and live calculations (ADC sample rate, timer frequency) |
+| `get_clock`, `set_clock` | the clock tree: settings, allowed values, every resulting frequency, out-of-range checks |
+| `configure_wireless` | Bluetooth LE, USB device, 2.4G RF and USB host settings |
+| `set_pin_electrical`, `get_problems` | 5 V and current marks; the full Problems list (conflicts, debug pins, 5 V tolerance, current, clock limits, duplicate interrupts) |
+| `list_examples`, `load_example` | the 17 ready-to-build examples |
+| `set_project`, `preview_code`, `generate_project` | project name, one .c/.h per peripheral, VS Code / MounRiver Studio / PlatformIO; preview any file; generate into a folder |
+| `open_project`, `save_project` | open and save `.wchproj` files |
+| `screenshot` | a picture of the pinout, pin table, clock tree or Project Manager, so the assistant can check its work |
+
+`generate_project` works like **Generate code**: code between `USER CODE BEGIN` / `USER CODE END` is kept, every file that changes is copied to `.wch-backup/<date-time>/` first, and it refuses to generate while Problems has errors (unless the assistant passes `force`).
+
+**Requirements:** [Node.js](https://nodejs.org) 22 or newer and Chrome, Edge or Chromium (Edge is already on Windows 10/11). No npm packages. The server runs the configurator page itself (headless) and calls its functions, so nothing is re-implemented.
+
+**Setup.** Get the repository (`git clone https://github.com/amir1387aht/WCH-Resources.git`, or Code > Download ZIP), then add the server to your client. Use the full path of `mcp/wch-mcp.mjs`.
+
+Claude Code:
+
+```bash
+claude mcp add wch -- node /path/to/WCH-Resources/mcp/wch-mcp.mjs
+```
+
+Claude Desktop (`claude_desktop_config.json`), Cursor (`~/.cursor/mcp.json`), Windsurf and most other clients:
+
+```json
+{
+  "mcpServers": {
+    "wch": {
+      "command": "node",
+      "args": ["C:/path/to/WCH-Resources/mcp/wch-mcp.mjs"]
+    }
+  }
+}
+```
+
+VS Code (`.vscode/mcp.json`, Copilot agent mode):
+
+```json
+{
+  "servers": {
+    "wch": { "type": "stdio", "command": "node", "args": ["C:/path/to/WCH-Resources/mcp/wch-mcp.mjs"] }
+  }
+}
+```
+
+**Watch it work.** Three ways to run the server (add the option to `args`):
+
+| Mode | Option | What you see |
+|---|---|---|
+| Headless (default) | none | nothing; the assistant reports what it did and can send screenshots |
+| Visible browser | `--show` | a browser window with the configurator that changes while the assistant works |
+| **Live in the desktop app** | `--attach 9222` | the assistant works in the desktop app you have open. Start the app with `WCH-Configurator.exe --mcp-port 9222` (desktop app 1.8 or newer; Windows, and the Qt build on Linux). You can take over at any moment. |
+
+Other options: `--html <index.html>` (another copy of the configurator), `--browser <path>` (a browser that is not found by itself). The same can be set with `WCH_CONFIGURATOR_HTML`, `WCH_BROWSER` and `WCH_MCP_ATTACH`.
+
+Tested with the official MCP Python SDK client and with a test client: every tool, generating CH32V203, CH32V003 and CH592 (BLE) projects that build with 0 errors and 0 warnings, generating again with USER CODE kept, live mode in the desktop app on Windows.
 
 ### WCH Configurator
 
@@ -76,6 +160,8 @@ The page follows the STM32CubeMX layout:
 - **Light theme** (default) and **dark theme**. Switch with the Theme button; the choice is remembered.
 - A peripheral appears in Categories only on chips that have it.
 
+![Dark theme, CH592 with Bluetooth LE](docs/images/dark.png)
+
 #### Pinout & Configuration
 
 - **Chip view**: the part is drawn as its real package (QFN / LQFP / TSSOP / SOP / QSOP / DFN) with pin numbers, names, the pin 1 marker and the exposed pad. Choose the package from the *Package* list.
@@ -86,6 +172,10 @@ The page follows the STM32CubeMX layout:
 - **Add to configuration** keeps the form values, so similar entries are quick to add.
 - **Checks**: two functions on one pin, a function the datasheet does not list for that pin, or a pin that is not bonded out on the chosen package is shown in red on the chip and in **Problems**.
 - **System view**: a table of every pin with its signal, label and datasheet functions.
+
+![Pin menu](docs/images/pin-menu.png)
+
+![System view: the pin table](docs/images/pin-table.png)
 
 Pinouts were transcribed from the official datasheets (CH32V003DS0, CH32V006DS0, CH32V103DS0, CH32V203DS0, CH32V20x_30xDS0, CH32X035DS0, CH32L103DS0, CH32F103DS0, CH32F20xDS0, CH583DS1, CH573DS1, CH572DS1, CH585DS1, CH592DS1) and checked against both the pin table and the package drawing. The source table and page are shown under the chip.
 
@@ -107,6 +197,8 @@ A clock tree like CubeMX. Click a block to set it.
 - **Limits**: datasheet maximums (SYSCLK, PLL output, APB, ADC, USB 48 MHz, HSE range) are checked and reported in **Problems**.
 - **Code**: `SystemClock_Config()` (CH32) or `SetSysClock()` (CH5xx) is generated.
 - The real bus clocks feed the UART baud rate, timer, CAN bit timing and ADC settings.
+
+![Clock Configuration](docs/images/clock.png)
 
 #### Peripherals
 
@@ -167,6 +259,8 @@ The **Examples** button lists ready-to-build sample applications for the selecte
 
 All 17 examples were built on every chip they list (425 projects, 0 errors and 0 warnings in `src/`). They were not run on hardware.
 
+![Examples](docs/images/examples.png)
+
 #### MCU Selector
 
 The **MCU Selector** button opens a table of every chip and package, like the CubeMX MCU Finder:
@@ -174,6 +268,8 @@ The **MCU Selector** button opens a table of every chip and package, like the Cu
 - **Filters:** search, family, pin range, minimum flash/RAM/clock, and features.
 - **Selecting:** click a row to open that chip and package.
 - **Buy links:** chips sold by Lion Electronic (lionelectronic.ir) have a link to the shop page. The same link is shown for the selected chip in Project Manager and under the pinout.
+
+![MCU Selector](docs/images/mcu-selector.png)
 
 #### Pin checks
 
@@ -199,6 +295,8 @@ The **MCU Selector** button opens a table of every chip and package, like the Cu
 
 The code uses the official WCH BLE library (TMOS) and the usbdev driver from the EVT.
 
+![Bluetooth LE settings on CH592](docs/images/ble.png)
+
 #### Project Manager and code output
 
 - Cards for chip, package, library, clock and toolchain.
@@ -208,6 +306,8 @@ The code uses the official WCH BLE library (TMOS) and the usbdev driver from the
 - Project settings: **project name**, **Toolchain / IDE** (VS Code + CMake, MounRiver Studio or PlatformIO), **Generate peripheral initialization as a pair of .c/.h files per peripheral**, the project folder, and **Open project**, **Save .wchproj**, **Generate code**.
 - **MounRiver Studio:** an Eclipse project (`.project`, `.cproject`). Run `setup_mrs` once: it copies the EVT drivers, startup file, linker script and libraries into the project. Then use File > Import in MounRiver Studio. The compiler flags are the same as the CMake build.
 - **PlatformIO:** `platformio.ini` for the community WCH platform (platform-ch32v, framework noneos-sdk). CH32M030, the Arm chips, FreeRTOS and Ethernet are not supported there, and Problems says so.
+
+![Project Manager](docs/images/project-manager.png)
 
 #### Projects: open, change, generate again
 
@@ -243,6 +343,7 @@ An offline build of the same page (pywebview), with a toolbar (New, Open, Save /
 - **Windows 10/11 x64**: `WCH-Configurator.exe` (Edge WebView2).
 - **Linux x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`, one executable with Qt WebEngine inside, or the small `WCH-Configurator-linux-gtk.tar.gz` that uses the system WebKitGTK.
 - **macOS (Apple silicon)**: `WCH-Configurator-macos.zip` (not signed: right-click > Open the first time).
+- **AI assistant, live**: `WCH-Configurator --mcp-port 9222` lets the MCP server (`--attach 9222`) work in this window. See [AI assistants (MCP)](#ai-assistants-mcp).
 
 Download from <https://github.com/zamanimahdi/WCH-Resources/releases/latest>. Details: [desktop/README.md](desktop/README.md).
 
@@ -327,6 +428,14 @@ Setup + build from scratch (EVT downloaded automatically) was tested on Windows 
 - Code written outside the USER CODE sections of generated files is replaced on the next **Generate code** (it stays in `.wch-backup/`). Projects exported before this version have no USER CODE sections: the first Generate into such a folder overwrites `main.c` and `app_callbacks.c` (backed up).
 - Desktop releases are published on the `zamanimahdi/WCH-Resources` fork.
 
+**AI assistants (MCP)**
+
+- The assistant can make mistakes like a person can. Read the Problems list and check pins and clocks against the datasheet before you build hardware.
+- One configuration at a time per server; the tools run one after another.
+- Live mode (`--mcp-port` / `--attach`) works with the Windows desktop app (WebView2) and the Linux Qt build, not with the macOS and Linux GTK builds. On those, use the headless or `--show` mode.
+- While the desktop app runs with `--mcp-port`, any program on this PC can control that window through the local port. Use it only while you need it.
+- Tested with the official MCP Python SDK client and a test client. Claude Desktop, Cursor and VS Code were not tested one by one; they use the same protocol.
+
 ### Getting started
 
 ```bash
@@ -359,6 +468,7 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 ### فهرست
 
 - [ساختار مخزن](#ساختار-مخزن)
+- **[دستیار هوش مصنوعی (MCP)](#mcp-fa)**
 - [WCH Configurator](#wch-configurator-1)
 - [تست](#تست)
 - [محدودیت‌ها](#محدودیتها)
@@ -370,7 +480,92 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **Drivers**: درایورهای میکروکنترلرهای WCH (فعلاً سری CH59x).
 - **Templates**: پروژه‌های آماده‌ی شروع (فعلاً **CH59X BLE Template**).
 - **index.html**: ابزار WCH Configurator. در هر مرورگر به‌روزی باز می‌شود و نصب لازم ندارد.
-- **desktop/**: همین ابزار به‌صورت برنامه‌ی آفلاین برای ویندوز و لینوکس. توضیحات در [desktop/README.md](desktop/README.md).
+- **desktop/**: همین ابزار به‌صورت برنامه‌ی آفلاین برای ویندوز، لینوکس و macOS. توضیحات در [desktop/README.md](desktop/README.md).
+- **mcp/**: سرور MCP برای دستیارهای هوش مصنوعی. بخش [دستیار هوش مصنوعی (MCP)](#mcp-fa) را ببینید.
+
+<a id="mcp-fa"></a>
+
+### دستیار هوش مصنوعی (MCP)
+
+**دستیار هوش مصنوعی هم می‌تواند با این ابزار کار کند.** فایل `mcp/wch-mcp.mjs` یک سرور [Model Context Protocol](https://modelcontextprotocol.io) است. آن را به Claude Desktop، Claude Code، Cursor، VS Code (Copilot)، Windsurf یا هر کلاینت MCP دیگری اضافه کنید و درخواستتان را ساده بنویسید، مثلاً:
+
+> یک پروژه‌ی CH32V203 با پکیج LQFP48 بساز: USART1 با باود 115200 روی PA9/PA10، SPI1 برای یک فلش با CS روی PA4، I2C1 روی PB6/PB7، LED روی PC13 و وقفه‌ی دکمه روی PB0. کلاک 144 مگاهرتز از کریستال 8 مگاهرتز. Problems را بررسی کن و پروژه را در D:\work\sensor_node بساز.
+
+دستیار همان کارهایی را انجام می‌دهد که شما در پنجره انجام می‌دهید و فایل‌هایی که می‌نویسد همان خروجی خود ابزار است.
+
+**کارهایی که دستیار می‌تواند انجام دهد**
+
+| ابزارها | کار |
+|---|---|
+| `list_chips`، `select_chip` | فهرست همه‌ی تراشه‌ها و پکیج‌ها و انتخاب یکی |
+| `list_pins`، `pin_info`، `assign_pin`، `set_pin_label` | جدول پایه‌ها طبق دیتاشیت و دادن تابع به هر پایه (GPIO، EXTI، ADC، USART، SPI، I2C، کانال تایمر و...) مثل کلیک روی نمای تراشه |
+| `list_peripherals`، `describe_peripheral`، `add_peripheral`، `edit_peripheral`، `remove_peripheral` | فرم همه‌ی پریفرال‌های تراشه با فیلدها، گزینه‌ها، توضیحات و محاسبه‌ی زنده (نرخ نمونه‌برداری ADC، فرکانس تایمر) |
+| `get_clock`، `set_clock` | درخت کلاک: تنظیمات، مقدارهای مجاز، همه‌ی فرکانس‌ها و بررسی خارج از رنج |
+| `configure_wireless` | تنظیمات بلوتوث LE، USB device، رادیوی 2.4G و USB host |
+| `set_pin_electrical`، `get_problems` | علامت ۵ ولت و جریان؛ فهرست کامل Problems (تداخل، پایه‌ی دیباگ، تحمل ۵ ولت، جریان، حد کلاک، وقفه‌ی تکراری) |
+| `list_examples`، `load_example` | ۱۷ نمونه‌ی آماده‌ی بیلد |
+| `set_project`، `preview_code`، `generate_project` | نام پروژه، فایل جدا برای هر پریفرال، VS Code / MounRiver Studio / PlatformIO؛ دیدن هر فایل؛ ساخت پروژه در پوشه |
+| `open_project`، `save_project` | باز کردن و ذخیره‌ی فایل `.wchproj` |
+| `screenshot` | تصویر پین‌اوت، جدول پایه‌ها، درخت کلاک یا Project Manager تا دستیار کارش را ببیند |
+
+`generate_project` مثل دکمه‌ی **Generate code** کار می‌کند: کد بین `USER CODE BEGIN` و `USER CODE END` حفظ می‌شود، هر فایلی که عوض شود اول در `.wch-backup/<تاریخ-ساعت>/` کپی می‌شود و تا وقتی Problems خطا دارد پروژه را نمی‌سازد (مگر دستیار `force` را بدهد).
+
+**پیش‌نیاز:** [Node.js](https://nodejs.org) نسخه‌ی ۲۲ یا بالاتر و یکی از Chrome، Edge یا Chromium (Edge روی ویندوز ۱۰ و ۱۱ از قبل نصب است). پکیج npm لازم نیست. سرور خود صفحه‌ی ابزار را بدون پنجره (headless) اجرا می‌کند و تابع‌های خودش را صدا می‌زند، پس چیزی دوباره پیاده‌سازی نشده است.
+
+**راه‌اندازی:** مخزن را بگیرید (`git clone` یا Code > Download ZIP) و سرور را به کلاینت اضافه کنید. مسیر کامل `mcp/wch-mcp.mjs` را بدهید.
+
+Claude Code:
+
+</div>
+
+```bash
+claude mcp add wch -- node /path/to/WCH-Resources/mcp/wch-mcp.mjs
+```
+
+<div dir="rtl">
+
+Claude Desktop (`claude_desktop_config.json`)، Cursor (`~/.cursor/mcp.json`)، Windsurf و بیشتر کلاینت‌ها:
+
+</div>
+
+```json
+{
+  "mcpServers": {
+    "wch": {
+      "command": "node",
+      "args": ["C:/path/to/WCH-Resources/mcp/wch-mcp.mjs"]
+    }
+  }
+}
+```
+
+<div dir="rtl">
+
+VS Code (`.vscode/mcp.json`، حالت agent در Copilot):
+
+</div>
+
+```json
+{
+  "servers": {
+    "wch": { "type": "stdio", "command": "node", "args": ["C:/path/to/WCH-Resources/mcp/wch-mcp.mjs"] }
+  }
+}
+```
+
+<div dir="rtl">
+
+**کار دستیار را ببینید.** سرور سه حالت دارد (گزینه را به `args` اضافه کنید):
+
+| حالت | گزینه | چه می‌بینید |
+|---|---|---|
+| بدون پنجره (پیش‌فرض) | ندارد | چیزی دیده نمی‌شود؛ دستیار نتیجه را می‌گوید و می‌تواند تصویر بفرستد |
+| مرورگر قابل دیدن | `--show` | پنجره‌ی مرورگری با ابزار که همزمان با کار دستیار تغییر می‌کند |
+| **زنده در نسخه‌ی دسکتاپ** | `--attach 9222` | دستیار در همان برنامه‌ی دسکتاپی که باز کرده‌اید کار می‌کند. برنامه را با `WCH-Configurator.exe --mcp-port 9222` اجرا کنید (نسخه‌ی دسکتاپ ۱.۸ به بعد؛ ویندوز و نسخه‌ی Qt لینوکس). هر لحظه می‌توانید خودتان ادامه دهید. |
+
+گزینه‌های دیگر: `--html <index.html>` (نسخه‌ی دیگری از ابزار) و `--browser <path>` (مرورگری که خودکار پیدا نمی‌شود). همین‌ها با `WCH_CONFIGURATOR_HTML`، `WCH_BROWSER` و `WCH_MCP_ATTACH` هم تنظیم می‌شوند.
+
+با کلاینت رسمی MCP Python SDK و یک کلاینت تست آزمایش شد: همه‌ی ابزارها، ساخت پروژه‌های CH32V203، CH32V003 و CH592 (BLE) که بدون خطا و هشدار بیلد شدند، Generate دوباره با حفظ USER CODE و حالت زنده در نسخه‌ی دسکتاپ ویندوز.
 
 ### WCH Configurator
 
@@ -399,6 +594,8 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **تم روشن** (پیش‌فرض) و **تم تیره** دارد. با دکمه‌ی Theme عوض می‌شود و انتخاب ذخیره می‌ماند.
 - هر پریفرال فقط برای تراشه‌ای نمایش داده می‌شود که آن را دارد.
 
+![تم تیره، CH592 با بلوتوث LE](docs/images/dark.png)
+
 #### Pinout & Configuration
 
 - **نمای تراشه**: تراشه با پکیج واقعی‌اش (QFN / LQFP / TSSOP / SOP / QSOP / DFN) رسم می‌شود، با شماره و نام پایه‌ها، نشانگر پایه‌ی ۱ و پد زیرین. پکیج از فهرست *Package* انتخاب می‌شود.
@@ -409,6 +606,10 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **Add to configuration** مقادیر فرم را نگه می‌دارد.
 - **بررسی‌ها**: دو تابع روی یک پایه، تابعی که دیتاشیت برای آن پایه ندارد، یا پایه‌ای که در پکیج انتخابی بیرون نیامده، روی تراشه و در **Problems** قرمز نشان داده می‌شود.
 - **System view**: جدول همه‌ی پایه‌ها با سیگنال، برچسب و توابع دیتاشیت.
+
+![منوی پایه](docs/images/pin-menu.png)
+
+![جدول پایه‌ها](docs/images/pin-table.png)
 
 پین‌اوت‌ها از دیتاشیت‌های رسمی WCH استخراج و با جدول پایه‌ها و نقشه‌ی پکیج تطبیق داده شده‌اند. منبع و صفحه‌ی دیتاشیت زیر تراشه نوشته شده است.
 
@@ -427,6 +628,8 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **حدود مجاز**: حداکثرهای دیتاشیت (SYSCLK، خروجی PLL، APB، ADC، USB 48 MHz، بازه‌ی HSE) بررسی و در **Problems** گزارش می‌شوند.
 - **کد**: تابع `SystemClock_Config()` (CH32) یا `SetSysClock()` (CH5xx) ساخته می‌شود.
 - کلاک واقعی باس‌ها برای باودریت UART، تایمر، CAN و ADC استفاده می‌شود.
+
+![Clock Configuration](docs/images/clock.png)
 
 #### پریفرال‌ها
 
@@ -487,6 +690,8 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 
 هر ۱۷ نمونه روی همه‌ی تراشه‌هایی که پشتیبانی می‌کنند بیلد شدند (۴۲۵ پروژه، بدون خطا و هشدار در `src/`). روی سخت‌افزار اجرا نشده‌اند.
 
+![نمونه‌ها](docs/images/examples.png)
+
 #### MCU Selector
 
 دکمه‌ی **MCU Selector** جدولی از همه‌ی تراشه‌ها و پکیج‌ها را باز می‌کند، مثل MCU Finder در CubeMX:
@@ -494,6 +699,8 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **فیلترها:** جستجو، خانواده، تعداد پایه، حداقل Flash/RAM/کلاک و امکانات.
 - **انتخاب:** با کلیک روی هر ردیف، همان تراشه و پکیج باز می‌شود.
 - **لینک خرید:** تراشه‌هایی که در فروشگاه Lion Electronic (lionelectronic.ir) هستند لینک خرید دارند. همین لینک برای تراشه‌ی انتخاب‌شده در Project Manager و زیر پین‌اوت هم نمایش داده می‌شود.
+
+![MCU Selector](docs/images/mcu-selector.png)
 
 #### بررسی پایه‌ها
 
@@ -524,6 +731,8 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
   - تنظیم VID/PID و رشته‌ها.
   - کال‌بک‌ها و توابع ارسال.
 
+![تنظیمات بلوتوث LE روی CH592](docs/images/ble.png)
+
 #### Project Manager و خروجی کد
 
 - کارت‌های تراشه، پکیج، کتابخانه، کلاک و تول‌چین.
@@ -533,6 +742,8 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - تنظیمات پروژه: **نام پروژه**، **Toolchain / IDE** (VS Code + CMake، MounRiver Studio یا PlatformIO)، **Generate peripheral initialization as a pair of .c/.h files per peripheral**، پوشه‌ی پروژه، و دکمه‌های **Open project**، **Save .wchproj** و **Generate code**.
 - **MounRiver Studio:** پروژه‌ی Eclipse (`.project` و `.cproject`) ساخته می‌شود. یک بار `setup_mrs` را اجرا کنید تا درایورها، startup، لینکر اسکریپت و کتابخانه‌های EVT در پروژه کپی شوند. بعد در MounRiver Studio از File > Import بازش کنید. فلگ‌های کامپایل همان بیلد CMake است.
 - **PlatformIO:** فایل `platformio.ini` برای پلتفرم community ‏WCH ‏(platform-ch32v، framework ‏noneos-sdk) ساخته می‌شود. CH32M030، تراشه‌های Arm، FreeRTOS و Ethernet آنجا پشتیبانی نمی‌شوند و Problems این را می‌گوید.
+
+![Project Manager](docs/images/project-manager.png)
 
 #### پروژه: باز کردن، تغییر، تولید دوباره‌ی کد
 
@@ -583,6 +794,7 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - **ویندوز ۱۰/۱۱ ۶۴ بیتی**: `WCH-Configurator.exe` (با Edge WebView2).
 - **لینوکس x86_64**: `WCH-Configurator-linux-x86_64.tar.gz`، یک فایل اجرایی که Qt WebEngine داخلش است. یا نسخه‌ی کوچک `WCH-Configurator-linux-gtk.tar.gz` که از WebKitGTK خود سیستم استفاده می‌کند.
 - **macOS (Apple silicon)**: `WCH-Configurator-macos.zip`. امضای دیجیتال ندارد، پس بار اول راست‌کلیک کنید و Open را بزنید.
+- **دستیار هوش مصنوعی به‌صورت زنده**: با `WCH-Configurator --mcp-port 9222` سرور MCP (با `--attach 9222`) در همین پنجره کار می‌کند. بخش [دستیار هوش مصنوعی (MCP)](#mcp-fa) را ببینید.
 
 دانلود از <https://github.com/zamanimahdi/WCH-Resources/releases/latest>.
 
@@ -671,6 +883,14 @@ The WCH Configurator was created by **Amir1387aht (Another)**. Pinouts and regis
 - کدی که بیرون از بخش‌های USER CODE در فایل‌های تولیدی بنویسید، در Generate بعدی جایگزین می‌شود (در `.wch-backup/` می‌ماند).
 - پروژه‌هایی که قبل از این نسخه خروجی گرفته شده‌اند بخش USER CODE ندارند. اولین Generate در چنین پوشه‌ای `main.c` و `app_callbacks.c` را بازنویسی می‌کند (با پشتیبان).
 - نسخه‌های دسکتاپ روی فورک `zamanimahdi/WCH-Resources` منتشر می‌شوند.
+
+**دستیار هوش مصنوعی (MCP)**
+
+- دستیار هم مثل هر کسی ممکن است اشتباه کند. قبل از ساخت سخت‌افزار، Problems را بخوانید و پایه‌ها و کلاک را با دیتاشیت چک کنید.
+- هر سرور در هر لحظه یک پیکربندی دارد و ابزارها پشت سر هم اجرا می‌شوند.
+- حالت زنده (`--mcp-port` / `--attach`) با نسخه‌ی دسکتاپ ویندوز (WebView2) و نسخه‌ی Qt لینوکس کار می‌کند، نه با نسخه‌های macOS و GTK لینوکس. آنجا از حالت بدون پنجره یا `--show` استفاده کنید.
+- وقتی نسخه‌ی دسکتاپ با `--mcp-port` اجراست، هر برنامه‌ای روی همین کامپیوتر می‌تواند از طریق آن پورت محلی پنجره را کنترل کند. فقط وقتی لازم دارید از آن استفاده کنید.
+- با کلاینت رسمی MCP Python SDK و یک کلاینت تست آزمایش شد. Claude Desktop، Cursor و VS Code تک‌تک تست نشده‌اند، ولی همین پروتکل را استفاده می‌کنند.
 
 ### شروع کار
 
