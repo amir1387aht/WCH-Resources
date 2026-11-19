@@ -1,21 +1,65 @@
-MIT License
+WCH Configurator License - All Rights Reserved (source-available, not open source)
 
-Copyright (c) 2026 amir1387aht
+Copyright (c) 2026 Amir1387aht (Another), https://github.com/amir1387aht
+Portions copyright (c) 2026 the contributors listed in the git history of
+https://github.com/amir1387aht/WCH-Resources (including zamanimahdi).
+All rights reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Scope
+   This license covers the WCH Configurator: index.html, the desktop/,
+   hwtest/ and .github/ folders, the documentation (README files) and every
+   data table collected for this project (pinouts, pin functions, clock trees,
+   chip specifications, electrical limits) - together "the Software".
+   Files that come from WCH (the Drivers/ and Templates/ folders, and the WCH
+   EVT code a generated project downloads) keep their own licenses.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+2. What you may do
+   a. Use the Software, as the web page or the desktop app, free of charge,
+      for personal, educational and commercial work.
+   b. Use the output. The code and projects the Software generates for you
+      are yours: you may use, change, sell and publish them without
+      restriction, including in commercial products.
+   c. Read the source code, and fork the repository on GitHub with GitHub's
+      own fork function only to the extent the GitHub Terms of Service
+      require it, and only to send changes back to the original repository as
+      pull requests.
+   d. Download the releases from the original repository or from the release
+      pages it links to.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+3. What you may not do without written permission of the copyright holders
+   a. Copy, publish, re-upload, mirror or redistribute the Software or any
+      substantial part of it - original, modified, translated, ported,
+      rebuilt or minified - on GitHub, GitLab, any other code host, website,
+      app store, package registry or file host.
+   b. Publish or distribute a derivative work, or a similar or competing tool,
+      made from the source code, the data tables, the user interface or the
+      structure of the Software.
+   c. Rebrand the Software, remove or change its copyright notices, credits or
+      author names, or present it or a part of it as your own work.
+   d. Sell, rent, lease, sublicense or bundle the Software (this does not
+      apply to the generated output, see 2b).
+   e. Extract the data tables to build or feed another configurator, code
+      generator or chip database.
+
+4. Contributions
+   By sending a contribution (for example a pull request) you agree that the
+   copyright holders may use, change, publish and relicense it as part of the
+   Software, without restriction and without payment.
+
+5. Termination
+   Any use against this license ends all rights it gives, automatically and
+   without notice. Copies made against this license must be deleted.
+
+6. No warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE, THE GENERATED OUTPUT OR THE
+   USE OR OTHER DEALINGS IN THE SOFTWARE. GENERATED CODE HAS NOT BEEN TESTED ON
+   YOUR HARDWARE: CHECK IT AGAINST THE DATASHEET BEFORE USE.
+
+7. Permission and contact
+   For any use that section 3 does not allow, ask first:
+   amir1387aht@gmail.com or https://github.com/amir1387aht/WCH-Resources/issues
