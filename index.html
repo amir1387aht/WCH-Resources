@@ -15343,6 +15343,955 @@ document.addEventListener('click', e => {
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }, true);
 
+/* ---- examples ---- */
+/* ================= Examples browser: ready-to-build sample applications =================
+ * Header button "Examples" (next to "Load example"). An example sets the configuration through the pin view and the
+ * peripheral forms (the same calls as a user click) and puts its application code into state.userCode:
+ *   state.userCode = {'src/main.c': {'0': '...', '2': '...', 'WHILE': '...', '4': '...'}, 'src/app_callbacks.c': {...},
+ *                     '*': {'TMR0_IRQ': '...'}}      ('*' = the first generated file that has a section of that name)
+ * The sections are written into the generated files (Code view, VS Code export, Generate code). When the project folder
+ * already has the file, the normal USER CODE merge keeps the user's version, so the example code is only the first content.
+ * state.userCode and state.example are saved in the .wchproj. */
+state.userCode = {};
+state.example = null;
+
+/* ---- USER CODE sections from state.userCode -> generated files ---- */
+function exUcPut(text, sec, body){
+  if(typeof mergeUserCode !== 'function') return null;
+  const b = String(body).replace(/\r\n/g, '\n').replace(/\n+$/, '');
+  const m = mergeUserCode(text, `/* USER CODE BEGIN ${sec} */\n${b}\n/* USER CODE END ${sec} */\n`);
+  return m.lost.length ? null : m.text;
+}
+function exUcApply(files){
+  const uc = state.userCode;
+  if(!uc || typeof uc !== 'object' || !Object.keys(uc).length) return files;
+  for(const f of Object.keys(uc)){
+    if(f === '*' || typeof files[f] !== 'string' || !uc[f]) continue;
+    for(const [sec, body] of Object.entries(uc[f])){ const t = exUcPut(files[f], sec, body); if(t !== null) files[f] = t; }
+  }
+  if(uc['*']) for(const [sec, body] of Object.entries(uc['*'])){
+    for(const f of Object.keys(files)){
+      if(!/\.(c|h)$/.test(f) || typeof files[f] !== 'string') continue;
+      const t = exUcPut(files[f], sec, body);
+      if(t !== null){ files[f] = t; break; }
+    }
+  }
+  return files;
+}
+(function(){
+  const gen = generateFiles;
+  generateFiles = function(){ return exUcApply(gen.apply(this, arguments)); };
+})();
+/* plain strings only, file and section names checked */
+function exUcClean(v){
+  const out = {};
+  if(!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for(const f of Object.keys(v).slice(0, 40)){
+    if(!(f === '*' || /^src\/[A-Za-z0-9_\-./]{1,80}\.(c|h)$/.test(f)) || f.includes('..')) continue;
+    const s = v[f]; if(!s || typeof s !== 'object' || Array.isArray(s)) continue;
+    const o = {};
+    for(const k of Object.keys(s).slice(0, 60)){
+      if(!/^[A-Za-z0-9_ .\-]{1,60}$/.test(k) || typeof s[k] !== 'string') continue;
+      o[k] = s[k].slice(0, 40000);
+    }
+    if(Object.keys(o).length) out[f] = o;
+  }
+  return out;
+}
+(function(){
+  const data = projectData, load = projectLoad;
+  projectData = function(){
+    const d = data.apply(this, arguments);
+    d.userCode = exUcClean(state.userCode);
+    d.example = state.example ? {id: String(state.example.id || ''), title: String(state.example.title || '')} : null;
+    return d;
+  };
+  projectLoad = function(text){
+    const raw = typeof text === 'string' ? JSON.parse(text) : text;
+    const r = load.call(this, raw);
+    state.userCode = exUcClean(raw && raw.userCode);
+    const e = raw && raw.example;
+    state.example = e && typeof e === 'object' ? {id: String(e.id || '').replace(/[<>]/g, '').slice(0, 40), title: String(e.title || '').replace(/[<>]/g, '').slice(0, 80)} : null;
+    renderAll();
+    return r;
+  };
+  const reset = resetChip;
+  resetChip = function(){ state.userCode = {}; state.example = null; return reset.apply(this, arguments); };
+  ['clearBtn', 'exampleBtn'].forEach(id => { const b = document.getElementById(id); if(b) b.addEventListener('click', () => { state.userCode = {}; state.example = null; renderAll(); }); });
+  const probs = computeProblems;
+  computeProblems = function(){
+    const p = probs.apply(this, arguments);
+    if(state.example && state.userCode && Object.keys(state.userCode).length)
+      p.push({lvl:'info', msg:`Example "${state.example.title}": its application code is in the USER CODE sections (${Object.keys(state.userCode).filter(f => f !== '*').map(f => f.replace(/^src\//, '')).join(', ') || 'generated files'}). It refers to the pin labels and peripherals of the example: keep them, or edit the code.`});
+    return p;
+  };
+})();
+
+/* ================= example building blocks ================= */
+/* package the pins of each example were chosen for, and the EVT debug UART TX pin (USART_Printf_Init in debug.c) */
+const EX_CHIP = {
+  CH32V003:{pkg:'TSSOP20', dbg:'PD5'}, CH32V002:{pkg:'TSSOP20', dbg:'PD5'}, CH32V004:{pkg:'TSSOP20', dbg:'PD5'}, CH32V005:{pkg:'TSSOP20', dbg:'PD5'},
+  CH32V006:{pkg:'TSSOP20', dbg:'PD5'}, CH32V007:{pkg:'QFN32', dbg:'PD5'}, CH32M007:{pkg:'QFN32', dbg:'PD5'},
+  CH32V103:{pkg:'LQFP48', dbg:'PA9'}, CH32V203:{pkg:'LQFP48', dbg:'PA9'}, CH32V303:{pkg:'LQFP64M', dbg:'PA9'}, CH32V307:{pkg:'LQFP100', dbg:'PA9'},
+  CH32V407:{pkg:'LQFP64M', dbg:'PA9'}, CH32V467:{pkg:'LQFP64M', dbg:'PA9'},
+  CH32X035:{pkg:'LQFP48', dbg:'PB10'}, CH32L103:{pkg:'LQFP48', dbg:'PA9'}, CH32F203:{pkg:'LQFP48', dbg:'PA9'},
+  CH32X315:{pkg:'QFN48', dbg:'PA11'}, CH641:{pkg:'QFN28', dbg:'PA11'}, CH643:{pkg:'LQFP48', dbg:'PB10'}, CH32M030:{pkg:'LQFP48', dbg:'PC1'},
+  CH570:{pkg:'QFN20'}, CH572:{pkg:'QFN20'}, CH581:{pkg:'QFN28'}, CH582:{pkg:'QFN48'}, CH583:{pkg:'QFN48'}, CH585:{pkg:'QFN48'}, CH591:{pkg:'QFN28'}, CH592:{pkg:'QFN32'},
+};
+const EX_V00X = ['CH32V003', 'CH32V002', 'CH32V004', 'CH32V005', 'CH32V006', 'CH32V007', 'CH32M007'];
+const EX_CH32 = ['CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32X035', 'CH32L103', 'CH32F203'];
+const EX_CH5 = ['CH570', 'CH572', 'CH581', 'CH582', 'CH583', 'CH585', 'CH591', 'CH592'];
+const EX_CH5BLE = ['CH572', 'CH581', 'CH582', 'CH583', 'CH585', 'CH591', 'CH592'];
+const EX_CH5ROLE = ['CH581', 'CH582', 'CH583', 'CH585', 'CH591', 'CH592'];
+const EX_EXT = ['CH32V407', 'CH32V467', 'CH32X315', 'CH641', 'CH643', 'CH32M030'];
+const EX_ALL = EX_V00X.concat(EX_CH32, EX_EXT, EX_CH5);
+
+class ExNoPin extends Error {}
+const EX_BAD_PIN = /SWD|SWIO|SWCLK|BOOT|OSC|X32K|X25M|USB|UD[+-]|UDM|UDP|U2D|RST|TCK|TIO|TMS|TDI|TDO|CC\d|PD_|TAMPER|WKUP/;
+const EX_BAD_FN_PIN = /SWD|SWIO|SWCLK|BOOT|OSC|X32K|X25M|TCK|TIO|TMS|TDI|TDO/;
+const exInd =(n, s) => String(s).split('\n').map(l => l ? ' '.repeat(n) + l : l).join('\n');
+
+function exBuilder(){
+  const v = currentVariant(), ctx = periphCtx(), std = isStd();
+  const B = {v, id: v.id, ctx, std, pins: {}, reserved: new Set(), code: {}};
+  B.ch57 = /^CH57/.test(v.id);
+  B.used = () => { const u = computeUsage(), s = new Set(); Object.keys(u).forEach(g => { if(u[g] && u[g].length) s.add(g); }); return s; };
+  B.extiOk = g => +g.slice(2) <= 15;
+  /* a free bonded pin; o.fn = datasheet function (default mapping) the pin must have */
+  B.pick = (o = {}) => {
+    const bonded = bondedGpios();
+    if(!bonded) throw new ExNoPin('no pinout for ' + v.id);
+    const used = B.used();
+    const bad = o.fn ? EX_BAD_FN_PIN : EX_BAD_PIN;   /* a pin asked for by its function may also be a USB pin */
+    const ok = g => bonded.has(g) && !used.has(g) && !B.reserved.has(g) && !bad.test(fnInfo(g).af.join(' '))
+      && (!o.fn || fnInfo(g).af.some(f => o.fn.test(f))) && (!o.exti || B.extiOk(g)) && (!o.not || !o.not.includes(g));
+    const list = [...bonded].sort((a, b) => (o.fn ? 0 : fnInfo(a).af.length - fnInfo(b).af.length) || a[1].localeCompare(b[1]) || (+a.slice(2)) - (+b.slice(2)));
+    const g = (o.pref || []).find(ok) || list.find(ok);
+    if(!g) throw new ExNoPin(`${o.what || (o.fn ? String(o.fn) : 'a free pin')} on ${v.id} ${currentPkg() ? currentPkg().name : ''}`);
+    return g;
+  };
+  B.label = (g, name) => {
+    state.labels[g] = name;
+    B.pins[name] = {g, port: g[1], pin: g.slice(2)};
+    state.configs.forEach(relabel);
+    return B.pins[name];
+  };
+  B.assign = (g, fn) => { assignPin(g, fn); return g; };
+  B.out = (name, o) => B.label(B.assign(B.pick(Object.assign({what: name}, o)), 'GPIO_Output'), name);
+  B.button = name => B.label(B.assign(B.pick({what: name, exti: true}), 'GPIO_EXTI'), name);
+  /* the datasheet function (default mapping) of a peripheral signal, e.g. 'USART1_TX' */
+  B.sig = (fn, name) => { const g = B.assign(B.pick({fn: new RegExp('^' + fn + '$'), what: fn}), fn); if(name) B.label(g, name); return g; };
+  /* chip select: the NSS pin of the datasheet, or any free pin as a GPIO output */
+  B.cs = fn => {
+    try{ return B.sig(fn, 'SPI_CS'); }
+    catch(e){ if(!(e instanceof ExNoPin)) throw e; }
+    return B.out('SPI_CS').g;
+  };
+  /* one config through the peripheral form, exactly as a click on "Add to configuration" */
+  B.form = (tab, fields) => {
+    const m = modFor(tab);
+    if(m && !modSupported(m)) throw new Error(`${tab} is not available on ${v.id}`);
+    state.tab = tab; state.editId = null; syncFormHead(); renderForm();
+    for(const [k0, val] of Object.entries(fields || {})){
+      const k = k0.replace(/^\?/, ''), e = document.getElementById('f_' + k);
+      if(!e && k0[0] === '?') continue;
+      if(!e) throw new Error(`${tab}: the form has no field ${k}`);
+      if(e.tagName === 'SELECT' && ![...e.options].some(op => op.value == val)) throw new Error(`${tab}: ${k} has no option ${val}`);
+      e.value = val; e.dispatchEvent(new Event('input')); e.dispatchEvent(new Event('change'));
+    }
+    const n = state.configs.length;
+    $('addBtn').click();
+    const c = state.configs[state.configs.length - 1];
+    if(state.configs.length !== n + 1 || !c || c.type !== tab) throw new Error(`${tab}: the configuration was not added`);
+    return c;
+  };
+  /* printf(): CH32 = EVT debug UART (USART1, USART_Printf_Init in debug.c, DEBUG=1); CH5xx = UART1 (CH57x: UART) set up here,
+   * _write() of the SDK sends to it */
+  B.printf = () => {
+    if(std){
+      const d = (EX_CHIP[v.id] || {}).dbg;
+      const bonded = bondedGpios();
+      if(d){ if(bonded && !bonded.has(d)) throw new ExNoPin(`debug UART TX ${d}`); B.reserved.add(d); }
+      B.dbg = d;
+      return '    USART_Printf_Init(115200);              /* printf() on the EVT debug UART: USART1 TX ' + (d || '') + ', 115200 8N1 */\n';
+    }
+    B.uart();
+    return '';
+  };
+  /* CH5xx UART on the SDK default pins (UART1, CH57x: UART) */
+  B.uart = () => {
+    const inst = B.ch57 ? 'UART' : 'UART1';
+    const tx = B.pick({fn: new RegExp('^' + inst + '_TX$'), what: inst + '_TX'});
+    const rx = B.pick({fn: new RegExp('^' + inst + '_RX$'), what: inst + '_RX', not: [tx]});
+    freePin(tx); freePin(rx);
+    newCfg('uart', {inst, baud: '115200', port: tx[1], tx: tx.slice(2), txPort: tx[1], rx: rx.slice(2), rxPort: rx[1]});
+    B.uartInst = inst;
+    return inst;
+  };
+  B.sec = (file, sec, text) => { (B.code[file] = B.code[file] || {})[sec] = text; };
+  B.main = (secs) => Object.entries(secs).forEach(([k, t]) => { if(t != null) B.sec('src/main.c', k, t); });
+  B.toggle = name => std ? `GPIO_WriteBit(${name}_GPIO_Port, ${name}_Pin, (BitAction)(1 - GPIO_ReadOutputDataBit(${name}_GPIO_Port, ${name}_Pin)));`
+    : `GPIO${B.pins[name].port}_InverseBits(${name}_Pin);`;
+  B.delay = ms => std ? `Delay_Ms(${ms});` : `DelayMs(${ms});`;
+  B.isr = name => mod_isr(ctx, name);
+  /* interrupt handler name the generated code enabled for config c */
+  B.irqOf = c => {
+    const t = genFor(c);
+    const m = /NVIC_IRQChannel\s*=\s*(\w+)_IRQn/.exec(t) || /NVIC_EnableIRQ\(\s*(\w+)_IRQn\s*\)/.exec(t) || /PFIC_EnableIRQ\(\s*(\w+)_IRQn\s*\)/.exec(t);
+    if(!m) throw new Error('no interrupt enabled for ' + c.label);
+    return m[1].replace(/^GPIO_([A-Z])$/, 'GPIO$1') + '_IRQHandler';
+  };
+  return B;
+}
+
+/* ================= the examples ================= */
+const EXAMPLES = [];
+const exHas = (B, tab) => { const m = modFor(tab); return !!(m && modSupported(m)); };
+
+/* ---- Blink ---- */
+EXAMPLES.push({id:'blink', title:'Blink', periph:['GPIO'], chips: EX_ALL,
+  desc:'Toggles the LED pin every 500 ms with a delay loop: the smallest program that shows the toolchain, the flash and the clock work.',
+  build(B){
+    B.out('LED');
+    B.main({WHILE: exInd(8, `${B.toggle('LED')}
+${B.delay(500)}`)});
+  }});
+
+/* ---- Button interrupt ---- */
+EXAMPLES.push({id:'button', title:'Button interrupt toggles LED', periph:['GPIO', 'EXTI'], chips: EX_ALL,
+  desc:'The BUTTON pin (pull-up, falling edge) raises an external interrupt; the handler toggles the LED. Wire a push button from BUTTON to GND.',
+  build(B){
+    B.out('LED');
+    const b = B.button('BUTTON');
+    const c = state.configs.find(x => x.type === 'exti');
+    const irq = B.irqOf(c);
+    if(B.std) B.main({
+      '4': `/* BUTTON pressed (falling edge on P${b.port}${b.pin}): toggle the LED */
+${B.isr(irq)}
+{
+    if(EXTI_GetITStatus(EXTI_Line${b.pin}) != RESET)
+    {
+        ${B.toggle('LED')}
+        EXTI_ClearITPendingBit(EXTI_Line${b.pin});
+    }
+}`,
+      WHILE: exInd(8, '/* nothing to do here: the LED is toggled in ' + irq + '() */')});
+    else B.main({
+      '4': `/* BUTTON pressed (falling edge on P${b.port}${b.pin}): toggle the LED */
+${B.isr(irq)}
+{
+    if(GPIO${b.port}_ReadITFlagBit(BUTTON_Pin))
+    {
+        ${B.toggle('LED')}
+        GPIO${b.port}_ClearITFlagBit(BUTTON_Pin);
+    }
+}`,
+      WHILE: exInd(8, '/* nothing to do here: the LED is toggled in ' + irq + '() */')});
+  }});
+
+/* ---- UART echo ---- */
+EXAMPLES.push({id:'uart_echo', title:'UART echo + printf', periph:['USART / UART'], chips: EX_ALL,
+  desc:'Prints a banner with printf() and sends back every byte it receives (115200 8N1). CH32: USART1, the EVT debug UART that printf() uses. CH5xx: UART1 (CH57x: UART), the SDK printf() UART.',
+  build(B){
+    if(B.std){
+      B.sig('USART1_TX'); B.sig('USART1_RX');
+      B.main({
+        '2': `    printf("\\r\\n${B.id} UART echo: USART1, 115200 8N1. SystemCoreClock = %u Hz\\r\\n", (unsigned)SystemCoreClock);`,
+        WHILE: exInd(8, `if(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) != RESET)
+{
+    uint8_t ch = (uint8_t)USART_ReceiveData(USART1);
+    while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+    USART_SendData(USART1, ch);          /* echo */
+}`)});
+    } else {
+      const u = B.uart();
+      B.main({
+        '0': 'static uint8_t uart_rx_buf[64];',
+        '2': `    printf("\\r\\n${B.id} UART echo: ${u}, 115200 8N1\\r\\n");`,
+        WHILE: exInd(8, `uint16_t n = ${u}_RecvString(uart_rx_buf);   /* bytes waiting in the RX FIFO */
+if(n)
+{
+    ${u}_SendString(uart_rx_buf, n);        /* echo */
+}`)});
+    }
+  }});
+
+/* ---- ADC ---- */
+EXAMPLES.push({id:'adc_print', title:'ADC read printed over UART', periph:['ADC', 'printf'], chips: EX_ALL.filter(c => !/^CH57/.test(c) && c !== 'CH32X315'),
+  desc:'Reads one ADC channel twice a second with the generated single-shot reader and prints the raw value with printf().',
+  build(B){
+    const pinit = B.printf();
+    if(B.std){
+      const g = B.pick({fn: /^ADC_IN\d+$/, what: 'ADC input'});
+      const fn = fnInfo(g).af.find(f => /^ADC_IN\d+$/.test(f)), ch = fn.slice(6);
+      B.assign(g, fn); B.label(g, 'ADC_IN');
+      B.main({
+        '2': `${pinit}    printf("\\r\\n${B.id} ADC: channel ${ch} on P${g[1]}${g.slice(2)}\\r\\n");`,
+        WHILE: exInd(8, `uint16_t raw = ADC_Read_Channel_${ch}();
+printf("ADC_IN${ch} = %u\\r\\n", (unsigned)raw);
+${B.delay(500)}`)});
+    } else {
+      const g = B.pick({fn: /^ADC_IN\d+$/, what: 'ADC input'});
+      const fn = fnInfo(g).af.find(f => /^ADC_IN\d+$/.test(f)), ch = fn.slice(6);
+      B.assign(g, fn); B.label(g, 'ADC_IN');
+      B.main({
+        '2': `    printf("\\r\\n${B.id} ADC: channel ${ch} on P${g[1]}${g.slice(2)}\\r\\n");`,
+        WHILE: exInd(8, `uint16_t raw = ADC_ExcutSingleConver();   /* channel ${ch}, selected in Peripheral_Init() */
+printf("ADC ch${ch} = %u\\r\\n", (unsigned)raw);
+${B.delay(500)}`)});
+    }
+  }});
+
+/* ---- PWM breathing LED ---- */
+EXAMPLES.push({id:'pwm_breath', title:'PWM breathing LED', periph:['TIM PWM / PWMX'], chips: EX_ALL,
+  desc:'CH32: a timer channel drives the LED with 1 kHz PWM (1 MHz tick, ARR 999). CH5xx: a PWMX channel (8-bit, 256 steps). The main loop ramps the duty cycle up and down every 2 s.',
+  build(B){
+    if(!B.std){
+      const g = B.pick({fn: /^PWM\d+$/, what: 'PWMx pin'});
+      const n = fnInfo(g).af.find(f => /^PWM\d+$/.test(f)).slice(3);
+      B.assign(g, 'GPIO_Output'); B.label(g, 'LED');
+      B.main({
+        '2': `    PWMX_CLKCfg(4);                         /* PWM clock = Fsys / 4 */
+    PWMX_CycleCfg(PWMX_Cycle_256);           /* 256 steps per period */`,
+        WHILE: exInd(8, `uint16_t duty;
+for(duty = 0; duty < 256; duty += 2)
+{
+    PWMX_ACTOUT(CH_PWM${n}, (uint8_t)duty, High_Level, ENABLE);   /* PWM${n} on P${g[1]}${g.slice(2)}: brighter */
+    DelayMs(8);
+}
+for(duty = 256; duty > 0; duty -= 2)
+{
+    PWMX_ACTOUT(CH_PWM${n}, (uint8_t)(duty - 1), High_Level, ENABLE);   /* darker */
+    DelayMs(8);
+}`)});
+      return;
+    }
+    let g = null;
+    for(const re of [/^TIM[2-5]_CH[1-4]$/, /^TIM[18]_CH[1-4]$/]){ try{ g = B.pick({fn: re, what: 'timer channel'}); break; }catch(e){ if(!(e instanceof ExNoPin)) throw e; } }
+    if(!g) throw new ExNoPin('timer channel pin');
+    const fn = fnInfo(g).af.find(f => /^TIM\d+_CH[1-4]$/.test(f)), m = /^(TIM\d+)_CH(\d)$/.exec(fn);
+    B.assign(g, fn); B.label(g, 'LED');
+    B.main({
+      WHILE: exInd(8, `uint16_t duty;
+for(duty = 0; duty < 1000; duty += 5)
+{
+    TIM_SetCompare${m[2]}(${m[1]}, duty);   /* brighter */
+    Delay_Ms(5);
+}
+for(duty = 1000; duty > 0; duty -= 5)
+{
+    TIM_SetCompare${m[2]}(${m[1]}, duty);   /* darker */
+    Delay_Ms(5);
+}`)});
+  }});
+
+/* ---- 1 kHz timer interrupt ---- */
+EXAMPLES.push({id:'timer_1khz', title:'1 kHz timer interrupt counter', periph:['TIM / TMR', 'IRQ', 'printf'], chips: EX_ALL,
+  desc:'A timer interrupt every 1 ms counts milliseconds; the main loop toggles the LED and prints the uptime once a second.',
+  build(B){
+    const pinit = B.printf();
+    B.out('LED');
+    if(B.std){
+      /* CH32X035: TIM2 is an advanced-style timer (TIM2_UP_IRQn), use the general-purpose TIM3 */
+      const t = B.id === 'CH32X035' && B.v.tim.includes('TIM3') ? 'TIM3' : B.v.tim.includes('TIM2') ? 'TIM2' : B.v.tim[0];
+      const clk = ADV_TIMERS.includes(t) ? clockFreqs().tim1clk : clockFreqs().tim2clk;
+      const c = B.form('timer', {inst: t, mode: 'update_it', psc: String(Math.max(0, Math.round(clk / 1e6) - 1)), arr: '999'});
+      const irq = B.irqOf(c);
+      B.main({
+        '0': 'volatile uint32_t tick_ms;                  /* milliseconds since start, counted in ' + irq + '() */',
+        '1': '    uint32_t next = 1000;',
+        '2': `${pinit}    printf("\\r\\n${B.id} ${t}: 1 kHz update interrupt\\r\\n");`,
+        WHILE: exInd(8, `if((int32_t)(tick_ms - next) >= 0)
+{
+    next += 1000;
+    ${B.toggle('LED')}
+    printf("uptime %u s\\r\\n", (unsigned)(tick_ms / 1000));
+}`),
+        '4': `/* ${t} update event: every 1 ms (1 MHz tick, ARR 999) */
+${B.isr(irq)}
+{
+    if(TIM_GetITStatus(${t}, TIM_IT_Update) != RESET)
+    {
+        tick_ms++;
+        TIM_ClearITPendingBit(${t}, TIM_IT_Update);
+    }
+}`});
+    } else {
+      const t = B.v.tim[0];
+      B.form('timer', {inst: t, wmode: 'periodic', period: '1000', it: '1'});
+      const gen = Object.values(generateFiles()).join('\n');
+      /* CH57x: the generated TMR_IRQHandler counts TMR_Ticks; CH58x/CH59x: TMRx_IRQ USER CODE section in the generated handler */
+      const tk = /\bTMR_Ticks\b/.test(gen) ? 'TMR_Ticks' : 'tick_ms';
+      B.main({
+        Includes: tk === 'tick_ms' ? 'volatile uint32_t tick_ms;                  /* milliseconds since start, counted in the ' + t + ' interrupt */' : null,
+        '1': '    uint32_t next = 1000;',
+        '2': `    printf("\\r\\n${B.id} ${t}: 1 ms cycle interrupt\\r\\n");`,
+        WHILE: exInd(8, `if((int32_t)(${tk} - next) >= 0)      /* ${tk}: 1 ms periods counted in the ${t} interrupt */
+{
+    next += 1000;
+    ${B.toggle('LED')}
+    printf("uptime %u s\\r\\n", (unsigned)(${tk} / 1000));
+}`)});
+      if(tk === 'tick_ms'){
+        B.sec('src/main.h', 'Defines', 'extern volatile uint32_t tick_ms;');
+        if(new RegExp('USER CODE BEGIN ' + t + '_IRQ').test(gen)) B.sec('*', t + '_IRQ', '        tick_ms++;');
+        else B.main({'4': `/* ${t} cycle end: every 1 ms */
+${B.isr(t + '_IRQHandler')}
+{
+    if(${t}_GetITFlag(TMR0_3_IT_CYC_END))
+    {
+        ${t}_ClearITFlag(TMR0_3_IT_CYC_END);
+        tick_ms++;
+    }
+}`});
+      }
+    }
+  }});
+
+/* ---- I2C scan ---- */
+EXAMPLES.push({id:'i2c_scan', title:'I2C bus scan printed over UART', periph:['I2C', 'printf'], chips: EX_ALL.filter(c => c !== 'CH641'),
+  desc:'Probes every 7-bit address (0x08-0x77) every 2 s and prints the ones that answer with an ACK. CH32: hardware I2C, 100 kHz. CH5xx: the generated bit-bang I2C. Needs pull-ups on SCL/SDA.',
+  build(B){
+    const pinit = B.printf();
+    if(B.std){
+      const i = (B.v.i2c || ['I2C1'])[0];
+      B.sig(i + '_SCL'); B.sig(i + '_SDA');
+      const c = state.configs.find(x => x.type === 'i2c'); c.speed = '100000'; relabel(c);
+      B.main({
+        '0': `/* address the device and wait for its ACK; returns 1 when a device answered */
+static uint8_t i2c_probe(uint8_t addr)
+{
+    uint32_t t;
+    uint8_t found = 0;
+
+    t = 20000;
+    while(I2C_GetFlagStatus(${i}, I2C_FLAG_BUSY) != RESET && --t);
+    I2C_GenerateSTART(${i}, ENABLE);
+    t = 20000;
+    while(!I2C_CheckEvent(${i}, I2C_EVENT_MASTER_MODE_SELECT) && --t);
+    if(t)
+    {
+        I2C_Send7bitAddress(${i}, (uint8_t)(addr << 1), I2C_Direction_Transmitter);
+        t = 20000;
+        while(--t)
+        {
+            if(I2C_CheckEvent(${i}, I2C_EVENT_MASTER_TRANSMITTER_MODE_SELECTED)) { found = 1; break; }
+            if(I2C_GetFlagStatus(${i}, I2C_FLAG_AF) != RESET) break;          /* NACK */
+        }
+        I2C_ClearFlag(${i}, I2C_FLAG_AF);
+    }
+    I2C_GenerateSTOP(${i}, ENABLE);
+    Delay_Us(100);
+    return found;
+}`,
+        '2': `${pinit}    printf("\\r\\n${B.id} I2C scan on ${i}\\r\\n");`,
+        WHILE: exInd(8, `uint8_t addr, n = 0;
+for(addr = 0x08; addr < 0x78; addr++)
+{
+    if(i2c_probe(addr)) { printf("  device at 0x%02X\\r\\n", addr); n++; }
+}
+printf("%u device(s) found\\r\\n", n);
+Delay_Ms(2000);`)});
+    } else {
+      /* bit-bang: the I2C pins of the datasheet when they are free, otherwise any two free pins of one port */
+      let scl, sda;
+      try{ scl = B.pick({fn: /^I2C_SCL$/, what: 'I2C SCL'}); sda = B.pick({fn: /^I2C_SDA$/, what: 'I2C SDA', not: [scl]}); if(sda[1] !== scl[1]) throw new ExNoPin('port'); }
+      catch(e){
+        if(!(e instanceof ExNoPin)) throw e;
+        scl = B.pick({what: 'I2C SCL'});
+        sda = B.pick({what: 'I2C SDA', not: [scl], pref: [...bondedGpios()].filter(g => g[1] === scl[1])});
+        if(sda[1] !== scl[1]) throw new ExNoPin('two free pins of one port for I2C');
+      }
+      B.form('i2c', {port: scl[1], scl: scl.slice(2), sda: sda.slice(2), speed: '100000', '?i2cmode': 'bitbang'});
+      B.main({
+        '2': `    printf("\\r\\n${B.id} I2C scan (bit-bang)\\r\\n");`,
+        WHILE: exInd(8, `uint8_t addr, n = 0;
+for(addr = 0x08; addr < 0x78; addr++)
+{
+    I2C_Start();
+    if(I2C_WriteByte((uint8_t)(addr << 1)) == 0)       /* 0 = ACK */
+    {
+        I2C_Start();                                    /* repeated start, read one byte back */
+        I2C_WriteByte((uint8_t)((addr << 1) | 1));
+        printf("  device at 0x%02X (reads 0x%02X)\\r\\n", addr, I2C_ReadByte(0));
+        n++;
+    }
+    I2C_Stop();
+}
+printf("%u device(s) found\\r\\n", n);
+DelayMs(2000);`)});
+    }
+  }});
+
+/* ---- SPI loopback ---- */
+EXAMPLES.push({id:'spi_loop', title:'SPI loopback', periph:['SPI', 'printf'], chips: EX_ALL.filter(c => !['CH641', 'CH32M007'].includes(c)),
+  desc:'SPI master sends a counting pattern and checks that the same bytes come back. Wire MOSI to MISO. The result is printed once a second.',
+  build(B){
+    const pinit = B.printf();
+    const s = B.v.spi[0];
+    if(B.std){
+      B.sig(s + '_SCK'); B.sig(s + '_MOSI'); B.sig(s + '_MISO'); B.cs(s + '_NSS');
+      B.main({
+        '0': `/* one full-duplex byte on ${s} */
+static uint8_t spi_transfer(uint8_t b)
+{
+    while(SPI_I2S_GetFlagStatus(${s}, SPI_I2S_FLAG_TXE) == RESET);
+    SPI_I2S_SendData(${s}, b);
+    while(SPI_I2S_GetFlagStatus(${s}, SPI_I2S_FLAG_RXNE) == RESET);
+    return (uint8_t)SPI_I2S_ReceiveData(${s});
+}`,
+        '1': '    uint8_t seed = 0;',
+        '2': `${pinit}    printf("\\r\\n${B.id} ${s} loopback: connect MOSI to MISO\\r\\n");`,
+        WHILE: exInd(8, `uint8_t i, bad = 0;
+GPIO_ResetBits(SPI_CS_GPIO_Port, SPI_CS_Pin);
+for(i = 0; i < 16; i++)
+{
+    uint8_t tx = (uint8_t)(seed + i);
+    if(spi_transfer(tx) != tx) bad++;
+}
+GPIO_SetBits(SPI_CS_GPIO_Port, SPI_CS_Pin);
+seed += 16;
+if(bad) printf("SPI loopback: %u of 16 bytes wrong\\r\\n", bad);
+else    printf("SPI loopback OK\\r\\n");
+Delay_Ms(1000);`)});
+    } else {
+      const R = B.ch57 ? 'SPI' : 'SPI0';
+      B.sig('SPI0_SCK'); B.sig('SPI0_MOSI'); B.sig('SPI0_MISO'); const cs = B.cs('SPI0_NSS');
+      B.main({
+        '0': `/* one full-duplex byte on SPI0: after the transfer the buffer holds the byte that came in on MISO */
+static uint8_t spi_transfer(uint8_t b)
+{
+    R8_${R}_CTRL_MOD &= ~RB_SPI_FIFO_DIR;
+    R8_${R}_BUFFER = b;
+    while(!(R8_${R}_INT_FLAG & RB_SPI_FREE));
+    return R8_${R}_BUFFER;
+}`,
+        '1': '    uint8_t seed = 0;',
+        '2': `    printf("\\r\\n${B.id} SPI0 loopback: connect MOSI to MISO\\r\\n");`,
+        WHILE: exInd(8, `uint8_t i, bad = 0;
+GPIO${cs[1]}_ResetBits(SPI_CS_Pin);
+for(i = 0; i < 16; i++)
+{
+    uint8_t tx = (uint8_t)(seed + i);
+    if(spi_transfer(tx) != tx) bad++;
+}
+GPIO${cs[1]}_SetBits(SPI_CS_Pin);
+seed += 16;
+if(bad) printf("SPI loopback: %u of 16 bytes wrong\\r\\n", bad);
+else    printf("SPI loopback OK\\r\\n");
+DelayMs(1000);`)});
+    }
+  }});
+
+/* ---- Watchdog ---- */
+EXAMPLES.push({id:'watchdog', title:'Watchdog demo', periph:['IWDG / WDOG', 'printf'], chips: EX_ALL.filter(c => !['CH32M030', 'CH641'].includes(c)),
+  desc:'Feeds the watchdog (about 1 s timeout on CH32 IWDG, about 0.5 s on the CH5xx watchdog) for 10 s while the LED blinks, then stops: the chip resets and prints the reset cause.',
+  build(B){
+    const pinit = B.printf();
+    B.out('LED');
+    if(B.std){
+      const lsi = mod_clk(B.ctx).lsi;
+      B.form('iwdg', {presc: '32', reload: String(Math.min(4095, Math.max(1, Math.round(lsi / 32))))});
+      B.main({
+        '1': '    uint32_t loops = 0;',
+        '2': `${pinit}    if(RCC_GetFlagStatus(RCC_FLAG_IWDGRST) != RESET)
+    {
+        printf("\\r\\n${B.id}: reset by the independent watchdog\\r\\n");
+        RCC_ClearFlag();
+    }
+    else
+    {
+        printf("\\r\\n${B.id}: power-on or pin reset\\r\\n");
+    }
+    printf("feeding the watchdog for 10 s, then stopping\\r\\n");`,
+        WHILE: exInd(8, `if(loops < 100) IWDG_Feed();           /* 100 x 100 ms, then the watchdog resets the chip */
+else if(loops == 100) printf("stopped feeding\\r\\n");
+loops++;
+${B.toggle('LED')}
+Delay_Ms(100);`)});
+    } else {
+      B.form('wwdg', {count: '0', action: 'reset'});
+      B.main({
+        '1': '    uint32_t loops = 0;',
+        '2': `    if(SYS_GetLastResetSta() == RST_STATUS_WTR)
+    {
+        printf("\\r\\n${B.id}: reset by the watchdog\\r\\n");
+    }
+    else
+    {
+        printf("\\r\\n${B.id}: reset cause %u\\r\\n", (unsigned)SYS_GetLastResetSta());
+    }
+    printf("feeding the watchdog for 10 s, then stopping\\r\\n");`,
+        WHILE: exInd(8, `if(loops < 100) WWDG_Feed();           /* 100 x 100 ms, then the watchdog resets the chip */
+else if(loops == 100) printf("stopped feeding\\r\\n");
+loops++;
+${B.toggle('LED')}
+DelayMs(100);`)});
+    }
+  }});
+
+/* ---- Low power ---- */
+EXAMPLES.push({id:'sleep_wake', title:'Low-power sleep, wake on button', periph:['PWR', 'EXTI / GPIO wake-up', 'printf'], chips: EX_ALL.filter(c => !['CH32V407', 'CH32V467', 'CH32X315', 'CH641', 'CH643'].includes(c)),
+  desc:'Enters the sleep mode from the main loop; pressing BUTTON (to GND) wakes the chip, which toggles the LED, prints a line and sleeps again.',
+  build(B){
+    const pinit = B.printf();
+    B.out('LED');
+    if(B.std){
+      B.form('pwr', {mode: 'sleep'});
+      const b = B.button('BUTTON');
+      const irq = B.irqOf(state.configs.find(x => x.type === 'exti'));
+      B.main({
+        '2': `${pinit}    printf("\\r\\n${B.id} sleep demo: press BUTTON to wake up\\r\\n");`,
+        WHILE: exInd(8, `printf("sleep\\r\\n");
+while(USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET);   /* let the text leave first */
+LowPower_Enter();                                                /* WFI: the BUTTON interrupt wakes the core */
+printf("woke up\\r\\n");
+${B.toggle('LED')}
+Delay_Ms(200);`),
+        '4': `/* BUTTON (P${b.port}${b.pin}): the interrupt only wakes the core */
+${B.isr(irq)}
+{
+    if(EXTI_GetITStatus(EXTI_Line${b.pin}) != RESET)
+    {
+        EXTI_ClearITPendingBit(EXTI_Line${b.pin});
+    }
+}`});
+    } else {
+      const g = B.pick({what: 'BUTTON', exti: true});
+      B.form('pwr', {mode: 'sleep', gpio: 'yes', port: g[1], pin: g.slice(2), edge: 'GPIO_ITMode_FallEdge'});
+      B.label(g, 'BUTTON');
+      B.main({
+        '2': `    printf("\\r\\n${B.id} sleep demo: press BUTTON to wake up\\r\\n");`,
+        WHILE: exInd(8, `printf("sleep\\r\\n");
+DelayMs(5);                    /* let the text leave first */
+LowPower_Enter();              /* the BUTTON edge wakes the chip */
+printf("woke up\\r\\n");
+${B.toggle('LED')}
+DelayMs(200);`)});
+    }
+  }});
+
+/* ---- CAN loopback ---- */
+EXAMPLES.push({id:'can_loop', title:'CAN loopback', periph:['CAN', 'printf'], chips: ['CH32V203', 'CH32V303', 'CH32V307', 'CH32L103', 'CH32F203'],
+  desc:'CAN1 in loop-back mode at 500 kbit/s: sends a frame every 500 ms, receives it back in the RX interrupt and prints it. No transceiver needed.',
+  build(B){
+    const pinit = B.printf();
+    B.form('can', {inst: 'CAN1', pins: 'default', kbps: '500', mode: 'LoopBack', rxirq: 'yes'});
+    B.out('LED');
+    B.main({
+      '1': '    uint8_t count = 0;',
+      '2': `${pinit}    printf("\\r\\n${B.id} CAN1 loop-back, 500 kbit/s\\r\\n");`,
+      WHILE: exInd(8, `uint8_t data[8] = {0xCA, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0};
+data[7] = count++;
+if(CAN1_Send(0x123, 0, data, 8)) printf("no free TX mailbox\\r\\n");
+Delay_Ms(500);
+if(CAN1_RxReady)
+{
+    CAN1_RxReady = 0;
+    printf("RX id 0x%03X len %u: %02X %02X ... %02X\\r\\n", (unsigned)CAN1_RxMessage.StdId, CAN1_RxMessage.DLC,
+           CAN1_RxMessage.Data[0], CAN1_RxMessage.Data[1], CAN1_RxMessage.Data[7]);
+    ${B.toggle('LED')}
+}`)});
+  }});
+
+/* ---- USB CDC echo ---- */
+EXAMPLES.push({id:'usb_cdc', title:'USB CDC echo', periph:['USB device (CDC)'], chips: ['CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32X035', 'CH32L103', 'CH570', 'CH572', 'CH581', 'CH582', 'CH583', 'CH585', 'CH592'],
+  desc:'The chip enumerates as a USB virtual COM port and sends back everything the terminal writes.',
+  build(B){
+    if(B.std){
+      B.form('usbcdc', {});
+      const rx = state.configs[state.configs.length - 1].rxfn || 'usb_cdc_on_receive';
+      B.out('LED');
+      B.main({
+        '0': `static uint8_t  cdc_buf[64];
+static volatile uint16_t cdc_len;      /* bytes waiting in cdc_buf, 0 = free */
+
+/* data from the PC (runs in the USB interrupt): keep it for the main loop */
+void ${rx}(const uint8_t *data, uint16_t len)
+{
+    uint16_t i;
+    if(cdc_len || len > sizeof(cdc_buf)) return;
+    for(i = 0; i < len; i++) cdc_buf[i] = data[i];
+    cdc_len = len;
+}`,
+        WHILE: exInd(8, `if(cdc_len)
+{
+    usb_cdc_write(cdc_buf, cdc_len);   /* echo */
+    cdc_len = 0;
+    ${B.toggle('LED')}
+}`)});
+    } else {
+      Object.assign(state.usb, {enabled: true, cdc: true, kbd: false, mouse: false, custom: false, product: 'WCH CDC Echo'});
+      if(state.usbh) state.usbh.enabled = false;
+      B.sec('src/app_callbacks.c', state.usb.cdcRxFn || 'usb_cdc_on_receive', '    usb_cdc_write(data, len);   /* echo */');
+    }
+  }});
+
+/* ---- BLE UART ---- */
+EXAMPLES.push({id:'ble_uart', title:'BLE peripheral: UART service echo', periph:['Bluetooth LE', 'printf'], chips: EX_CH5BLE,
+  desc:'Advertises as "WCH UART" with the Nordic UART service (6E400001-...). Text written to RX comes back as a notification on TX; connect and disconnect are printed on the UART.',
+  build(B){
+    B.printf();
+    Object.assign(state.ble, {enabled: true, role: 'peripheral', name: 'WCH UART', services: [nusPreset()]});
+    const s = state.ble.services[0];
+    const tx = bleNames(s, s.chars.find(c => c.notify)).base, rxFn = bleNames(s, s.chars.find(c => c.write)).onWrite;
+    const cb = 'src/app_callbacks.c';
+    B.sec(cb, 'ble_on_connected', '    (void)conn_handle;\n    printf("connected\\r\\n");');
+    B.sec(cb, 'ble_on_disconnected', '    printf("disconnected (reason 0x%02X)\\r\\n", reason);');
+    B.sec(cb, rxFn, `    printf("RX %u bytes\\r\\n", len);\n    ${tx}_notify(data, len);   /* echo back on TX */`);
+    B.main({'2': `    printf("\\r\\n${B.id} BLE UART service, advertising as \\"WCH UART\\"\\r\\n");`});
+  }});
+
+/* ---- BLE observer ---- */
+EXAMPLES.push({id:'ble_observer', title:'BLE observer: print advertisers', periph:['Bluetooth LE (observer)', 'printf'], chips: EX_CH5ROLE,
+  desc:'Scans for advertising packets and prints the address, RSSI and name of every device it hears on the UART.',
+  build(B){
+    B.printf();
+    Object.assign(state.ble, {enabled: true, role: 'observer'});
+    Object.assign(state.ble.obs, {scanIntMs: 100, scanWinMs: 50, periodMs: 4000, active: true, dup: false, minRssi: -100});
+    B.sec('src/app_callbacks.c', 'ble_on_adv_report', `    char name[24];
+    ble_adv_get_name(data, len, name, sizeof(name));
+    printf("%02X:%02X:%02X:%02X:%02X:%02X (type %u) RSSI %d dBm  %s\\r\\n",
+           addr[5], addr[4], addr[3], addr[2], addr[1], addr[0], addr_type, rssi, name);`);
+    B.main({'2': `    printf("\\r\\n${B.id} BLE observer\\r\\n");`});
+  }});
+
+/* ---- FreeRTOS ---- */
+EXAMPLES.push({id:'rtos_blink', title:'FreeRTOS: two blinking tasks', periph:['FreeRTOS', 'GPIO'], chips: ['CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32X035', 'CH32L103'],
+  desc:'Two FreeRTOS tasks blink LED1 every 250 ms and LED2 every 600 ms with vTaskDelay(); the kernel and its tick come from the EVT FreeRTOS example.',
+  build(B){
+    B.out('LED1'); B.out('LED2');
+    B.form('freertos', {tasks: 'led1,256,5,led1_task;led2,256,4,led2_task'});
+    const loop = (n, ms) => `    while(1)
+    {
+        ${B.toggle(n)}
+        vTaskDelay(pdMS_TO_TICKS(${ms}));
+    }`;
+    B.sec('*', 'led1', loop('LED1', 250));
+    B.sec('*', 'led2', loop('LED2', 600));
+  }});
+
+/* ---- ADC scan with DMA ---- */
+EXAMPLES.push({id:'adc_dma', title:'DMA ADC scan average', periph:['ADC scan', 'DMA', 'printf'], chips: ['CH32V003', 'CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32X035', 'CH32L103'],
+  desc:'ADC1 scans two channels continuously into a DMA buffer of 8 scans; the main loop prints the average of each channel twice a second.',
+  build(B){
+    const pinit = B.printf();
+    const used = B.used();
+    const chs = [], bonded = bondedGpios();
+    for(let ch = 0; ch < 16 && chs.length < 2; ch++){
+      const g = mod_pcAdcPin(ch);
+      if(g && bonded.has(g) && !used.has(g) && !B.reserved.has(g) && !EX_BAD_PIN.test(fnInfo(g).af.join(' '))) chs.push(ch);
+    }
+    if(chs.length < 2) throw new ExNoPin('two ADC inputs');
+    B.form('adcscan', {chs: chs.join(','), depth: '8'});
+    B.main({
+      '2': `${pinit}    printf("\\r\\n${B.id} ADC1 scan of IN${chs[0]} and IN${chs[1]} with DMA, average of 8\\r\\n");`,
+      WHILE: exInd(8, `printf("IN${chs[0]} = %4u   IN${chs[1]} = %4u\\r\\n", (unsigned)ADC1_Scan_Get(0), (unsigned)ADC1_Scan_Get(1));
+Delay_Ms(500);`)});
+  }});
+
+/* ---- WS2812 ---- */
+EXAMPLES.push({id:'ws2812', title:'WS2812 rainbow', periph:['TIM PWM + DMA'], chips: ['CH32V003', 'CH32V103', 'CH32V203', 'CH32V303', 'CH32V307', 'CH32X035', 'CH32L103'],
+  desc:'Drives a strip of 8 WS2812 LEDs from a timer channel with DMA (800 kHz) and moves a rainbow along it. Use a level shifter or a 3.3 V tolerant strip.',
+  build(B){
+    const c = B.form('pwmdma', {mode: 'ws2812', len: '8'});
+    if(!c.pin) throw new ExNoPin('WS2812 timer channel pin');
+    const t = c.inst;
+    B.main({
+      '0': `#define LEDS 8
+static uint8_t grb[LEDS * 3];          /* G, R, B per LED */
+
+/* colour wheel: 0..255 -> red, green, blue and back, at 1/4 brightness */
+static void wheel(uint8_t pos, uint8_t *p)
+{
+    uint8_t r, g, b;
+    if(pos < 85)       { r = 255 - pos * 3; g = pos * 3;       b = 0; }
+    else if(pos < 170) { pos -= 85; r = 0; g = 255 - pos * 3; b = pos * 3; }
+    else               { pos -= 170; r = pos * 3; g = 0;       b = 255 - pos * 3; }
+    p[0] = g >> 2; p[1] = r >> 2; p[2] = b >> 2;
+}`,
+      '1': '    uint8_t step = 0;',
+      WHILE: exInd(8, `uint8_t i;
+for(i = 0; i < LEDS; i++) wheel((uint8_t)(step + i * (256 / LEDS)), &grb[i * 3]);
+step += 2;
+while(${t}_PWMDMA_Busy());
+${t}_WS2812_Send(grb, LEDS);
+Delay_Ms(20);`)});
+  }});
+
+/* ================= loading an example ================= */
+function exChipFamily(id){ return Object.keys(FAMILIES).find(f => FAMILIES[f].variants.some(v => v.id === id)); }
+function exSelectChip(id){
+  if(state.variant === id) return;
+  const fam = exChipFamily(id); if(!fam) throw new Error('unknown chip ' + id);
+  const fb = [...document.querySelectorAll('.fam-btn')].find(b => b.dataset.fam === fam);
+  if(fb && state.family !== fam) fb.click();
+  const vs = $('variantSelect');
+  if(vs.value !== id){ vs.value = id; vs.dispatchEvent(new Event('change')); }
+}
+function exSelectPkg(name){
+  const ps = $('pkgSelect'), p = pinout();
+  if(!ps || ps.disabled || !p) return false;
+  const k = p.pkgs.find(x => x.name === name) || p.pkgs.find(x => x.name.startsWith(name));
+  if(!k || k.name === state.pkg) return false;
+  ps.value = k.name; ps.dispatchEvent(new Event('change'));
+  return true;
+}
+function exClearConfig(){
+  state.configs = []; state.labels = {}; state.editId = null; state.clock = null; state.nvic = {};
+  state.userCode = {}; state.example = null;
+  if(state.ble){ state.ble.enabled = false; state.ble.role = 'peripheral'; }
+  if(state.usb) state.usb.enabled = false;
+  if(state.rf) state.rf.enabled = false;
+  if(state.usbh) state.usbh.enabled = false;
+}
+function exConfigured(){
+  return state.configs.length > 0 || (typeof bleEnabled === 'function' && bleEnabled()) || (typeof usbEnabled === 'function' && usbEnabled())
+    || Object.keys(state.labels || {}).length > 0;
+}
+/* loads example <id> on the selected chip (or on opts.chip); returns {ok, error, pkg} */
+function exLoad(id, opts){
+  opts = opts || {};
+  const ex = EXAMPLES.find(e => e.id === id);
+  if(!ex) return {ok: false, error: 'unknown example ' + id};
+  const chip = opts.chip || state.variant;
+  if(!ex.chips.includes(chip)) return {ok: false, error: `${ex.title} is not made for ${chip}`};
+  if(!opts.noConfirm && exConfigured() && !confirm(`Replace the current configuration${state.configs.length ? ' (' + state.configs.length + ' items)' : ''} with the example "${ex.title}"?\nThe application code of the example goes into the USER CODE sections.`)) return {ok: false, error: 'cancelled'};
+  const before = typeof projectData === 'function' ? JSON.stringify(projectData()) : null;
+  const split = projectSplit();
+  try{
+    exSelectChip(chip);
+    const run = () => {
+      exClearConfig();
+      const B = exBuilder();
+      ex.build(B);
+      state.userCode = exUcClean(B.code);
+      state.example = {id: ex.id, title: ex.title};
+      return B;
+    };
+    /* the selected package first, then the package the example was made for, then the others */
+    const pkgs = pinout() ? [(EX_CHIP[chip] || {}).pkg].concat(pinout().pkgs.map(k => k.name)).filter(Boolean) : [];
+    let err = null;
+    for(let i = -1; i < pkgs.length; i++){
+      if(i >= 0 && !exSelectPkg(pkgs[i])) continue;
+      try{ run(); err = null; break; }
+      catch(e){ if(!(e instanceof ExNoPin)) throw e; if(!err) err = e; }
+    }
+    if(err) throw err;
+    state.project.split = split;
+    state.tab = 'gpio'; state.editId = null; state.curFile = 'src/main.c';
+    syncFormHead(); renderForm(); renderCats(); drawChip(); renderAll();
+    if(typeof renderProjectSettings === 'function') renderProjectSettings();
+    return {ok: true, pkg: state.pkg};
+  }catch(e){
+    if(before){ try{ projectLoad(before); }catch(e2){} }
+    return {ok: false, error: e.message || String(e)};
+  }
+}
+window.wchExamples = {list: () => EXAMPLES.map(e => ({id: e.id, title: e.title, chips: e.chips.slice()})), load: exLoad};
+
+/* ================= Examples dialog ================= */
+(function(){
+  const css = document.createElement('style');
+  css.textContent = `
+  .ex-ov{position:fixed; inset:0; background:rgba(5,8,12,0.62); z-index:200; display:flex; align-items:flex-start; justify-content:center; padding:56px 16px 16px;}
+  .ex-dlg{background:var(--panel); border:1px solid var(--line); border-radius:12px; width:min(920px, 100%); max-height:calc(100vh - 80px); display:flex; flex-direction:column; box-shadow:0 18px 50px rgba(0,0,0,0.45);}
+  .ex-head{display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap;}
+  .ex-head h2{font-family:var(--disp); font-size:16px; margin:0; color:var(--text);}
+  .ex-head .ex-chip{font-family:var(--mono); font-size:11.5px; color:var(--copper);}
+  .ex-head .sp{flex:1;}
+  .ex-head label{font-family:var(--mono); font-size:11px; color:var(--text-dim); display:flex; align-items:center; gap:5px; cursor:pointer;}
+  .ex-head input[type=search]{width:180px;}
+  .ex-list{overflow:auto; padding:10px 16px 16px; display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:10px;}
+  .ex-card{background:var(--panel-2); border:1px solid var(--line-soft); border-radius:9px; padding:11px 12px; display:flex; flex-direction:column; gap:6px;}
+  .ex-card.off{opacity:0.72;}
+  .ex-card h3{margin:0; font-family:var(--disp); font-size:13.5px; color:var(--text);}
+  .ex-card p{margin:0; font-size:12px; line-height:1.45; color:var(--text-dim);}
+  .ex-tags{display:flex; flex-wrap:wrap; gap:4px;}
+  .ex-tags span{font-family:var(--mono); font-size:10px; padding:1px 6px; border-radius:8px; background:var(--panel-3); color:var(--text-dim);}
+  .ex-tags span.cur{background:var(--copper); color:#171717;}
+  .ex-chips{font-family:var(--mono); font-size:10px; color:var(--text-faint); line-height:1.5;}
+  .ex-act{display:flex; gap:6px; align-items:center; margin-top:auto; padding-top:4px;}
+  .ex-act select{font-size:11px; padding:3px 4px;}
+  .ex-empty{color:var(--text-dim); font-size:12.5px; padding:18px 4px;}
+  .ex-err{color:var(--red); font-size:11.5px;}`;
+  document.head.appendChild(css);
+  const anchor = document.getElementById('exampleBtn');
+  if(!anchor) return;
+  const btn = document.createElement('button');
+  btn.className = 'icon-btn'; btn.id = 'examplesBtn'; btn.type = 'button';
+  btn.title = 'Ready-to-build example applications for the selected chip';
+  btn.textContent = 'Examples';
+  anchor.insertAdjacentElement('afterend', btn);
+  let showAll = false, query = '';
+  function close(){ const o = document.getElementById('exOverlay'); if(o) o.remove(); document.removeEventListener('keydown', onKey); }
+  function onKey(e){ if(e.key === 'Escape') close(); }
+  function render(){
+    const o = document.getElementById('exOverlay'); if(!o) return;
+    const cur = state.variant, q = query.trim().toLowerCase();
+    const list = EXAMPLES.filter(e => (showAll || e.chips.includes(cur)) && (!q || (e.title + ' ' + e.desc + ' ' + e.periph.join(' ')).toLowerCase().includes(q)));
+    o.querySelector('.ex-chip').textContent = cur;
+    o.querySelector('.ex-list').innerHTML = list.length ? list.map(e => {
+      const here = e.chips.includes(cur);
+      return `<div class="ex-card${here ? '' : ' off'}" data-ex="${esc(e.id)}">
+        <h3>${esc(e.title)}</h3>
+        <p>${esc(e.desc)}</p>
+        <div class="ex-tags">${e.periph.map(p => `<span>${esc(p)}</span>`).join('')}</div>
+        <div class="ex-chips">${e.chips.map(c => c === cur ? `<b style="color:var(--copper)">${esc(c)}</b>` : esc(c)).join(' · ')}</div>
+        <div class="ex-act">${here
+          ? `<button class="btn btn-primary" data-load="${esc(e.id)}" style="width:auto; padding:5px 12px;">Load on ${esc(cur)}</button>`
+          : `<select data-chip="${esc(e.id)}">${e.chips.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}</select><button class="btn btn-ghost" data-load="${esc(e.id)}" style="width:auto; padding:5px 12px;">Switch chip and load</button>`}
+          <span class="ex-err" data-err="${esc(e.id)}"></span></div>
+      </div>`; }).join('')
+      : `<div class="ex-empty">No example for ${esc(cur)}${q ? ' matches "' + esc(query) + '"' : ''}. Tick "Show all chips" to see the examples of the other chips.</div>`;
+  }
+  function open(){
+    close();
+    const o = document.createElement('div');
+    o.className = 'ex-ov'; o.id = 'exOverlay';
+    o.innerHTML = `<div class="ex-dlg" role="dialog" aria-modal="true" aria-label="Examples">
+      <div class="ex-head"><h2>Examples</h2><span class="ex-chip"></span><span class="sp"></span>
+        <input type="search" id="exSearch" placeholder="Search examples" aria-label="Search examples">
+        <label><input type="checkbox" id="exAll"${showAll ? ' checked' : ''}> Show all chips</label>
+        <button class="icon-btn" id="exClose" type="button">Close</button></div>
+      <div class="ex-list"></div></div>`;
+    document.body.appendChild(o);
+    o.addEventListener('click', e => { if(e.target === o) close(); });
+    o.querySelector('#exClose').addEventListener('click', close);
+    o.querySelector('#exAll').addEventListener('change', e => { showAll = e.target.checked; render(); });
+    const s = o.querySelector('#exSearch'); s.value = query;
+    s.addEventListener('input', () => { query = s.value; render(); });
+    o.querySelector('.ex-list').addEventListener('click', e => {
+      const b = e.target.closest('[data-load]'); if(!b) return;
+      const id = b.dataset.load, sel = o.querySelector(`select[data-chip="${id}"]`);
+      const r = exLoad(id, {chip: sel ? sel.value : state.variant});
+      if(r.ok){
+        close();
+        const code = document.querySelector('.vtab[data-rtab="code"]'); if(code) code.click();
+        state.curFile = 'src/main.c'; renderAll();
+        const ex = EXAMPLES.find(x => x.id === id);
+        projToast(`Loaded the example "${ex.title}" on ${state.variant}${state.pkg ? ' (' + state.pkg + ')' : ''}: its code is in the USER CODE sections, see the Code view.`);
+      } else if(r.error !== 'cancelled'){
+        const er = o.querySelector(`[data-err="${id}"]`); if(er) er.textContent = r.error;
+      }
+    });
+    document.addEventListener('keydown', onKey);
+    render();
+    s.focus();
+  }
+  btn.addEventListener('click', open);
+})();
+
+/* ---- zfix2 ---- */
+/* CH32X035: TIM2's update interrupt is TIM2_UP_IRQn / TIM2_UP_IRQHandler (ch32x035.h, startup_ch32x035.S) */
+(function(){
+  const t = genStdperiphTimer;
+  genStdperiphTimer = function(c){
+    const s = t(c);
+    return currentVariant().id === 'CH32X035' && c.inst === 'TIM2' ? s.replace(/\bTIM2_IRQn\b/g, 'TIM2_UP_IRQn').replace(/\bTIM2_IRQHandler\b/g, 'TIM2_UP_IRQHandler') : s;
+  };
+})();
+
 /* EXTRA MODULES END */
 /* MODULES END */
 
