@@ -39,7 +39,7 @@ import webbrowser
 import webview
 
 APP_NAME = "WCH Configurator"
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.5.1"
 AUTHOR = "Amir1387aht (Another)"
 AUTHOR_EMAIL = "amir1387aht@gmail.com"
 REPO_URL = "https://github.com/amir1387aht/WCH-Resources"
