@@ -19,6 +19,9 @@ tool. The shell only adds what a browser normally provides:
     USER CODE BEGIN / USER CODE END (the merge itself is done by index.html),
   * `WCH-Configurator <folder or .wchproj>` opens that project (used by the
     exported project's VS Code task "WCH: Open in Configurator"),
+  * `WCH-Configurator --mcp-port 9222` lets the MCP server (mcp/wch-mcp.mjs,
+    started with --attach 9222) drive this window, so an AI assistant configures
+    the chip while you watch (Windows: WebView2, Linux: the Qt build),
   * native "Save as" dialogs for "Download .c" and "VS Code project (.zip)",
   * opening external links (GitHub, e-mail, WCH sites) in the default browser,
   * a "Source / GitHub" bar and an About dialog with the original credit.
@@ -39,7 +42,7 @@ import webbrowser
 import webview
 
 APP_NAME = "WCH Configurator"
-APP_VERSION = "1.7.0"
+APP_VERSION = "1.8.0"
 AUTHOR = "Amir1387aht (Another)"
 AUTHOR_EMAIL = "amir1387aht@gmail.com"
 REPO_URL = "https://github.com/amir1387aht/WCH-Resources"
@@ -625,8 +628,45 @@ def _selftest(window):
     window.destroy()
 
 
+def _mcp_port():
+    """--mcp-port N (or WCH_MCP_PORT): local DevTools port for the MCP server's live mode"""
+    args = sys.argv[1:]
+    for i, a in enumerate(args):
+        if a == "--mcp-port" and i + 1 < len(args):
+            v = args[i + 1]
+            break
+        if a.startswith("--mcp-port="):
+            v = a.split("=", 1)[1]
+            break
+    else:
+        v = os.environ.get("WCH_MCP_PORT", "")
+    try:
+        port = int(v)
+    except ValueError:
+        return None
+    return port if 1024 <= port <= 65535 else None
+
+
+def _enable_mcp(port):
+    # the DevTools endpoint listens on 127.0.0.1 only
+    if IS_WIN:
+        extra = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+        os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = (extra + " --remote-debugging-port=%d" % port).strip()
+    elif not IS_MAC:
+        os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "127.0.0.1:%d" % port
+    if not sys.stderr:   # windowed build: no console
+        return
+    if IS_MAC or os.environ.get("WCH_GUI") == "gtk":
+        sys.stderr.write("MCP live mode needs WebView2 (Windows) or Qt WebEngine (Linux); use the headless MCP server instead.\n")
+    elif sys.stderr:
+        sys.stderr.write("MCP live mode: node mcp/wch-mcp.mjs --attach %d\n" % port)
+
+
 def main():
     root = resource_dir()
+    port = _mcp_port()
+    if port:
+        _enable_mcp(port)
     api = Api()
     window = webview.create_window(
         f"{APP_NAME} - by {AUTHOR}",
@@ -638,7 +678,8 @@ def main():
     api._window = window
     inject_js = INJECT_JS.replace("__LOGO__", logo_data_uri(root))
 
-    start_path = next((a for a in sys.argv[1:] if not a.startswith("-")), None)
+    args = sys.argv[1:]
+    start_path = next((a for i, a in enumerate(args) if not a.startswith("-") and not (i and args[i - 1] == "--mcp-port")), None)
 
     def inject():
         window.evaluate_js(inject_js)
@@ -667,6 +708,10 @@ def main():
     else:
         storage = os.path.join(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")), "WCH-Configurator")
         gui = os.environ.get("WCH_GUI") or None   # pywebview picks Qt (bundled in the Linux build) or GTK
+    if port:
+        # WebView2 cannot open a second window with other browser arguments on the same data folder
+        # (for example next to a normally started copy of the app)
+        storage += "-mcp-%d" % port
     webview.start(gui=gui, http_server=True, private_mode=False,
                   storage_path=storage, debug="--debug" in sys.argv)
 

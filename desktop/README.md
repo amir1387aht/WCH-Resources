@@ -29,6 +29,8 @@ sudo apt install libxcb-cursor0 libxkbcommon-x11-0 libegl1 libnss3
 
 Open a project directly: `WCH-Configurator <project folder or file.wchproj>`. The exported project's VS Code task **WCH: Open in Configurator** does this on Windows (it looks for the exe in Desktop, Downloads and Documents, or uses `wch.configuratorExe` from `.vscode/settings.json`).
 
+Let an AI assistant work in the window: `WCH-Configurator --mcp-port 9222`, then run the MCP server with `node mcp/wch-mcp.mjs --attach 9222` (Windows, and the Qt build on Linux). The port listens on 127.0.0.1 only, and this mode uses its own WebView data folder, so it can run next to a normally started copy. See [AI assistants (MCP)](../README.md#ai-assistants-mcp).
+
 ## How it works
 
 The app is a small Python shell ([`wch_configurator.py`](wch_configurator.py)) built on [pywebview](https://pywebview.flowrl.com/). It opens the repository's own [`index.html`](../index.html) in a native window, and it does not change that file. All generator logic stays in one place, so the desktop app gives the same code and the same VS Code project as the web tool. The shell adds:

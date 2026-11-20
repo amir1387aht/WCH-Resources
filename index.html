@@ -378,7 +378,7 @@
   html[data-theme="light"] .ck-node.out{background:#eef3fa;}
   html[data-theme="light"] .ck-canvas svg.wires path{stroke:#b4bec8;}
   html[data-theme="light"] .ck-canvas svg.wires path.on{stroke:#0b5cad; stroke-width:2.5;}
-  html[data-theme="light"] .pin-menu{box-shadow:0 10px 30px rgba(20,40,70,0.22);}
+  html[data-theme="light"] .pin-menu{background:var(--panel); border-color:var(--line); box-shadow:0 10px 30px rgba(20,40,70,0.22);} html[data-theme="light"] .pm-item:hover{background:var(--panel-3);}
   html[data-theme="light"] .cm{color:#6a737d;} html[data-theme="light"] .kw{color:#0b5cad; font-weight:600;} html[data-theme="light"] .fn{color:#6f42c1;} html[data-theme="light"] .str{color:#a3402a;} html[data-theme="light"] .num{color:#0a7a52;}
   html[data-theme="light"] .pin text.psig{filter:brightness(0.62) saturate(1.4);}
   html[data-theme="light"] .legend span, html[data-theme="light"] .statusbar{color:var(--text-dim);}
@@ -3426,19 +3426,25 @@ function userSectionsInFunctions(src){
 
 /* --- USER CODE merge: carry every section of the old file into the new text by name --- */
 const UC_RE = /^[ \t]*(?:\/\*|#|\/\/)[ \t]*USER CODE (BEGIN|END)[ \t]+(.*?)[ \t]*(?:\*\/)?[ \t]*$/;
-function userSections(text){
+/* the lines of every section (a section with one empty line keeps that line, so generating again changes nothing) */
+function userSectionLines(text){
   const lines = String(text).split(/\r?\n/), out = {};
   let cur = null, buf = [];
   for(const ln of lines){
     const m = UC_RE.exec(ln);
     if(m && m[1] === 'BEGIN'){ cur = m[2]; buf = []; continue; }
-    if(m && m[1] === 'END'){ if(cur !== null && m[2] === cur) out[cur] = buf.join('\n'); cur = null; continue; }
+    if(m && m[1] === 'END'){ if(cur !== null && m[2] === cur) out[cur] = buf; cur = null; continue; }
     if(cur !== null) buf.push(ln);
   }
   return out;
 }
+function userSections(text){
+  const l = userSectionLines(text), out = {};
+  Object.keys(l).forEach(k => { out[k] = l[k].join('\n'); });
+  return out;
+}
 function mergeUserCode(newText, oldText){
-  const old = userSections(oldText);
+  const old = userSectionLines(oldText);
   const lines = String(newText).split('\n'), res = [];
   const used = new Set();
   for(let i = 0; i < lines.length; i++){
@@ -3448,12 +3454,12 @@ function mergeUserCode(newText, oldText){
       let j = i + 1;
       while(j < lines.length){ const e = UC_RE.exec(lines[j]); if(e && e[1] === 'END' && e[2] === m[2]) break; j++; }
       if(j >= lines.length) continue;
-      if(old[m[2]].length) res.push(...old[m[2]].split('\n'));
+      res.push(...old[m[2]]);
       used.add(m[2]);
       res.push(lines[j]); i = j;
     }
   }
-  const lost = Object.keys(old).filter(k => !used.has(k) && old[k].trim());
+  const lost = Object.keys(old).filter(k => !used.has(k) && old[k].join('\n').trim());
   return {text: res.join('\n'), lost, sections: Object.keys(old).length};
 }
 
